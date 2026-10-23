@@ -1,0 +1,64 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://player.tscn" id="1_player"]
+[ext_resource type="PackedScene" path="res://Characters/Enemies/BasicEnemy2D.tscn" id="2_enemy"]
+[ext_resource type="PackedScene" path="res://UI/HUD/PlayerHealthBar.tscn" id="3_hud"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_arena_wall"]
+size = Vector2(900, 24)
+
+[node name="Main" type="Node2D"]
+
+[node name="ArenaFloor" type="Polygon2D" parent="."]
+z_index = -20
+color = Color(0.105, 0.12, 0.14, 1)
+polygon = PackedVector2Array(-500, -320, 500, -320, 500, 320, -500, 320)
+
+[node name="Player" parent="." instance=ExtResource("1_player")]
+position = Vector2(0, 0)
+
+[node name="BasicEnemy2D" parent="." instance=ExtResource("2_enemy")]
+position = Vector2(120, 0)
+
+[node name="NorthWall" type="StaticBody2D" parent="."]
+position = Vector2(0, -310)
+collision_layer = 4
+collision_mask = 3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="NorthWall"]
+shape = SubResource("RectangleShape2D_arena_wall")
+
+[node name="SouthWall" type="StaticBody2D" parent="."]
+position = Vector2(0, 310)
+collision_layer = 4
+collision_mask = 3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="SouthWall"]
+shape = SubResource("RectangleShape2D_arena_wall")
+
+[node name="WestWall" type="StaticBody2D" parent="."]
+position = Vector2(-440, 0)
+rotation = 1.5707963
+collision_layer = 4
+collision_mask = 3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WestWall"]
+shape = SubResource("RectangleShape2D_arena_wall")
+
+[node name="EastWall" type="StaticBody2D" parent="."]
+position = Vector2(440, 0)
+rotation = 1.5707963
+collision_layer = 4
+collision_mask = 3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EastWall"]
+shape = SubResource("RectangleShape2D_arena_wall")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="PlayerHealthBar" parent="HUD" instance=ExtResource("3_hud")]
+offset_left = 6.0
+offset_top = 4.0
+offset_right = 362.0
+offset_bottom = 80.0

@@ -1,0 +1,362 @@
+[gd_scene format=3 uid="uid://dla0du8tgdel1"]
+
+[ext_resource type="Script" uid="uid://ccdndk2us7s0n" path="res://Characters/Enemies/BasicEnemy2D.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://cn7yrvqlcfwfr" path="res://2D_RPG_Assets/enemies/goblin/goblin_idle_spritesheet.png" id="2_goblin"]
+[ext_resource type="Texture2D" uid="uid://byyumbp7p0le0" path="res://2D_RPG_Assets/enemies/goblin/goblin_run_spritesheet.png" id="3_2e4ny"]
+[ext_resource type="Texture2D" uid="uid://chw6ty4o6y5gk" path="res://2D_RPG_Assets/enemies/goblin/goblin_knife.png" id="4_knife"]
+[ext_resource type="Resource" uid="uid://fxvdwr0kdi3j" path="res://Characters/Components/Combat/GoblinAttackDefinition.tres" id="5_attack"]
+[ext_resource type="Script" uid="uid://b3w2vrkqjc6t1" path="res://Characters/Controllers/EnemyAIController2D.gd" id="6_ai"]
+[ext_resource type="PackedScene" path="res://UI/HUD/EnemyHealthBar2D.tscn" id="7_health_bar"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_goblin_0"]
+atlas = ExtResource("2_goblin")
+region = Rect2(0, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_goblin_1"]
+atlas = ExtResource("2_goblin")
+region = Rect2(16, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_goblin_2"]
+atlas = ExtResource("2_goblin")
+region = Rect2(32, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_goblin_3"]
+atlas = ExtResource("2_goblin")
+region = Rect2(48, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_goblin_4"]
+atlas = ExtResource("2_goblin")
+region = Rect2(64, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_goblin_5"]
+atlas = ExtResource("2_goblin")
+region = Rect2(80, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_r4piw"]
+atlas = ExtResource("3_2e4ny")
+region = Rect2(0, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o5j6h"]
+atlas = ExtResource("3_2e4ny")
+region = Rect2(16, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gyi5d"]
+atlas = ExtResource("3_2e4ny")
+region = Rect2(32, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o5cs7"]
+atlas = ExtResource("3_2e4ny")
+region = Rect2(48, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gnioa"]
+atlas = ExtResource("3_2e4ny")
+region = Rect2(64, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ttn55"]
+atlas = ExtResource("3_2e4ny")
+region = Rect2(80, 0, 16, 16)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_goblin"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_goblin_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_goblin_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_goblin_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_goblin_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_goblin_4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_goblin_5")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_r4piw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_o5j6h")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gyi5d")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_o5cs7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gnioa")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ttn55")
+}],
+"loop": 1,
+"name": &"run",
+"speed": 12.0
+}]
+
+[sub_resource type="Animation" id="Animation_enemy_reset"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, 0)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".:modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 1)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".:self_modulate")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_enemy_take_damage"]
+resource_name = "take_damage"
+length = 0.3333416766010225
+step = 0.083333336
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.33333334),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [0, 0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.083333336),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [Vector2(0, 0), Vector2(-2, 0)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".:modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.083333336, 0.16666667),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [Color(1, 1, 1, 1), Color(18.892157, 18.892157, 18.892157, 1), Color(1, 1, 1, 1)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".:self_modulate")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.083333336, 0.16666667),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [Color(1, 1, 1, 1), Color(18.892157, 18.892157, 18.892157, 1), Color(1, 1, 1, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_enemy"]
+_data = {
+&"RESET": SubResource("Animation_enemy_reset"),
+&"take_damage": SubResource("Animation_enemy_take_damage")
+}
+
+[sub_resource type="Animation" id="Animation_weapon_reset"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_weapon_slash"]
+resource_name = "slash"
+length = 0.3
+step = 0.05
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.25),
+"transitions": PackedFloat32Array(0.5, -2),
+"update": 0,
+"values": [0.0, 4.4505897]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.3),
+"transitions": PackedFloat32Array(0.5, 0.5),
+"update": 0,
+"values": [Vector2(1, 1), Vector2(0.8, 0.95)]
+}
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("../..")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.05),
+"transitions": PackedFloat32Array(1),
+"values": [{
+"args": [],
+"method": &"spawn_slash"
+}]
+}
+
+[sub_resource type="Animation" id="Animation_weapon_return"]
+resource_name = "sword_return"
+length = 0.65
+step = 0.05
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.65),
+"transitions": PackedFloat32Array(-2, -2, 0.5),
+"update": 0,
+"values": [4.4505897, 4.4505897, 0.0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.65),
+"transitions": PackedFloat32Array(0.5, 0.5),
+"update": 0,
+"values": [Vector2(0.8, 0.95), Vector2(1, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_weapon"]
+_data = {
+&"RESET": SubResource("Animation_weapon_reset"),
+&"slash": SubResource("Animation_weapon_slash"),
+&"sword_return": SubResource("Animation_weapon_return")
+}
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_2nri0"]
+radius = 5.0
+height = 12.0
+
+[node name="BasicEnemy2D" type="CharacterBody2D" unique_id=803052333]
+collision_layer = 2
+collision_mask = 7
+script = ExtResource("1_script")
+move_speed = 50.0
+dash_speed = 150.0
+attack_definition = ExtResource("5_attack")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=457849524]
+sprite_frames = SubResource("SpriteFrames_goblin")
+animation = &"run"
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="AnimatedSprite2D" unique_id=448117894]
+libraries/ = SubResource("AnimationLibrary_enemy")
+
+[node name="Weapon" type="Sprite2D" parent="AnimatedSprite2D" unique_id=1345671504]
+position = Vector2(1, 3)
+texture = ExtResource("4_knife")
+offset = Vector2(-5, -5)
+flip_h = true
+
+[node name="WeaponAnimation" type="AnimationPlayer" parent="AnimatedSprite2D/Weapon" unique_id=997021691]
+libraries/ = SubResource("AnimationLibrary_weapon")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=740925303]
+shape = SubResource("CapsuleShape2D_2nri0")
+
+[node name="EnemyAIController2D" type="Node" parent="." unique_id=908506117]
+script = ExtResource("6_ai")
+
+[node name="EnemyHealthBar2D" parent="." unique_id=1448702036 instance=ExtResource("7_health_bar")]
+offset_left = -38.0
+offset_top = -30.0
+offset_right = 38.0
+offset_bottom = -12.0

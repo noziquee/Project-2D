@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="AttackDefinition2D" format=3 uid="uid://xrvcsh4tu5qs"]
+
+[ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+cooldown_duration = 0.35
