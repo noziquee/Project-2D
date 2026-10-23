@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" path="res://player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://Characters/Enemies/BasicEnemy2D.tscn" id="2_enemy"]
-[ext_resource type="PackedScene" path="res://UI/HUD/PlayerHealthBar.tscn" id="3_hud"]
+[ext_resource type="PackedScene" path="res://UI/HUD/HealthBar.tscn" id="3_hud"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_arena_wall"]
 size = Vector2(900, 24)
@@ -19,6 +19,8 @@ position = Vector2(0, 0)
 
 [node name="BasicEnemy2D" parent="." instance=ExtResource("2_enemy")]
 position = Vector2(120, 0)
+
+[node name="Effects" type="Node2D" parent="." groups=["effects_root"]]
 
 [node name="NorthWall" type="StaticBody2D" parent="."]
 position = Vector2(0, -310)
@@ -62,3 +64,4 @@ offset_left = 6.0
 offset_top = 4.0
 offset_right = 362.0
 offset_bottom = 80.0
+health_source = NodePath("../../Player/HealthComponent2D")

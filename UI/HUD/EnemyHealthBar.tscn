@@ -1,0 +1,43 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://UI/HUD/HealthBar.tscn" id="1_base"]
+[ext_resource type="StyleBox" path="res://UI/HUD/Styles/panel_compact.tres" id="2_panel"]
+[ext_resource type="StyleBox" path="res://UI/HUD/Styles/bar_background_compact.tres" id="3_bar_bg"]
+[ext_resource type="StyleBox" path="res://UI/HUD/Styles/damage_fill_compact.tres" id="4_damage"]
+[ext_resource type="StyleBox" path="res://UI/HUD/Styles/bar_fill_compact.tres" id="5_fill"]
+
+[node name="EnemyHealthBar" instance=ExtResource("1_base")]
+z_index = 10
+custom_minimum_size = Vector2(76, 18)
+offset_right = 76.0
+offset_bottom = 18.0
+hide_until_damaged = true
+hide_on_death = true
+
+[node name="Card" parent="." index="0"]
+theme_override_styles/panel = ExtResource("2_panel")
+
+[node name="Padding" parent="Card" index="0"]
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 3
+
+[node name="Header" parent="Card/Padding/Content" index="0"]
+visible = false
+
+[node name="BarStack" parent="Card/Padding/Content" index="1"]
+custom_minimum_size = Vector2(0, 10)
+
+[node name="DamageBar" parent="Card/Padding/Content/BarStack" index="0"]
+theme_override_styles/background = ExtResource("3_bar_bg")
+theme_override_styles/fill = ExtResource("4_damage")
+
+[node name="ProgressBar" parent="Card/Padding/Content/BarStack" index="1"]
+theme_override_styles/fill = ExtResource("5_fill")
+
+[node name="BarLabel" parent="Card/Padding/Content/BarStack" index="2"]
+visible = true
+
+[node name="Accent" parent="." index="1"]
+visible = false

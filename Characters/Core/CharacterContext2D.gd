@@ -1,4 +1,5 @@
 extends RefCounted
+class_name CharacterContext2D
 ## Per-character runtime references and intent shared by states/components.
 ##
 ## Two rig layouts are supported. Anything else warns instead of guessing:
@@ -23,6 +24,14 @@ var attack_direction: Vector2 = Vector2.RIGHT
 var is_attacking: bool = false
 var is_dashing: bool = false
 var dash_velocity: Vector2 = Vector2.ZERO
+## Scales normal (non-dash) movement. AttackComponent2D sets it from the active attack
+## definition and restores 1.0 when the attack finishes or is cancelled.
+var move_multiplier: float = 1.0
+## Extra velocity from being hit. Character2D decays it every physics frame and
+## MovementComponent2D adds it to normal and dash movement.
+var knockback_velocity: Vector2 = Vector2.ZERO
+## While above zero the character cannot start an attack or a dash.
+var hit_stun_remaining: float = 0.0
 
 func _init(owner: CharacterBody2D) -> void:
 	character = owner
@@ -48,11 +57,12 @@ func _init(owner: CharacterBody2D) -> void:
 	if weapon_animation_player == null:
 		push_warning("CharacterContext2D: '%s' has no weapon AnimationPlayer (expected WeaponFacingPivot/MainHand/HandAnim or AnimatedSprite2D/Weapon/WeaponAnimation). Attacks are disabled." % owner.name)
 		return
-	_validate_spawn_slash_tracks()
+	_validate_attack_event_tracks()
 
-## The weapon clips call spawn_slash() through a method track. Warn if a track does
-## not resolve to the character, instead of silently never spawning a slash.
-func _validate_spawn_slash_tracks() -> void:
+## The weapon clips fire attack_event(<name>) through method tracks. Warn if a track does
+## not resolve to the character, calls a method the character lacks, or passes an
+## unknown event name, instead of silently never spawning an effect.
+func _validate_attack_event_tracks() -> void:
 	var animation_root := weapon_animation_player.get_node_or_null(weapon_animation_player.root_node)
 	for animation_name in weapon_animation_player.get_animation_list():
 		var animation := weapon_animation_player.get_animation(animation_name)
@@ -64,13 +74,26 @@ func _validate_spawn_slash_tracks() -> void:
 				target = animation_root.get_node_or_null(animation.track_get_path(track_index))
 			if target != character:
 				push_warning("CharacterContext2D: '%s' animation '%s' method track %d does not resolve to the character (path '%s')." % [character.name, animation_name, track_index, animation.track_get_path(track_index)])
+				continue
+			for key_index in animation.track_get_key_count(track_index):
+				var method := animation.method_track_get_name(track_index, key_index)
+				var params := animation.method_track_get_params(track_index, key_index)
+				if not character.has_method(method):
+					push_warning("CharacterContext2D: '%s' animation '%s' track %d key %d calls '%s', which the character does not have." % [character.name, animation_name, track_index, key_index, method])
+				elif method == &"attack_event":
+					var valid_arg: bool = params.size() == 1 and (typeof(params[0]) == TYPE_STRING_NAME or typeof(params[0]) == TYPE_STRING)
+					if not valid_arg:
+						push_warning("CharacterContext2D: '%s' animation '%s' track %d key %d: attack_event needs exactly one event-name argument." % [character.name, animation_name, track_index, key_index])
+					elif not AttackComponent2D.is_known_event(StringName(params[0])):
+						push_warning("CharacterContext2D: '%s' animation '%s' track %d key %d fires unknown attack event '%s'." % [character.name, animation_name, track_index, key_index, params[0]])
 
 ## Play idle/run for AnimationPlayer-based characters or fall back to AnimatedSprite2D.
-## Never interrupts an authored take_damage/RESET/death sequence that is still playing.
+## Never interrupts the authored death sequence while it is playing. (Hit flashes live on a
+## separate reaction AnimationPlayer, so they never compete with idle/run.)
 func play_locomotion_animation(animation_name: StringName) -> void:
 	if is_instance_valid(character_animation_player):
 		var current := character_animation_player.current_animation
-		if character_animation_player.is_playing() and (current == &"take_damage" or current == &"RESET" or current == &"death"):
+		if character_animation_player.is_playing() and current == &"death":
 			return
 		if character_animation_player.has_animation(animation_name):
 			if current != animation_name or not character_animation_player.is_playing():

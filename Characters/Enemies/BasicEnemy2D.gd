@@ -1,30 +1,27 @@
-extends "res://Characters/Core/Character2D.gd"
+extends Character2D
 class_name BasicEnemy2D
-## Reused goblin enemy form: simple health/death plus configurable target AI.
+## Reused goblin enemy form: configurable target AI plus hit/death presentation.
+## Health lives in the HealthComponent2D child (see Character2D). Groups ("enemy",
+## "damageable") are set on the scene root in BasicEnemy2D.tscn.
 
-signal health_changed(current_health: int, maximum_health: int)
-signal died
-
-@export_range(1, 1000, 1) var max_health: int = 3
+## Spawned into the effects container where the enemy dies.
+@export var death_effect_scene: PackedScene
 
 @onready var _animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var _ai_controller: EnemyAIController2D = $EnemyAIController2D
 
-var health: int = 0
-var _hit_tween: Tween
+## Plays the authored take_damage flash. Its clip only animates modulate and position, so
+## the idle/run frame animation keeps running underneath.
+@onready var _hit_animation_player: AnimationPlayer = get_node_or_null("AnimatedSprite2D/AnimationPlayer") as AnimationPlayer
 
 func _ready() -> void:
 	super._ready()
-	health = maxi(max_health, 1)
-	add_to_group("enemy")
-	add_to_group("damageable")
 	_ai_controller.initialize(self)
 	if _animated_sprite.sprite_frames != null and _animated_sprite.sprite_frames.has_animation(&"idle"):
 		_animated_sprite.play(&"idle")
-	health_changed.emit(health, max_health)
 
 func _physics_process(delta: float) -> void:
-	if health <= 0:
+	if not is_alive():
 		return
 	_ai_controller.physics_update(delta)
 	super._physics_process(delta)
@@ -44,34 +41,10 @@ func _get_attack_direction() -> Vector2:
 func _get_dash_requested() -> bool:
 	return false
 
-func is_alive() -> bool:
-	return health > 0
+func _on_damaged(_hit: HitData) -> void:
+	if is_alive() and is_instance_valid(_hit_animation_player) and _hit_animation_player.has_animation(&"take_damage"):
+		_hit_animation_player.play(&"take_damage")
 
-func take_damage(amount: int) -> void:
-	if health <= 0 or amount <= 0:
-		return
-	health = maxi(health - amount, 0)
-	health_changed.emit(health, max_health)
-	if health <= 0:
-		died.emit()
-		if is_instance_valid(attack_component):
-			attack_component.cancel()
-		if is_instance_valid(dash_component):
-			dash_component.cancel()
-		queue_free()
-		return
-	_play_hit_feedback()
-
-func _play_hit_feedback() -> void:
-	# Tween-driven flash/shake leaves AnimatedSprite2D's frame animation in control.
-	if not is_instance_valid(_animated_sprite):
-		return
-	if is_instance_valid(_hit_tween) and _hit_tween.is_running():
-		_hit_tween.kill()
-	_animated_sprite.position = Vector2.ZERO
-	_animated_sprite.modulate = Color.WHITE
-	_hit_tween = create_tween()
-	_hit_tween.tween_property(_animated_sprite, "modulate", Color(2.2, 2.2, 2.2, 1.0), 0.045)
-	_hit_tween.tween_property(_animated_sprite, "modulate", Color.WHITE, 0.12)
-	_hit_tween.parallel().tween_property(_animated_sprite, "position", Vector2(-2, 0), 0.045)
-	_hit_tween.tween_property(_animated_sprite, "position", Vector2.ZERO, 0.09)
+func _on_death() -> void:
+	Effects2D.spawn(death_effect_scene, self, global_position)
+	queue_free()

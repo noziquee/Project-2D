@@ -9,8 +9,6 @@ signal dash_ended
 @export_range(0.01, 2.0, 0.01) var dash_duration: float = 0.16
 @export_range(0.0, 5.0, 0.05) var dash_cooldown: float = 0.45
 
-const CharacterContext2D = preload("res://Characters/Core/CharacterContext2D.gd")
-
 var context: CharacterContext2D
 var _remaining_duration := 0.0
 var _cooldown_remaining := 0.0
@@ -23,7 +21,7 @@ func initialize(shared_context: CharacterContext2D) -> void:
 		push_error("DashComponent2D requires a valid CharacterContext2D.")
 
 func try_start(requested: bool, direction: Vector2 = Vector2.ZERO) -> bool:
-	if not _initialized or not requested or context.is_dashing or context.is_attacking or _cooldown_remaining > 0.0:
+	if not _initialized or not requested or context.is_dashing or context.is_attacking or context.hit_stun_remaining > 0.0 or _cooldown_remaining > 0.0:
 		return false
 	var dash_direction := direction.normalized()
 	if dash_direction.length_squared() < 0.0001:

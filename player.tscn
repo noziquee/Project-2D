@@ -1,32 +1,21 @@
 [gd_scene format=3 uid="uid://de1o81qynjj3x"]
 
-[ext_resource type="Shader" uid="uid://du8d7imn4hncy" path="res://Shader/hit_flash.tres" id="1_sweqy"]
+[ext_resource type="Material" path="res://Shader/hit_flash_material.tres" id="1_sweqy"]
 [ext_resource type="Texture2D" uid="uid://bu1dwuar8ae4r" path="res://2D_RPG_Assets/Player/Legs/Legs_spritesheet.png" id="2_2hs0m"]
 [ext_resource type="Texture2D" uid="uid://6o24bewc4awa" path="res://2D_RPG_Assets/Player/Head/Head_01_spritesheet.png" id="3_1jxqw"]
 [ext_resource type="Texture2D" uid="uid://d232yir78h5to" path="res://2D_RPG_Assets/Player/Hair/Hair_01_spritesheet.png" id="4_dw050"]
 [ext_resource type="Texture2D" uid="uid://ctd5wiquu4saw" path="res://2D_RPG_Assets/Player/Torso/Torso_01_spritesheet.png" id="5_sweqy"]
 [ext_resource type="Texture2D" uid="uid://b6brt8g23u43g" path="res://2D_RPG_Assets/Weapon/Sword.png" id="6_2hs0m"]
 [ext_resource type="Script" uid="uid://cxu5oyw0bavdw" path="res://player.gd" id="7_player_script"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_g3r0j"]
-shader = ExtResource("1_sweqy")
-shader_parameter/enabled = false
-shader_parameter/tint = Color(1, 1, 1, 1)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_0jj63"]
-shader = ExtResource("1_sweqy")
-shader_parameter/enabled = false
-shader_parameter/tint = Color(1, 1, 1, 1)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_84qdf"]
-shader = ExtResource("1_sweqy")
-shader_parameter/enabled = false
-shader_parameter/tint = Color(1, 1, 1, 1)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_qpxix"]
-shader = ExtResource("1_sweqy")
-shader_parameter/enabled = false
-shader_parameter/tint = Color(1, 1, 1, 1)
+[ext_resource type="Script" path="res://Characters/Components/Health/HealthComponent2D.gd" id="9_health"]
+[ext_resource type="Script" path="res://Characters/Components/Movement/MovementComponent2D.gd" id="10_move"]
+[ext_resource type="Script" path="res://Characters/Components/Dash/DashComponent2D.gd" id="11_dash"]
+[ext_resource type="Script" path="res://Characters/Components/Combat/AttackComponent2D.gd" id="12_attack"]
+[ext_resource type="Script" path="res://Characters/StateMachine/CharacterStateMachine.gd" id="13_machine"]
+[ext_resource type="Script" path="res://Characters/StateMachine/States/IdleState.gd" id="14_idle"]
+[ext_resource type="Script" path="res://Characters/StateMachine/States/MoveState.gd" id="15_move"]
+[ext_resource type="Script" path="res://Characters/StateMachine/States/DashState.gd" id="16_dash"]
+[ext_resource type="Script" path="res://Characters/StateMachine/States/AttackState.gd" id="17_attack"]
 
 [sub_resource type="Animation" id="Animation_n7ghd"]
 length = 0.001
@@ -81,94 +70,46 @@ tracks/3/keys = {
 tracks/4/type = "value"
 tracks/4/imported = false
 tracks/4/enabled = true
-tracks/4/path = NodePath("LayeredRig/Torso:material:shader_parameter/enabled")
+tracks/4/path = NodePath("LayeredRig/Hair:frame")
 tracks/4/interp = 1
 tracks/4/loop_wrap = true
 tracks/4/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [false]
+"values": [0]
 }
 tracks/5/type = "value"
 tracks/5/imported = false
 tracks/5/enabled = true
-tracks/5/path = NodePath("LayeredRig/Head:material:shader_parameter/enabled")
+tracks/5/path = NodePath("LayeredRig/Hair:position")
 tracks/5/interp = 1
 tracks/5/loop_wrap = true
 tracks/5/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [false]
+"update": 0,
+"values": [Vector2(0, 0)]
 }
 tracks/6/type = "value"
 tracks/6/imported = false
 tracks/6/enabled = true
-tracks/6/path = NodePath("LayeredRig/Legs:material:shader_parameter/enabled")
+tracks/6/path = NodePath("LayeredRig/Legs:position")
 tracks/6/interp = 1
 tracks/6/loop_wrap = true
 tracks/6/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [false]
+"update": 0,
+"values": [Vector2(0, 0)]
 }
 tracks/7/type = "value"
 tracks/7/imported = false
 tracks/7/enabled = true
-tracks/7/path = NodePath("LayeredRig/Hair:frame")
+tracks/7/path = NodePath("LayeredRig/Torso:frame")
 tracks/7/interp = 1
 tracks/7/loop_wrap = true
 tracks/7/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [0]
-}
-tracks/8/type = "value"
-tracks/8/imported = false
-tracks/8/enabled = true
-tracks/8/path = NodePath("LayeredRig/Hair:position")
-tracks/8/interp = 1
-tracks/8/loop_wrap = true
-tracks/8/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector2(0, 0)]
-}
-tracks/9/type = "value"
-tracks/9/imported = false
-tracks/9/enabled = true
-tracks/9/path = NodePath("LayeredRig/Legs:position")
-tracks/9/interp = 1
-tracks/9/loop_wrap = true
-tracks/9/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector2(0, 0)]
-}
-tracks/10/type = "value"
-tracks/10/imported = false
-tracks/10/enabled = true
-tracks/10/path = NodePath("LayeredRig/Hair:material:shader_parameter/enabled")
-tracks/10/interp = 1
-tracks/10/loop_wrap = true
-tracks/10/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [false]
-}
-tracks/11/type = "value"
-tracks/11/imported = false
-tracks/11/enabled = true
-tracks/11/path = NodePath("LayeredRig/Torso:frame")
-tracks/11/interp = 1
-tracks/11/loop_wrap = true
-tracks/11/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
@@ -480,162 +421,50 @@ tracks/7/keys = {
 "values": [Vector2(0, 0)]
 }
 
-[sub_resource type="Animation" id="Animation_urp6f"]
-resource_name = "take_damage"
-length = 0.3333416766010225
-step = 0.041666668
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_bwjto"]
+_data = {
+&"RESET": SubResource("Animation_n7ghd"),
+&"death": SubResource("Animation_2hs0m"),
+&"idle": SubResource("Animation_nvl01"),
+&"run": SubResource("Animation_ivps1")
+}
+
+[sub_resource type="Animation" id="Animation_react_reset"]
+length = 0.001
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("LayeredRig/Head:frame")
+tracks/0/path = NodePath("LayeredRig/Torso:material:shader_parameter/enabled")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
-"values": [0]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("LayeredRig/Legs:frame")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [0]
-}
-tracks/2/type = "value"
-tracks/2/imported = false
-tracks/2/enabled = true
-tracks/2/path = NodePath("LayeredRig/Torso:frame")
-tracks/2/interp = 1
-tracks/2/loop_wrap = true
-tracks/2/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [0]
-}
-tracks/3/type = "value"
-tracks/3/imported = false
-tracks/3/enabled = true
-tracks/3/path = NodePath("LayeredRig/Torso:material:shader_parameter/enabled")
-tracks/3/interp = 1
-tracks/3/loop_wrap = true
-tracks/3/keys = {
-"times": PackedFloat32Array(0, 0.083333336, 0.16666667),
-"transitions": PackedFloat32Array(1, 1, 1),
-"update": 1,
-"values": [false, true, false]
-}
-tracks/4/type = "value"
-tracks/4/imported = false
-tracks/4/enabled = true
-tracks/4/path = NodePath("LayeredRig/Head:material:shader_parameter/enabled")
-tracks/4/interp = 1
-tracks/4/loop_wrap = true
-tracks/4/keys = {
-"times": PackedFloat32Array(0, 0.083333336, 0.16666667),
-"transitions": PackedFloat32Array(1, 1, 1),
-"update": 1,
-"values": [false, true, false]
-}
-tracks/5/type = "value"
-tracks/5/imported = false
-tracks/5/enabled = true
-tracks/5/path = NodePath("LayeredRig/Legs:material:shader_parameter/enabled")
-tracks/5/interp = 1
-tracks/5/loop_wrap = true
-tracks/5/keys = {
-"times": PackedFloat32Array(0, 0.083333336, 0.16666667),
-"transitions": PackedFloat32Array(1, 1, 1),
-"update": 1,
-"values": [false, true, false]
-}
-tracks/6/type = "value"
-tracks/6/imported = false
-tracks/6/enabled = true
-tracks/6/path = NodePath("LayeredRig/Legs:position")
-tracks/6/interp = 1
-tracks/6/loop_wrap = true
-tracks/6/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Vector2(0, 0)]
-}
-tracks/7/type = "value"
-tracks/7/imported = false
-tracks/7/enabled = true
-tracks/7/path = NodePath("LayeredRig/Hair:frame")
-tracks/7/interp = 1
-tracks/7/loop_wrap = true
-tracks/7/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [0]
-}
-tracks/8/type = "value"
-tracks/8/imported = false
-tracks/8/enabled = true
-tracks/8/path = NodePath("LayeredRig/Hair:material:shader_parameter/enabled")
-tracks/8/interp = 1
-tracks/8/loop_wrap = true
-tracks/8/keys = {
-"times": PackedFloat32Array(0, 0.083333336, 0.16666667),
-"transitions": PackedFloat32Array(1, 1, 1),
-"update": 1,
-"values": [false, true, false]
-}
-tracks/9/type = "value"
-tracks/9/imported = false
-tracks/9/enabled = true
-tracks/9/path = NodePath("LayeredRig/Hair:position")
-tracks/9/interp = 1
-tracks/9/loop_wrap = true
-tracks/9/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Vector2(0, 0)]
-}
-tracks/10/type = "value"
-tracks/10/imported = false
-tracks/10/enabled = true
-tracks/10/path = NodePath("LayeredRig/Torso:position")
-tracks/10/interp = 1
-tracks/10/loop_wrap = true
-tracks/10/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Vector2(0, 0)]
-}
-tracks/11/type = "value"
-tracks/11/imported = false
-tracks/11/enabled = true
-tracks/11/path = NodePath("LayeredRig/Head:position")
-tracks/11/interp = 1
-tracks/11/loop_wrap = true
-tracks/11/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Vector2(0, 0)]
+"values": [false]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_bwjto"]
+[sub_resource type="Animation" id="Animation_react_hit"]
+resource_name = "take_damage"
+length = 0.25
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("LayeredRig/Torso:material:shader_parameter/enabled")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.083333336, 0.16666667),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [false, true, false]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_reaction"]
 _data = {
-&"RESET": SubResource("Animation_n7ghd"),
-&"death": SubResource("Animation_2hs0m"),
-&"idle": SubResource("Animation_nvl01"),
-&"run": SubResource("Animation_ivps1"),
-&"take_damage": SubResource("Animation_urp6f")
+&"RESET": SubResource("Animation_react_reset"),
+&"take_damage": SubResource("Animation_react_hit")
 }
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_2nri0"]
@@ -736,8 +565,8 @@ tracks/2/keys = {
 "times": PackedFloat32Array(0.05),
 "transitions": PackedFloat32Array(1),
 "values": [{
-"args": [],
-"method": &"spawn_slash"
+"args": [&"spawn_effect"],
+"method": &"attack_event"
 }]
 }
 
@@ -778,34 +607,38 @@ _data = {
 &"sword_return": SubResource("Animation_bwjto")
 }
 
-[node name="Player" type="CharacterBody2D" unique_id=176143687]
+[node name="Player" type="CharacterBody2D" unique_id=176143687 groups=["player", "damageable"]]
 collision_mask = 7
 script = ExtResource("7_player_script")
+team = &"player"
 
 [node name="LayeredRig" type="Node2D" parent="." unique_id=72007712]
 
 [node name="Legs" type="Sprite2D" parent="LayeredRig" unique_id=1543018196]
-material = SubResource("ShaderMaterial_g3r0j")
+material = ExtResource("1_sweqy")
 texture = ExtResource("2_2hs0m")
 hframes = 8
 
 [node name="Head" type="Sprite2D" parent="LayeredRig" unique_id=1190233790]
-material = SubResource("ShaderMaterial_0jj63")
+material = ExtResource("1_sweqy")
 texture = ExtResource("3_1jxqw")
 hframes = 2
 
 [node name="Hair" type="Sprite2D" parent="LayeredRig" unique_id=1168312038]
-material = SubResource("ShaderMaterial_84qdf")
+material = ExtResource("1_sweqy")
 texture = ExtResource("4_dw050")
 hframes = 2
 
 [node name="Torso" type="Sprite2D" parent="LayeredRig" unique_id=1290690053]
-material = SubResource("ShaderMaterial_qpxix")
+material = ExtResource("1_sweqy")
 texture = ExtResource("5_sweqy")
 hframes = 2
 
 [node name="PlayerAnim" type="AnimationPlayer" parent="." unique_id=1884473808]
 libraries/ = SubResource("AnimationLibrary_bwjto")
+
+[node name="ReactionAnim" type="AnimationPlayer" parent="."]
+libraries/ = SubResource("AnimationLibrary_reaction")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=48998945]
 shape = SubResource("CapsuleShape2D_2nri0")
@@ -813,6 +646,7 @@ shape = SubResource("CapsuleShape2D_2nri0")
 [node name="WeaponFacingPivot" type="Node2D" parent="." unique_id=1465069529]
 
 [node name="MainHand" type="Node2D" parent="WeaponFacingPivot" unique_id=667962075]
+z_index = 1
 position = Vector2(-4, 5)
 rotation = 0.87266463
 
@@ -826,3 +660,32 @@ libraries/ = SubResource("AnimationLibrary_606se")
 [node name="Camera2D" type="Camera2D" parent="." unique_id=558928301]
 position_smoothing_enabled = true
 position_smoothing_speed = 8.0
+
+[node name="HealthComponent2D" type="Node" parent="."]
+script = ExtResource("9_health")
+max_health = 5
+
+[node name="MovementComponent2D" type="Node" parent="."]
+script = ExtResource("10_move")
+
+[node name="DashComponent2D" type="Node" parent="."]
+script = ExtResource("11_dash")
+
+[node name="AttackComponent2D" type="Node" parent="."]
+script = ExtResource("12_attack")
+
+[node name="CharacterStateMachine" type="Node" parent="."]
+script = ExtResource("13_machine")
+initial_state = &"Idle"
+
+[node name="Idle" type="Node" parent="CharacterStateMachine"]
+script = ExtResource("14_idle")
+
+[node name="Move" type="Node" parent="CharacterStateMachine"]
+script = ExtResource("15_move")
+
+[node name="Dash" type="Node" parent="CharacterStateMachine"]
+script = ExtResource("16_dash")
+
+[node name="Attack" type="Node" parent="CharacterStateMachine"]
+script = ExtResource("17_attack")

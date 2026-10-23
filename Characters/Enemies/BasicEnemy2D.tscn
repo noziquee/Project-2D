@@ -6,7 +6,18 @@
 [ext_resource type="Texture2D" uid="uid://chw6ty4o6y5gk" path="res://2D_RPG_Assets/enemies/goblin/goblin_knife.png" id="4_knife"]
 [ext_resource type="Resource" uid="uid://fxvdwr0kdi3j" path="res://Characters/Components/Combat/GoblinAttackDefinition.tres" id="5_attack"]
 [ext_resource type="Script" uid="uid://b3w2vrkqjc6t1" path="res://Characters/Controllers/EnemyAIController2D.gd" id="6_ai"]
-[ext_resource type="PackedScene" path="res://UI/HUD/EnemyHealthBar2D.tscn" id="7_health_bar"]
+[ext_resource type="PackedScene" path="res://UI/HUD/EnemyHealthBar.tscn" id="7_health_bar"]
+[ext_resource type="Script" path="res://Characters/Components/Health/HealthComponent2D.gd" id="9_health"]
+[ext_resource type="Script" path="res://Characters/Components/Movement/MovementComponent2D.gd" id="10_move"]
+[ext_resource type="Script" path="res://Characters/Components/Dash/DashComponent2D.gd" id="11_dash"]
+[ext_resource type="Script" path="res://Characters/Components/Combat/AttackComponent2D.gd" id="12_attack"]
+[ext_resource type="Script" path="res://Characters/StateMachine/CharacterStateMachine.gd" id="13_machine"]
+[ext_resource type="Script" path="res://Characters/StateMachine/States/IdleState.gd" id="14_idle"]
+[ext_resource type="Script" path="res://Characters/StateMachine/States/MoveState.gd" id="15_move"]
+[ext_resource type="Script" path="res://Characters/StateMachine/States/DashState.gd" id="16_dash"]
+[ext_resource type="Script" path="res://Characters/StateMachine/States/AttackState.gd" id="17_attack"]
+[ext_resource type="PackedScene" path="res://Characters/Effects/DeathEffect.tscn" id="18_death"]
+[ext_resource type="Resource" path="res://Characters/Controllers/GoblinBehaviorProfile.tres" id="19_profile"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_goblin_0"]
 atlas = ExtResource("2_goblin")
@@ -110,46 +121,34 @@ length = 0.001
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath(".:frame")
+tracks/0/path = NodePath(".:position")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [0]
+"update": 0,
+"values": [Vector2(0, 0)]
 }
 tracks/1/type = "value"
 tracks/1/imported = false
 tracks/1/enabled = true
-tracks/1/path = NodePath(".:position")
+tracks/1/path = NodePath(".:modulate")
 tracks/1/interp = 1
 tracks/1/loop_wrap = true
 tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 0,
-"values": [Vector2(0, 0)]
+"values": [Color(1, 1, 1, 1)]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
 tracks/2/enabled = true
-tracks/2/path = NodePath(".:modulate")
+tracks/2/path = NodePath(".:self_modulate")
 tracks/2/interp = 1
 tracks/2/loop_wrap = true
 tracks/2/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Color(1, 1, 1, 1)]
-}
-tracks/3/type = "value"
-tracks/3/imported = false
-tracks/3/enabled = true
-tracks/3/path = NodePath(".:self_modulate")
-tracks/3/interp = 1
-tracks/3/loop_wrap = true
-tracks/3/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 0,
@@ -163,46 +162,34 @@ step = 0.083333336
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath(".:frame")
+tracks/0/path = NodePath(".:position")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.33333334),
-"transitions": PackedFloat32Array(1, 1),
+"times": PackedFloat32Array(0, 0.083333336, 0.16666667),
+"transitions": PackedFloat32Array(1, 1, 1),
 "update": 1,
-"values": [0, 0]
+"values": [Vector2(0, 0), Vector2(-2, 0), Vector2(0, 0)]
 }
 tracks/1/type = "value"
 tracks/1/imported = false
 tracks/1/enabled = true
-tracks/1/path = NodePath(".:position")
+tracks/1/path = NodePath(".:modulate")
 tracks/1/interp = 1
 tracks/1/loop_wrap = true
 tracks/1/keys = {
-"times": PackedFloat32Array(0, 0.083333336),
-"transitions": PackedFloat32Array(1, 1),
-"update": 1,
-"values": [Vector2(0, 0), Vector2(-2, 0)]
-}
-tracks/2/type = "value"
-tracks/2/imported = false
-tracks/2/enabled = true
-tracks/2/path = NodePath(".:modulate")
-tracks/2/interp = 1
-tracks/2/loop_wrap = true
-tracks/2/keys = {
 "times": PackedFloat32Array(0, 0.083333336, 0.16666667),
 "transitions": PackedFloat32Array(1, 1, 1),
 "update": 1,
 "values": [Color(1, 1, 1, 1), Color(18.892157, 18.892157, 18.892157, 1), Color(1, 1, 1, 1)]
 }
-tracks/3/type = "value"
-tracks/3/imported = false
-tracks/3/enabled = true
-tracks/3/path = NodePath(".:self_modulate")
-tracks/3/interp = 1
-tracks/3/loop_wrap = true
-tracks/3/keys = {
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".:self_modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
 "times": PackedFloat32Array(0, 0.083333336, 0.16666667),
 "transitions": PackedFloat32Array(1, 1, 1),
 "update": 1,
@@ -280,8 +267,8 @@ tracks/2/keys = {
 "times": PackedFloat32Array(0.05),
 "transitions": PackedFloat32Array(1),
 "values": [{
-"args": [],
-"method": &"spawn_slash"
+"args": [&"spawn_effect"],
+"method": &"attack_event"
 }]
 }
 
@@ -325,13 +312,15 @@ _data = {
 radius = 5.0
 height = 12.0
 
-[node name="BasicEnemy2D" type="CharacterBody2D" unique_id=803052333]
+[sub_resource type="CircleShape2D" id="CircleShape2D_detection"]
+radius = 180.0
+
+[node name="BasicEnemy2D" type="CharacterBody2D" unique_id=803052333 groups=["enemy", "damageable"]]
 collision_layer = 2
 collision_mask = 7
 script = ExtResource("1_script")
-move_speed = 50.0
-dash_speed = 150.0
-attack_definition = ExtResource("5_attack")
+death_effect_scene = ExtResource("18_death")
+team = &"enemy"
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=457849524]
 sprite_frames = SubResource("SpriteFrames_goblin")
@@ -341,6 +330,7 @@ animation = &"run"
 libraries/ = SubResource("AnimationLibrary_enemy")
 
 [node name="Weapon" type="Sprite2D" parent="AnimatedSprite2D" unique_id=1345671504]
+z_index = 1
 position = Vector2(1, 3)
 texture = ExtResource("4_knife")
 offset = Vector2(-5, -5)
@@ -354,9 +344,53 @@ shape = SubResource("CapsuleShape2D_2nri0")
 
 [node name="EnemyAIController2D" type="Node" parent="." unique_id=908506117]
 script = ExtResource("6_ai")
+profile = ExtResource("19_profile")
+detection_area = NodePath("../DetectionArea")
+
+[node name="DetectionArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 1
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
+shape = SubResource("CircleShape2D_detection")
+debug_color = Color(0.9, 0.35, 0.3, 0.12)
 
 [node name="EnemyHealthBar2D" parent="." unique_id=1448702036 instance=ExtResource("7_health_bar")]
 offset_left = -38.0
 offset_top = -30.0
 offset_right = 38.0
 offset_bottom = -12.0
+health_source = NodePath("../HealthComponent2D")
+
+[node name="HealthComponent2D" type="Node" parent="."]
+script = ExtResource("9_health")
+max_health = 3
+
+[node name="MovementComponent2D" type="Node" parent="."]
+script = ExtResource("10_move")
+move_speed = 50.0
+
+[node name="DashComponent2D" type="Node" parent="."]
+script = ExtResource("11_dash")
+dash_speed = 150.0
+
+[node name="AttackComponent2D" type="Node" parent="."]
+script = ExtResource("12_attack")
+attack_definition = ExtResource("5_attack")
+
+[node name="CharacterStateMachine" type="Node" parent="."]
+script = ExtResource("13_machine")
+initial_state = &"Idle"
+
+[node name="Idle" type="Node" parent="CharacterStateMachine"]
+script = ExtResource("14_idle")
+
+[node name="Move" type="Node" parent="CharacterStateMachine"]
+script = ExtResource("15_move")
+
+[node name="Dash" type="Node" parent="CharacterStateMachine"]
+script = ExtResource("16_dash")
+
+[node name="Attack" type="Node" parent="CharacterStateMachine"]
+script = ExtResource("17_attack")

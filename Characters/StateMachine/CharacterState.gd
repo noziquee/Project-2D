@@ -1,12 +1,13 @@
-extends RefCounted
-## Base contract for state objects; states request presentation, not movement.
-
-const CharacterContext2D = preload("res://Characters/Core/CharacterContext2D.gd")
+extends Node
+class_name CharacterState
+## Base contract for state nodes; states request presentation, not movement.
+## Place one node per state (named Idle, Move, Dash, Attack, ...) under the
+## CharacterStateMachine node. The node name is the state name.
 
 var context: CharacterContext2D
-var state_machine: Node
+var state_machine: CharacterStateMachine
 
-func setup(machine: Node, shared_context: CharacterContext2D) -> void:
+func setup(machine: CharacterStateMachine, shared_context: CharacterContext2D) -> void:
 	state_machine = machine
 	context = shared_context
 

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EnemyBehaviorProfile" format=3]
+
+[ext_resource type="Script" path="res://Characters/Controllers/EnemyBehaviorProfile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+detection_radius = 0.0
+disengage_radius = 250.0
+lost_target_grace_duration = 0.75
+home_stop_distance = 5.0
