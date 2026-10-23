@@ -1,4 +1,4 @@
-[gd_resource type="ShaderMaterial" format=3]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://b80agap73cxkp"]
 
 [ext_resource type="Shader" uid="uid://du8d7imn4hncy" path="res://Shader/hit_flash.tres" id="1_flash"]
 
