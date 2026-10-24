@@ -1,21 +1,26 @@
 [gd_scene format=3 uid="uid://de1o81qynjj3x"]
 
-[ext_resource type="Material" path="res://Shader/hit_flash_material.tres" id="1_sweqy"]
+[ext_resource type="Material" uid="uid://b80agap73cxkp" path="res://Shader/hit_flash_material.tres" id="1_sweqy"]
 [ext_resource type="Texture2D" uid="uid://bu1dwuar8ae4r" path="res://2D_RPG_Assets/Player/Legs/Legs_spritesheet.png" id="2_2hs0m"]
 [ext_resource type="Texture2D" uid="uid://6o24bewc4awa" path="res://2D_RPG_Assets/Player/Head/Head_01_spritesheet.png" id="3_1jxqw"]
 [ext_resource type="Texture2D" uid="uid://d232yir78h5to" path="res://2D_RPG_Assets/Player/Hair/Hair_01_spritesheet.png" id="4_dw050"]
 [ext_resource type="Texture2D" uid="uid://ctd5wiquu4saw" path="res://2D_RPG_Assets/Player/Torso/Torso_01_spritesheet.png" id="5_sweqy"]
-[ext_resource type="Texture2D" uid="uid://b6brt8g23u43g" path="res://2D_RPG_Assets/Weapon/Sword.png" id="6_2hs0m"]
 [ext_resource type="Script" uid="uid://cxu5oyw0bavdw" path="res://player.gd" id="7_player_script"]
-[ext_resource type="Script" path="res://Characters/Components/Health/HealthComponent2D.gd" id="9_health"]
-[ext_resource type="Script" path="res://Characters/Components/Movement/MovementComponent2D.gd" id="10_move"]
-[ext_resource type="Script" path="res://Characters/Components/Dash/DashComponent2D.gd" id="11_dash"]
-[ext_resource type="Script" path="res://Characters/Components/Combat/AttackComponent2D.gd" id="12_attack"]
-[ext_resource type="Script" path="res://Characters/StateMachine/CharacterStateMachine.gd" id="13_machine"]
-[ext_resource type="Script" path="res://Characters/StateMachine/States/IdleState.gd" id="14_idle"]
-[ext_resource type="Script" path="res://Characters/StateMachine/States/MoveState.gd" id="15_move"]
-[ext_resource type="Script" path="res://Characters/StateMachine/States/DashState.gd" id="16_dash"]
-[ext_resource type="Script" path="res://Characters/StateMachine/States/AttackState.gd" id="17_attack"]
+[ext_resource type="Script" uid="uid://dfri21bj6615l" path="res://Characters/Components/Health/HealthComponent2D.gd" id="9_health"]
+[ext_resource type="Script" uid="uid://cr1cbya6q4dy8" path="res://Characters/Components/Movement/MovementComponent2D.gd" id="10_move"]
+[ext_resource type="Script" uid="uid://cpcuppj2voxr3" path="res://Characters/Components/Dash/DashComponent2D.gd" id="11_dash"]
+[ext_resource type="Script" uid="uid://c4ght4ru2kv4n" path="res://Characters/Components/Combat/AttackComponent2D.gd" id="12_attack"]
+[ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="12_pylmc"]
+[ext_resource type="Script" uid="uid://lqc6pwf78ncm" path="res://Characters/StateMachine/CharacterStateMachine.gd" id="13_machine"]
+[ext_resource type="Script" uid="uid://ce5blnoyw4ug1" path="res://Characters/StateMachine/States/IdleState.gd" id="14_idle"]
+[ext_resource type="Script" uid="uid://8ya30f8mrstn" path="res://Characters/StateMachine/States/MoveState.gd" id="15_move"]
+[ext_resource type="Script" uid="uid://bqnytmqmkbmtj" path="res://Characters/StateMachine/States/DashState.gd" id="16_dash"]
+[ext_resource type="Script" uid="uid://nwen6k2klg6r" path="res://Characters/StateMachine/States/AttackState.gd" id="17_attack"]
+[ext_resource type="Resource" uid="uid://d2pkc8vgmu0kt" path="res://Characters/Components/Combat/PlayerLight2AttackDefinition.tres" id="18_light2"]
+[ext_resource type="Resource" uid="uid://bkk8cvsetk4lk" path="res://Characters/Components/Combat/PlayerHeavyAttackDefinition.tres" id="19_heavy"]
+[ext_resource type="PackedScene" uid="uid://bfesegeunf2io" path="res://Weapons/Sword.tscn" id="20_sword"]
+[ext_resource type="Script" uid="uid://cxp6co2ulrj0w" path="res://Characters/Components/Weapons/WeaponController2D.gd" id="21_weapon_controller"]
+[ext_resource type="Resource" uid="uid://bhehk7x0ebkd7" path="res://Data/Weapons/SwordWeaponDefinition.tres" id="22_sword_def"]
 
 [sub_resource type="Animation" id="Animation_n7ghd"]
 length = 0.001
@@ -471,146 +476,15 @@ _data = {
 radius = 6.0
 height = 18.0
 
-[sub_resource type="Animation" id="Animation_1jxqw"]
-length = 0.001
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath(".:position")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector2(-4, 5)]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath(".:rotation")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [0.87266463]
-}
-
-[sub_resource type="Animation" id="Animation_dw050"]
-resource_name = "idle"
-length = 0.04167083457522094
-step = 0.041666668
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath(".:position")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Vector2(-4, 5)]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath(".:rotation")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [0.87266463]
-}
-
-[sub_resource type="Animation" id="Animation_b26j0"]
-resource_name = "slash"
-length = 0.2916708420258015
-step = 0.041666668
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath(".:position")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Vector2(-2, 5)]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath(".:rotation")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0, 0.25),
-"transitions": PackedFloat32Array(0.5, -2),
-"update": 0,
-"values": [-1.5707964, 2.8797932]
-}
-tracks/2/type = "method"
-tracks/2/imported = false
-tracks/2/enabled = true
-tracks/2/path = NodePath("../..")
-tracks/2/interp = 1
-tracks/2/loop_wrap = true
-tracks/2/keys = {
-"times": PackedFloat32Array(0.05),
-"transitions": PackedFloat32Array(1),
-"values": [{
-"args": [&"spawn_effect"],
-"method": &"attack_event"
-}]
-}
-
-[sub_resource type="Animation" id="Animation_bwjto"]
-resource_name = "sword_return"
-length = 0.6666667
-step = 0.041666668
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath(".:position")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.25, 0.6666667),
-"transitions": PackedFloat32Array(-2, -2, 0.5),
-"update": 0,
-"values": [Vector2(-2, 5), Vector2(-2, 5), Vector2(-4, 5)]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath(".:rotation")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0, 0.25, 0.6666667),
-"transitions": PackedFloat32Array(-2, -2, 0.5),
-"update": 0,
-"values": [2.8797932, 2.8797932, 0.8726646259971648]
-}
-
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_606se"]
-_data = {
-&"RESET": SubResource("Animation_1jxqw"),
-&"idle": SubResource("Animation_dw050"),
-&"slash": SubResource("Animation_b26j0"),
-&"sword_return": SubResource("Animation_bwjto")
-}
-
-[node name="Player" type="CharacterBody2D" unique_id=176143687 groups=["player", "damageable"]]
+[node name="Player" type="CharacterBody2D" unique_id=176143687 node_paths=PackedStringArray("movement_component", "dash_component", "attack_component", "health_component", "state_machine") groups=["damageable", "player"]]
 collision_mask = 7
 script = ExtResource("7_player_script")
 team = &"player"
+movement_component = NodePath("MovementComponent2D")
+dash_component = NodePath("DashComponent2D")
+attack_component = NodePath("AttackComponent2D")
+health_component = NodePath("HealthComponent2D")
+state_machine = NodePath("CharacterStateMachine")
 
 [node name="LayeredRig" type="Node2D" parent="." unique_id=72007712]
 
@@ -637,7 +511,7 @@ hframes = 2
 [node name="PlayerAnim" type="AnimationPlayer" parent="." unique_id=1884473808]
 libraries/ = SubResource("AnimationLibrary_bwjto")
 
-[node name="ReactionAnim" type="AnimationPlayer" parent="."]
+[node name="ReactionAnim" type="AnimationPlayer" parent="." unique_id=900981233]
 libraries/ = SubResource("AnimationLibrary_reaction")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=48998945]
@@ -645,47 +519,44 @@ shape = SubResource("CapsuleShape2D_2nri0")
 
 [node name="WeaponFacingPivot" type="Node2D" parent="." unique_id=1465069529]
 
-[node name="MainHand" type="Node2D" parent="WeaponFacingPivot" unique_id=667962075]
-z_index = 1
-position = Vector2(-4, 5)
-rotation = 0.87266463
-
-[node name="weapon" type="Sprite2D" parent="WeaponFacingPivot/MainHand" unique_id=1560535780]
-texture = ExtResource("6_2hs0m")
-offset = Vector2(8, -8)
-
-[node name="HandAnim" type="AnimationPlayer" parent="WeaponFacingPivot/MainHand" unique_id=24988322]
-libraries/ = SubResource("AnimationLibrary_606se")
+[node name="MainHand" parent="WeaponFacingPivot" unique_id=667962075 instance=ExtResource("20_sword")]
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=558928301]
+visible = false
+zoom = Vector2(2, 2)
 position_smoothing_enabled = true
 position_smoothing_speed = 8.0
 
-[node name="HealthComponent2D" type="Node" parent="."]
+[node name="HealthComponent2D" type="Node" parent="." unique_id=336417400]
 script = ExtResource("9_health")
-max_health = 5
+max_health = 100
 
-[node name="MovementComponent2D" type="Node" parent="."]
+[node name="MovementComponent2D" type="Node" parent="." unique_id=603665676]
 script = ExtResource("10_move")
+move_speed = 100.0
 
-[node name="DashComponent2D" type="Node" parent="."]
+[node name="DashComponent2D" type="Node" parent="." unique_id=1132537196]
 script = ExtResource("11_dash")
 
-[node name="AttackComponent2D" type="Node" parent="."]
+[node name="AttackComponent2D" type="Node" parent="." unique_id=1129759479]
 script = ExtResource("12_attack")
+attacks = Array[ExtResource("12_pylmc")]([ExtResource("18_light2"), ExtResource("19_heavy")])
 
-[node name="CharacterStateMachine" type="Node" parent="."]
+[node name="WeaponController2D" type="Node" parent="." unique_id=1857204391]
+script = ExtResource("21_weapon_controller")
+starting_weapon = ExtResource("22_sword_def")
+
+[node name="CharacterStateMachine" type="Node" parent="." unique_id=1322817306]
 script = ExtResource("13_machine")
-initial_state = &"Idle"
 
-[node name="Idle" type="Node" parent="CharacterStateMachine"]
+[node name="Idle" type="Node" parent="CharacterStateMachine" unique_id=1792222856]
 script = ExtResource("14_idle")
 
-[node name="Move" type="Node" parent="CharacterStateMachine"]
+[node name="Move" type="Node" parent="CharacterStateMachine" unique_id=1612671037]
 script = ExtResource("15_move")
 
-[node name="Dash" type="Node" parent="CharacterStateMachine"]
+[node name="Dash" type="Node" parent="CharacterStateMachine" unique_id=40654054]
 script = ExtResource("16_dash")
 
-[node name="Attack" type="Node" parent="CharacterStateMachine"]
+[node name="Attack" type="Node" parent="CharacterStateMachine" unique_id=1925309513]
 script = ExtResource("17_attack")

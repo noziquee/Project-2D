@@ -1,0 +1,227 @@
+# Combat roadmap: what is not built yet, step by step
+
+*Project-2D · Godot 4.7 · written October 24, 2026 from the code in the archive (Phase 9.8a) and the guide `Combat Architecture Review & Expansion Guide (Updated Oct 2026).md` in this folder. Nothing here was run in Godot.*
+
+This continues `docs/phase9/PLAN.md`. Same rules as Phase 9: small steps, each leaves the game playable, each ends with a smoke-test run and a zip of only the changed and new files, and a step is done only when its SUMMARY line matches the expected number in its notes.
+
+## How to read this plan
+
+- **Phase V** is verification. Nothing else should start before it, because every step from 9.2 onward is unconfirmed in Godot.
+- **Phases 10 to 14** are the missing systems, in dependency order: effect framework, projectiles and bow, damage resolver, skills, passives.
+- **Track P** (presentation and data cleanup) is independent. Any P step can be done after Phase V, between other phases.
+- **Phase 15** is content and polish: more weapons, VFX, sound.
+- Every step lists **Do**, **Tests** and **Done when**. New classes use the `2D` suffix and new folders are added only when a step needs them (guide 10.4 and 10.6).
+
+## Status at a glance
+
+| Phase | What | Status |
+|---|---|---|
+| V | Verify and stabilize Phase 9 | not started |
+| 10 | Effect framework (base class, spawn point, hit policy, legacy cleanup) | not started |
+| 11 | Projectiles and the bow | not started |
+| 12 | Combat resolver (defense, crits, status effects) | not started |
+| 13 | Active skills | not started |
+| 14 | Passives | not started |
+| P | Presentation and data cleanup (reactions, stagger, rig paths, hurtbox, team targeting) | not started |
+| 15 | More weapons, VFX, sound, polish | not started |
+
+## Decisions to make before the phase that needs them
+
+| Decision | Needed by | Starting recommendation |
+|---|---|---|
+| Characters with no `attack_definition`: refuse attacks with an error, or keep one marked default | 10.1 | Refuse with a clear error (every shipped character sets one) |
+| Hit-once rule: per effect (today) or per swing | 10.4 | Per effect for melee; per projectile for arrows |
+| Resource for skill costs: stamina, mana, or none | 13.0 | Decide per game design; start with cooldown only |
+| Number of skill slots: fixed (3 or 4) or per weapon | 13.0 | Per weapon (costs nothing extra if skills live on `WeaponDefinition2D`) |
+| Passive counter rules: do misses count, multi-target counts once per target or per attack, can stacks overlap | 14.0 | Write them down before coding (guide 10.8) |
+| Threshold release values left on `DefaultAttackDefinition.tres` | V4 | Keep or clear them; see the 9.7a note |
+
+---
+
+## Phase V: verify and stabilize Phase 9
+
+### V1. Open the project once
+- **Do:** Run `godot --headless --import --path .`, then open the project in Godot 4.7 and run `Main.tscn`. Read the whole Output panel. Several `.tscn` and `.tres` files were edited as text (9.4e, 9.5a, 9.5b, 9.7b, 9.7c-4), so a load error is possible.
+- **Done when:** the project opens and the game starts with no errors, or every error is fixed or reported with its text.
+
+### V2. Smoke test and baseline
+- **Do:** Run `godot --headless --fixed-fps 60 --path . --script res://tests/smoke_checks.gd`. Paste the `SUMMARY passes=N failures=M` line and every `CHECK FAIL` line.
+- **Expected in the log, not failures:** the rejected-definition errors and the `no_such_effect_clip` messages named in `docs/phase9/9.8a-notes.md`.
+- **Done when:** failures are 0 (or each failure is fixed), and the real total is written into `docs/phase9/PLAN.md` as the new baseline. Every later "previous total + N" is counted from it.
+
+### V3. Play-test checklist
+Check each in the running game and note what feels wrong:
+- Light combo: tap chains light, light2, back to light; stops when the window closes; resets after an interrupt.
+- Heavy: a tap (under 0.1 s) is light; a hold charges; release swings. Check the charge clip and the `heavy_slash` look and reach (use Debug > Visible Collision Shapes).
+- Weapon: the sword is equipped at start; swapping or a refused equip leaves the old weapon working.
+- Aim: swing toward the mouse straight up and straight down (guide finding G).
+- Goblin: it picks its second attack (the lunge) and the swing distance matches the real reach.
+- Interrupt: a hit during a swing cancels it and the character returns to idle or run.
+- **Done when:** each item passes or is logged as a bug. Fix bugs before Phase 10.
+
+### V4. Small decisions and leftovers
+- Decide the leftover Threshold values on `DefaultAttackDefinition.tres`.
+- Update the validation note in `IMPLEMENTATION_NOTES.md` with the confirmed results.
+- **Done when:** both are written down.
+
+---
+
+## Phase 10: effect framework (guide finding B and I, phase 3 groundwork)
+
+Goal: a new attack kind (arrow, burst, follow-up effect) is a new scene and script with the same `configure(...)` signature, so `AttackComponent2D` never needs to know which one it spawned.
+
+### 10.1. Remove the legacy slash fallbacks
+- **Do:** In `AttackComponent2D.gd` remove `attack_slash_scene`, `slash_scene`, `set_slash_scene()` and `DEFAULT_SLASH`, and make `_spawn_effect` use only the definition's `effect_scene`. Apply the decision above for `DEFAULT_ATTACK` (in `AttackComponent2D.gd` and the `Character2D.attack_definition` setter). Remove the deprecated wording in `AttackDefinition2D.gd` and `IMPLEMENTATION_NOTES.md`. Every shipped `.tres` already sets `effect_scene`, so game content does not change.
+- **Why it is a step and not part of the cleanup zip:** test `I27` checks the legacy fallback on purpose, so removing it means rewriting that test, and the baseline has not been run yet.
+- **Tests:** rewrite `I26` and `I27` on purpose (a definition with no `effect_scene` is rejected with an error naming the attack). `M6` stays. Say in the notes which checks changed.
+- **Done when:** no `slash_scene` or `DEFAULT_SLASH` is left in the code, and the SUMMARY matches the notes.
+
+### 10.2. `AttackEffect2D` base class
+- **Do:** Add `Characters/Components/Combat/AttackEffect2D.gd` (a `Node2D` base) holding the shared parts: `configure(...)` with the current signature, the `hit_contact` and `hit_confirmed` signals, the target filter (not the attacker, `apply_hit`, not the same team) and hit-once tracking. `AttackSlash2D` extends it and keeps its behavior.
+- **Tests:** the existing hit, friendly-fire and hit-once checks pass unchanged; add one check that `AttackSlash2D` is an `AttackEffect2D`.
+- **Done when:** no behavior change and the SUMMARY is the previous total + the new checks.
+
+### 10.3. Exported node paths and clip names on `AttackSlash2D`
+- **Do:** Replace the fixed `@onready` paths (`$SlashEffectAnimSpritesheet/AnimationPlayer`, `$HitboxOrigin/...`) with exported `NodePath`s that default to today's names. `effect_animation` is already on the definition (9.8a).
+- **Tests:** a scene that renames a node and sets the path still works; the shipped scene is untouched.
+- **Done when:** a differently built effect scene works without editing the script.
+
+### 10.4. Hit policy: pierce and max targets
+- **Do:** Add `max_targets` (0 = unlimited) and `pierce: bool` to `AttackDefinition2D` and pass them through `configure(...)` (new last arguments with defaults). Decide per-effect or per-swing hit-once as in the decisions table.
+- **Tests:** an effect with `max_targets = 1` hits only one of two targets; the default still hits both; the same target is hit once per effect.
+- **Done when:** the policy is data on the definition and the defaults keep today's behavior.
+
+### 10.5. `AttackSpawnPoint`
+- **Do:** Add an optional `Marker2D` named `AttackSpawnPoint` to the character scenes and an exported path on `Character2D` (or `CharacterContext2D`). `_spawn_effect` uses it when present and falls back to `character.global_position`.
+- **Tests:** with a marker, the effect spawns at its position; without one, at the attacker's origin as today.
+- **Done when:** both shipped characters still behave the same and an attack can originate from a hand or a staff tip.
+
+---
+
+## Phase 11: projectiles and the bow (guide phase 3)
+
+Build the bow only after Phase 10. Its job is to prove that a different weapon type needs no changes to `AttackComponent2D`.
+
+### 11.1. `ProjectileEffect2D`
+- **Do:** Add a script and scene that extends `AttackEffect2D`: velocity along the attack direction, a collision mask from `hit_layers`, a lifetime, and an impact. Hits go through `HitData` and `HealthComponent2D.apply_hit()`; the impact spawns the definition's `hit_effect_scene`. Respect `pierce` and `max_targets` from 10.4. It frees itself on impact, expiry or hitting the world layer.
+- **Tests:** it travels, hits an enemy, stops on a wall (world layer value 4), expires after its lifetime, never hits the shooter or the same team, and pierce works.
+- **Done when:** a test spawns an arrow and it damages a goblin through the normal damage path.
+
+### 11.2. Arrow attack definition
+- **Do:** `ArrowAttackDefinition.tres` with `effect_scene = Arrow.tscn`, damage, knockback, and a projectile speed field (a new `projectile_speed` on `AttackDefinition2D`, ignored by melee effects).
+- **Done when:** the validation messages name the attack and clip as for melee.
+
+### 11.3. Bow weapon scene and definition
+- **Do:** `Weapons/Bow.tscn` (sprite plus `AnimationPlayer` with draw, release and return clips, and an `attack_event(&"spawn_effect")` key at release). `Data/Weapons/BowWeaponDefinition.tres` with `basic_combo` (one shot) and `heavy_attack` (a charged piercing shot using the Phase 9.6c charge fields).
+- **Done when:** `validate_equip()` for the bow returns no problems.
+
+### 11.4. Weapon switching input
+- **Do:** Add a `weapon_next` input action and wire it to `WeaponController2D.equip()` in `player.gd`. Equip is already refused during a swing or charge.
+- **Tests:** swap sword to bow to sword; a failed equip rolls back; the light and heavy ids come from the equipped weapon (9.7d-1).
+- **Done when:** you can play with both weapons and switch freely.
+
+### 11.5. Goblin archer (optional proof)
+- **Do:** An enemy using the bow definition with a ranged `ai_attack_range`. If AI needs a ranged behavior, add it as its own small step and leave `EnemyAIController2D`'s `Behavior` enum alone until then (guide section 6, item 9).
+
+---
+
+## Phase 12: combat resolver (guide phase 3 to 5 groundwork)
+
+Goal: one place calculates final damage for melee, projectiles, skills and passives. `HitData` and `HealthComponent2D.apply_hit()` stay the foundation.
+
+### 12.1. Route all damage through one function
+- **Do:** Add `CombatResolver2D` (a static helper or a small node) with `resolve(hit: HitData, target) -> HitData`, doing nothing yet. `apply_hit` calls it first.
+- **Tests:** results are identical to today; all damage sources (melee, projectile) pass through it.
+- **Done when:** there is a single place to extend and no behavior change.
+
+### 12.2. Defense
+- **Do:** A `defense` value on the target (on `HealthComponent2D` or a small stats resource) and a damage-reduction formula in the resolver. Write the formula in the notes.
+- **Tests:** zero defense changes nothing; defense lowers damage; damage never drops below a minimum.
+
+### 12.3. Critical hits
+- **Do:** `crit_chance` and `crit_multiplier` (on the attacker's stats or the definition). Use a seedable random source so tests are deterministic.
+- **Tests:** chance 0 never crits, chance 1 always crits, the multiplier is applied once.
+
+### 12.4. Status effect framework
+- **Do:** `StatusEffectDefinition2D` (resource: id, duration, tick interval, stack rule, tick damage or modifier) and `StatusController2D` (runtime node: apply, refresh, stack, expire, remove). Runtime state lives in the controller, never in the `.tres`.
+- **Tests:** a bleed ticks damage on schedule, expires, refreshes on reapply, stacks per its rule, and clears on death.
+- **Done when:** a definition can apply a status on hit with no new script.
+
+---
+
+## Phase 13: active skills (guide phase 4)
+
+### 13.0. Decisions
+- Settle the slot count and cost resource from the decisions table. Write them in the notes.
+
+### 13.1. `SkillDefinition2D`
+- **Do:** A resource with id, name, icon, slot, cooldown, cost, cast or channel time, targeting, range, area shape, animation and effect references, and a behavior type. Add the commented-out `active_skills` array on `WeaponDefinition2D` and validate it like attacks (clips, ids, duplicates).
+
+### 13.2. `SkillComponent2D` executor
+- **Do:** Validate (cooldown, cost, not dashing, not stunned), start the cast, run the behavior, start the cooldown. Reuse `AttackComponent2D` gating rules instead of writing new ones. Cooldowns live in the component.
+- **Tests:** cooldown blocks a second use; a failed cost refuses cleanly; an interrupt cancels a cast.
+
+### 13.3. Reusable behaviors, one at a time
+1. Projectile skill (uses `ProjectileEffect2D`).
+2. Area skill (an area effect scene, a new `AttackEffect2D` subclass).
+3. Dash skill (reuse `DashComponent2D` for movement).
+4. Buff skill (uses the status framework from 12.4).
+5. Channel skill (last, only if a weapon needs it).
+- **Done when:** each behavior has one shipped skill and one test.
+
+### 13.4. Input and HUD
+- **Do:** Skill input actions per slot and HUD slots showing icon and cooldown. Keep the HUD as scenes with an `AnimationPlayer`, as the health bar is.
+
+### 13.5. First real skills
+- Sword: dash slash and a spin. Bow: multi-shot. Each is one clip, one effect scene, one `.tres` and one entry in the weapon's skill list.
+
+---
+
+## Phase 14: passives (guide phase 5)
+
+### 14.0. Write the counter rules
+- Do misses count, how counters reset, once per target or once per attack, whether stacks overlap. Put the answers in the step notes before any code.
+
+### 14.1. `PassiveDefinition2D` and `PassiveController2D`
+- **Do:** A resource describing trigger event, condition, counter and effect, and a runtime controller that connects to `attack_started`, `attack_hit`, `attack_finished`, `damaged`, `died` (all already emitted) and tracks stacks. Add the commented-out `passive_skills` array to `WeaponDefinition2D`.
+
+### 14.2. First passive as the test
+- **Do:** The guide's example: three qualifying hits grant an empowered state that the next attack consumes for bonus damage.
+- **Tests:** counts only the hits your rules allow, resets as written, the empowered state is consumed once.
+
+### 14.3. Event passives
+- Heal on hit, bonus damage below a health threshold, bleed on hit (uses 12.4). One test each.
+
+---
+
+## Track P: presentation and data cleanup (any time after Phase V)
+
+Each of these removes a place where adding content still needs a script change. Do them when the next new character or weapon needs them, not all at once. Order below is by value (guide section 6).
+
+- **P1. `ReactionComponent2D`.** Listens to `damaged` and `died` and plays exported clip names and effect scenes. Moves the hard-coded `take_damage`, `RESET` and `death` strings out of `player.gd` and `BasicEnemy2D.gd`. *Done when:* a new enemy needs no presentation script.
+- **P2. Exported rig paths.** Exported `NodePath`s on `Character2D` for the visual root, locomotion player, weapon player and weapon pivot, defaulting to today's names, replacing the name lookups in `CharacterContext2D._init`. *Done when:* a third character layout works without copying node names.
+- **P3. Locomotion clip names.** Exported `StringName`s on the states, or one `CharacterAnimationSet` resource, for `idle`, `run` and the `RESET` clip used in `AttackComponent2D`.
+- **P4. Team targeting.** `EnemyAIController2D` targets any character on a different team instead of the `player` group; the `DetectionArea` mask still filters. *Done when:* `target_group` is gone.
+- **P5. `Hurtbox` component.** An `Area2D` that forwards hits to `HealthComponent2D`, so crates and switches take hits without joining the `damageable` group by hand (this also removes the group check in `AttackSlash2D`).
+- **P6. `Stagger` state.** A state node plus a reaction clip, added only to characters that should flinch when hit stun applies.
+- **P7. Goblin lunge impulse.** A forward movement impulse in `MovementComponent2D` for the lunge (listed as open in `docs/phase9/PLAN.md`).
+- **P8. `FacingComponent2D`.** Low priority; the current facing flip works.
+
+---
+
+## Phase 15: more weapons and polish (guide phase 6)
+
+- One weapon at a time, each as content only: scene, clips, effect scenes, attack `.tres` files, one `WeaponDefinition2D`, and one new smoke check per attack. Suggested order: fire staff (projectile plus burn), war hammer (slam and stagger, needs P6), dual daggers (fast combo plus bleed), spear.
+- VFX: slash and projectile trails, charge-up visuals and release effects, weapon-specific impacts.
+- Sound: swing, hit, block and skill cues, configured on attack and weapon resources, never hard-coded in player or enemy scripts.
+- Feedback for crits, status effects and skill activation.
+- Debug tools and resource validation extended to skills, passives and statuses.
+- Balancing pass.
+
+## Housekeeping that stays open
+
+- Keep exactly one copy of the guide, in `docs/` (done in this cleanup).
+- Keep `.godot/` out of archives (it is in `.gitignore`).
+- Treat any `CharacterContext2D` warning as a blocker (guide section 9).
+- Prefer adding fields to resources; renaming silently resets saved values.
+- After any timing change, update the smoke-test waits deliberately; do not loosen assertions.

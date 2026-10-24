@@ -8,7 +8,7 @@ class_name EnemyAIController2D
 
 enum Behavior { IDLE, CHASE, ATTACK, RETURN }
 
-## Swing distance used when the active attack definition's ai_attack_range is 0.
+## Swing distance used when the chosen attack definition's ai_attack_range is 0.
 const FALLBACK_ATTACK_RANGE := 30.0
 
 signal behavior_changed(previous_behavior: Behavior, current_behavior: Behavior)
@@ -28,7 +28,14 @@ var _home_position := Vector2.ZERO
 var _lost_target_elapsed := 0.0
 var _movement_intent := Vector2.ZERO
 var _aim_direction := Vector2.RIGHT
-var _attack_requested := false
+## Id of the attack to start this frame; empty = none.
+var _requested_attack_id: StringName = &""
+## Random source for picking between profile.attack_choices (seed it in tests).
+var rng := RandomNumberGenerator.new()
+## The picked attack while profile.attack_choices is in use; empty = pick on next use.
+var _chosen_attack_id: StringName = &""
+## Choice ids already reported as not registered, so the warning is printed once.
+var _warned_choice_ids: Dictionary = {}
 
 func initialize(character: Character2D) -> void:
 	_character = character
@@ -41,9 +48,9 @@ func initialize(character: Character2D) -> void:
 func physics_update(delta: float) -> void:
 	if not is_instance_valid(_character) or _character.context == null or not _character.is_alive():
 		_movement_intent = Vector2.ZERO
-		_attack_requested = false
+		_requested_attack_id = &""
 		return
-	_attack_requested = false
+	_requested_attack_id = &""
 	_refresh_target(delta)
 
 	if _is_valid_target(_target):
@@ -57,7 +64,8 @@ func physics_update(delta: float) -> void:
 			_movement_intent = Vector2.ZERO
 			_set_behavior(Behavior.ATTACK)
 			if not _character.context.is_attacking and not _character.context.is_dashing and not _character.attack_component.is_on_cooldown():
-				_attack_requested = true
+				_requested_attack_id = get_chosen_attack_id()
+				_chosen_attack_id = &"" # pick again for the next swing
 		else:
 			_movement_intent = to_target.normalized()
 			_set_behavior(Behavior.CHASE)
@@ -73,14 +81,69 @@ func physics_update(delta: float) -> void:
 		_movement_intent = Vector2.ZERO
 		_set_behavior(Behavior.IDLE)
 
-## Distance at which this enemy starts a swing: the active attack definition's
-## ai_attack_range when it is above zero, otherwise FALLBACK_ATTACK_RANGE.
+## Distance at which this enemy starts a swing: the chosen attack's ai_attack_range when it
+## is above zero, otherwise FALLBACK_ATTACK_RANGE.
 func get_effective_attack_range() -> float:
-	if is_instance_valid(_character) and is_instance_valid(_character.attack_component):
-		var attack_definition: AttackDefinition2D = _character.attack_component.definition
-		if attack_definition != null and attack_definition.ai_attack_range > 0.0:
-			return attack_definition.ai_attack_range
+	var attack_definition := get_chosen_attack()
+	if attack_definition != null and attack_definition.ai_attack_range > 0.0:
+		return attack_definition.ai_attack_range
 	return FALLBACK_ATTACK_RANGE
+
+## The attack the AI will use for its next swing. With no usable entry in
+## profile.attack_choices this is always the character's default attack (read live, so
+## swapping it takes effect at once). Otherwise a weighted pick that is kept until the swing
+## is requested (or reset_attack_choice() is called).
+func get_chosen_attack() -> AttackDefinition2D:
+	if not is_instance_valid(_character) or not is_instance_valid(_character.attack_component):
+		return null
+	var component: AttackComponent2D = _character.attack_component
+	if _chosen_attack_id != &"":
+		var current := component.get_attack(_chosen_attack_id)
+		if current != null:
+			return current
+		_chosen_attack_id = &""
+	var picked := _pick_attack(component)
+	if picked == null:
+		return component.definition
+	_chosen_attack_id = picked.id
+	return picked
+
+func get_chosen_attack_id() -> StringName:
+	var chosen := get_chosen_attack()
+	return chosen.id if chosen != null else &""
+
+## Forgets the picked attack, so the next call picks again (use after editing the choices).
+func reset_attack_choice() -> void:
+	_chosen_attack_id = &""
+
+## Weighted random pick from profile.attack_choices, or null when no entry is usable (empty
+## list, zero weights, or entries that are not registered on the attack component).
+func _pick_attack(component: AttackComponent2D) -> AttackDefinition2D:
+	if profile == null:
+		return null
+	var usable: Array[AttackDefinition2D] = []
+	var weights: Array[float] = []
+	var total := 0.0
+	for choice in profile.attack_choices:
+		if choice == null or choice.attack == null or choice.weight <= 0.0:
+			continue
+		var registered := component.get_attack(choice.attack.id)
+		if registered == null:
+			if not _warned_choice_ids.has(choice.attack.id):
+				_warned_choice_ids[choice.attack.id] = true
+				push_warning("EnemyAIController2D on '%s': attack choice '%s' is not registered on its AttackComponent2D (add it to 'attacks'); ignored." % [_character.name, choice.attack.id])
+			continue
+		usable.append(registered)
+		weights.append(choice.weight)
+		total += choice.weight
+	if usable.is_empty():
+		return null
+	var roll := rng.randf() * total
+	for i in usable.size():
+		roll -= weights[i]
+		if roll < 0.0:
+			return usable[i]
+	return usable[usable.size() - 1]
 
 ## Radius of the circle currently used for detection (0 when there is no usable area).
 func get_detection_radius() -> float:
@@ -104,9 +167,10 @@ func get_aim_direction() -> Vector2:
 func get_attack_direction() -> Vector2:
 	return get_aim_direction()
 
-func consume_attack_request() -> bool:
-	var requested := _attack_requested
-	_attack_requested = false
+## Returns the id of the attack the AI wants to start (empty = none) and clears the request.
+func consume_attack_request() -> StringName:
+	var requested := _requested_attack_id
+	_requested_attack_id = &""
 	return requested
 
 func get_current_target() -> Node2D:

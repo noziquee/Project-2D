@@ -1,0 +1,323 @@
+[gd_scene format=3 uid="uid://bfesegeunf2io"]
+
+[ext_resource type="Texture2D" uid="uid://b6brt8g23u43g" path="res://2D_RPG_Assets/Weapon/Sword.png" id="1_sword"]
+
+[sub_resource type="Animation" id="Animation_1jxqw"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-4, 5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.87266463]
+}
+
+[sub_resource type="Animation" id="Animation_dw050"]
+resource_name = "idle"
+length = 0.04167083457522094
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(-4, 5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0.87266463]
+}
+
+[sub_resource type="Animation" id="Animation_pylmc"]
+resource_name = "sword_charge_heavy_slash"
+length = 0.16667083830051124
+loop_mode = 1
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.083333336),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [Vector2(-2, 5), Vector2(-2.25, 5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(0.5),
+"update": 0,
+"values": [-1.5707964]
+}
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("../..")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
+"values": []
+}
+
+[sub_resource type="Animation" id="Animation_pbfsw"]
+resource_name = "sword_heavy_slash"
+length = 0.2916708420258015
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(-2, 5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.25),
+"transitions": PackedFloat32Array(0.5, -2),
+"update": 0,
+"values": [-1.5707964, 2.8797932]
+}
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("../..")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.041666668),
+"transitions": PackedFloat32Array(1),
+"values": [{
+"args": [&"spawn_effect"],
+"method": &"attack_event"
+}]
+}
+
+[sub_resource type="Animation" id="Animation_b26j0"]
+resource_name = "sword_slash_1"
+length = 0.500004181567952
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(-2, 5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.5),
+"transitions": PackedFloat32Array(0.5, -2, -2),
+"update": 0,
+"values": [-1.5707964, 2.8797932, 2.8797932]
+}
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("../..")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.041666668, 0.25, 0.41666666),
+"transitions": PackedFloat32Array(1, 1, 1),
+"values": [{
+"args": [&"spawn_effect"],
+"method": &"attack_event"
+}, {
+"args": [&"combo_window_open"],
+"method": &"attack_event"
+}, {
+"args": [&"combo_window_close"],
+"method": &"attack_event"
+}]
+}
+
+[sub_resource type="Animation" id="Animation_5tmop"]
+resource_name = "sword_slash_2"
+length = 0.500004181567952
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(-2, 5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.5),
+"transitions": PackedFloat32Array(0.5, -2, -2),
+"update": 0,
+"values": [2.8797932, -1.5707964, -1.5707964]
+}
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("../..")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.041666668, 0.25, 0.41666666),
+"transitions": PackedFloat32Array(1, 1, 1),
+"values": [{
+"args": [&"spawn_effect"],
+"method": &"attack_event"
+}, {
+"args": [&"combo_window_open"],
+"method": &"attack_event"
+}, {
+"args": [&"combo_window_close"],
+"method": &"attack_event"
+}]
+}
+
+[sub_resource type="Animation" id="Animation_bwjto"]
+resource_name = "sword_slash_return_1"
+length = 0.500004181567952
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.4166667),
+"transitions": PackedFloat32Array(-2, 0.5),
+"update": 0,
+"values": [Vector2(-2, 5), Vector2(-4, 5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.4166667),
+"transitions": PackedFloat32Array(-2, 0.5),
+"update": 0,
+"values": [2.8797932, 0.8726646259971648]
+}
+
+[sub_resource type="Animation" id="Animation_7ahtn"]
+resource_name = "sword_slash_return_2"
+length = 0.500004181567952
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.4166667),
+"transitions": PackedFloat32Array(-2, 0.5),
+"update": 0,
+"values": [Vector2(-2, 5), Vector2(-4, 5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.4166667),
+"transitions": PackedFloat32Array(-2, 0.5),
+"update": 0,
+"values": [-1.5707963267948966, 0.8726646259971648]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_606se"]
+_data = {
+&"RESET": SubResource("Animation_1jxqw"),
+&"idle": SubResource("Animation_dw050"),
+&"sword_charge_heavy_slash": SubResource("Animation_pylmc"),
+&"sword_heavy_slash": SubResource("Animation_pbfsw"),
+&"sword_slash_1": SubResource("Animation_b26j0"),
+&"sword_slash_2": SubResource("Animation_5tmop"),
+&"sword_slash_return_1": SubResource("Animation_bwjto"),
+&"sword_slash_return_2": SubResource("Animation_7ahtn")
+}
+
+[node name="Sword" type="Node2D" unique_id=313217904]
+z_index = 1
+position = Vector2(-4, 5)
+rotation = 0.87266463
+
+[node name="weapon" type="Sprite2D" parent="." unique_id=1314826607]
+texture = ExtResource("1_sword")
+offset = Vector2(8, -8)
+
+[node name="HandAnim" type="AnimationPlayer" parent="." unique_id=28919737]
+libraries/ = SubResource("AnimationLibrary_606se")

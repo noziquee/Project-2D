@@ -3,6 +3,12 @@ class_name EnemyBehaviorProfile
 ## Tuning for EnemyAIController2D. One resource per enemy kind; the swing distance is not
 ## here, it comes from the attack definition (AttackDefinition2D.ai_attack_range).
 
+## Attacks the AI chooses between, with weights. Empty (default) = the AI always uses the
+## character's default attack. Each entry must also be registered on the enemy's
+## AttackComponent2D. The AI picks one entry at random by weight, starts walking until it is
+## inside THAT attack's ai_attack_range, swings, then picks again for the next swing.
+@export var attack_choices: Array[AttackChoice2D] = []
+
 ## Radius of the detection circle. 0 (default) keeps the CircleShape2D exactly as drawn on
 ## the enemy's DetectionArea, so the radius can be changed by dragging it in the 2D view.
 ## A value above 0 overrides the drawn shape for this enemy kind.

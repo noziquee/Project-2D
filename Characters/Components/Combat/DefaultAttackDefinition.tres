@@ -2,14 +2,20 @@
 
 [ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="1_definition"]
 [ext_resource type="PackedScene" uid="uid://mdxa2cxspq0g" path="res://Characters/Components/Combat/AttackSlash2D.tscn" id="2_effect"]
-[ext_resource type="PackedScene" path="res://Characters/Effects/HitEffect.tscn" id="3_hit"]
+[ext_resource type="PackedScene" uid="uid://buuimquyuurcf" path="res://Characters/Effects/HitEffect.tscn" id="3_hit"]
+[ext_resource type="Resource" path="res://Characters/Components/Combat/PlayerLight2AttackDefinition.tres" id="4_light2"]
 
 [resource]
 script = ExtResource("1_definition")
 id = &"player_light"
-cooldown_duration = 0.05
+damage = 5
+weapon_animation = &"sword_slash_1"
+recovery_animation = &"sword_slash_return_1"
 aim_weapon = true
 knockback = 160.0
 hit_stun = 0.15
 effect_scene = ExtResource("2_effect")
 hit_effect_scene = ExtResource("3_hit")
+next_attack = ExtResource("4_light2")
+release_mode = 1
+charge_threshold = 2.0

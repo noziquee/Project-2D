@@ -18,6 +18,8 @@
 [ext_resource type="Script" uid="uid://nwen6k2klg6r" path="res://Characters/StateMachine/States/AttackState.gd" id="17_attack"]
 [ext_resource type="PackedScene" uid="uid://dqo1gt6u27u3a" path="res://Characters/Effects/DeathEffect.tscn" id="18_death"]
 [ext_resource type="Resource" path="res://Characters/Controllers/GoblinBehaviorProfile.tres" id="19_profile"]
+[ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="20_definition_script"]
+[ext_resource type="Resource" path="res://Characters/Components/Combat/GoblinLungeAttackDefinition.tres" id="21_lunge"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_goblin_0"]
 atlas = ExtResource("2_goblin")
@@ -301,9 +303,53 @@ tracks/1/keys = {
 "values": [Vector2(0.8, 0.95), Vector2(1, 1)]
 }
 
+[sub_resource type="Animation" id="Animation_weapon_lunge"]
+resource_name = "lunge"
+length = 0.5
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.41666666),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.0, -0.6, 4.4505897]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.41666666),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(1, 1), Vector2(1.1, 1.05), Vector2(0.8, 0.95)]
+}
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("../..")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.33333334),
+"transitions": PackedFloat32Array(1),
+"values": [{
+"args": [&"spawn_effect"],
+"method": &"attack_event"
+}]
+}
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_weapon"]
 _data = {
 &"RESET": SubResource("Animation_weapon_reset"),
+&"lunge": SubResource("Animation_weapon_lunge"),
 &"slash": SubResource("Animation_weapon_slash"),
 &"sword_return": SubResource("Animation_weapon_return")
 }
@@ -313,7 +359,7 @@ radius = 5.0
 height = 12.0
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_detection"]
-radius = 50.0
+radius = 200.0
 
 [node name="BasicEnemy2D" type="CharacterBody2D" unique_id=803052333 groups=["damageable", "enemy"]]
 collision_layer = 2
@@ -377,6 +423,7 @@ dash_speed = 150.0
 [node name="AttackComponent2D" type="Node" parent="." unique_id=1295462030]
 script = ExtResource("12_attack")
 attack_definition = ExtResource("5_attack")
+attacks = Array[ExtResource("20_definition_script")]([ExtResource("21_lunge")])
 
 [node name="CharacterStateMachine" type="Node" parent="." unique_id=269831209]
 script = ExtResource("13_machine")

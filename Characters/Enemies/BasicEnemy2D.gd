@@ -32,7 +32,7 @@ func _get_movement_input() -> Vector2:
 func _get_aim_direction() -> Vector2:
 	return _ai_controller.get_aim_direction()
 
-func _get_attack_requested() -> bool:
+func _get_attack_requested() -> StringName:
 	return _ai_controller.consume_attack_request()
 
 func _get_attack_direction() -> Vector2:

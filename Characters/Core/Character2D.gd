@@ -25,6 +25,9 @@ signal died
 @export var health_component: HealthComponent2D
 ## Child node named "CharacterStateMachine" (its Idle/Move/Dash/Attack children are the states).
 @export var state_machine: CharacterStateMachine
+## Optional (9.7c-4): a child named "WeaponController2D". Only characters that can swap weapons (the
+## player) have one; the goblin does not. Its starting_weapon is equipped when it is initialized.
+@export var weapon_controller: WeaponController2D
 
 var context: CharacterContext2D
 ## Read-through shim for tests; the attack component owns the value. Health is read from
@@ -54,6 +57,7 @@ func _ready() -> void:
 	dash_component = _resolve_component(dash_component, "DashComponent2D") as DashComponent2D
 	attack_component = _resolve_component(attack_component, "AttackComponent2D") as AttackComponent2D
 	state_machine = _resolve_component(state_machine, "CharacterStateMachine") as CharacterStateMachine
+	weapon_controller = _resolve_component(weapon_controller, "WeaponController2D") as WeaponController2D
 	var missing: Array[String] = []
 	if movement_component == null:
 		missing.append("MovementComponent2D")
@@ -72,6 +76,8 @@ func _ready() -> void:
 	movement_component.initialize(context)
 	dash_component.initialize(context)
 	attack_component.initialize(context)
+	if is_instance_valid(weapon_controller):
+		weapon_controller.initialize(context, attack_component)
 
 	state_machine.initialize(context)
 
@@ -92,13 +98,19 @@ func _physics_process(delta: float) -> void:
 	# cooldown/duration loss on the exact frame an action starts.
 	dash_component.physics_update(delta)
 	attack_component.physics_update(delta)
+	_sample_attack_input(delta)
 	_update_facing_direction()
 
 	if is_alive() and not context.is_attacking:
 		if dash_component.try_start(_get_dash_requested(), _get_dash_direction()):
 			state_machine.transition_to(&"Dash")
 	if is_alive() and not context.is_dashing:
-		if attack_component.try_start(_get_attack_requested(), _get_attack_direction()):
+		if _get_charge_release_requested() and attack_component.release_charge(_get_attack_direction()):
+			state_machine.transition_to(&"Attack")
+		var charge_id := _get_charge_begin_requested()
+		if charge_id != &"" and attack_component.begin_charge(charge_id, _get_attack_direction()):
+			state_machine.transition_to(&"Attack")
+		if attack_component.try_start_attack(_get_attack_requested(), _get_attack_direction()):
 			state_machine.transition_to(&"Attack")
 			_update_facing_direction()
 
@@ -213,8 +225,28 @@ func _get_dash_requested() -> bool:
 func _get_dash_direction() -> Vector2:
 	return context.movement_input if context != null else Vector2.ZERO
 
-func _get_attack_requested() -> bool:
+## Attack input sampled once per physics frame, before the attack hooks below are read.
+## Controllers that do not charge keep these defaults (9.6c/9.6d).
+func _sample_attack_input(_delta: float) -> void:
+	pass
+
+## The heavy attack this character wants to start charging this frame (empty for none).
+func _get_charge_begin_requested() -> StringName:
+	return &""
+
+## True when the charge in progress should be released this frame.
+func _get_charge_release_requested() -> bool:
 	return false
+
+## Which attack this character wants to start this frame: an attack id that
+## AttackComponent2D.try_start_attack() understands, or an empty id for "none".
+func _get_attack_requested() -> StringName:
+	return &""
+
+## Id of the attack component's default attack (empty if there is none). Controllers that
+## have only one attack return this from _get_attack_requested().
+func get_default_attack_id() -> StringName:
+	return attack_component.definition.id if is_instance_valid(attack_component) and attack_component.definition != null else &""
 
 func _get_aim_direction() -> Vector2:
 	if context != null and context.movement_input.length_squared() > 0.0001:

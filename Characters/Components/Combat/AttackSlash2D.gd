@@ -16,6 +16,22 @@ var hitbox_offset: Vector2 = Vector2.ZERO
 var hit_layers: int = -1
 var knockback: float = 0.0
 var hit_stun: float = 0.0
+const DEFAULT_ANIMATION := &"slash"
+const ANIMATION_PLAYER_PATH := "SlashEffectAnimSpritesheet/AnimationPlayer"
+
+## The clip of SlashEffectAnimSpritesheet/AnimationPlayer this effect plays and ends with (the attack's effect_animation).
+var effect_animation: StringName = DEFAULT_ANIMATION
+
+## True when `scene` has the standard effect AnimationPlayer but not the clip `clip`. A scene with no such
+## player, or one that cannot be instantiated, is not judged here (false), and neither is an empty clip name.
+static func scene_lacks_animation(scene: PackedScene, clip: StringName) -> bool:
+	if scene == null or clip == &"" or not scene.can_instantiate():
+		return false
+	var instance := scene.instantiate()
+	var player := instance.get_node_or_null(ANIMATION_PLAYER_PATH) as AnimationPlayer
+	var lacks := player != null and not player.has_animation(clip)
+	instance.free()
+	return lacks
 
 @onready var _slash_animation_player: AnimationPlayer = $SlashEffectAnimSpritesheet/AnimationPlayer
 @onready var _hitbox: Area2D = $HitboxOrigin/HitboxMotion/Area2D
@@ -24,7 +40,7 @@ var hit_stun: float = 0.0
 
 var _hit_targets: Dictionary = {}
 
-func configure(attacker: Node2D, damage_amount: int, aim_direction: Vector2, shape_size: Vector2, origin_offset: Vector2, layers: int = -1, knockback_strength: float = 0.0, stun_seconds: float = 0.0) -> void:
+func configure(attacker: Node2D, damage_amount: int, aim_direction: Vector2, shape_size: Vector2, origin_offset: Vector2, layers: int = -1, knockback_strength: float = 0.0, stun_seconds: float = 0.0, animation: StringName = DEFAULT_ANIMATION) -> void:
 	source = attacker
 	damage = maxi(damage_amount, 0)
 	direction = aim_direction.normalized() if aim_direction.length_squared() > 0.0001 else Vector2.RIGHT
@@ -33,6 +49,7 @@ func configure(attacker: Node2D, damage_amount: int, aim_direction: Vector2, sha
 	hit_layers = layers
 	knockback = maxf(knockback_strength, 0.0)
 	hit_stun = maxf(stun_seconds, 0.0)
+	effect_animation = animation if animation != &"" else DEFAULT_ANIMATION
 
 func _ready() -> void:
 	global_rotation = direction.angle()
@@ -49,11 +66,11 @@ func _ready() -> void:
 		_collision_shape.shape = rectangle
 	_hitbox.body_entered.connect(_on_body_entered)
 	_slash_animation_player.animation_finished.connect(_on_animation_finished)
-	if not _slash_animation_player.has_animation(&"slash"):
-		push_error("AttackSlash2D requires SlashEffectAnimSpritesheet/AnimationPlayer animation 'slash'.")
+	if not _slash_animation_player.has_animation(effect_animation):
+		push_error("AttackSlash2D requires SlashEffectAnimSpritesheet/AnimationPlayer animation '%s'." % effect_animation)
 		queue_free()
 		return
-	_slash_animation_player.play(&"slash")
+	_slash_animation_player.play(effect_animation)
 
 func _physics_process(_delta: float) -> void:
 	if not _hitbox.monitoring or _collision_shape.disabled:
@@ -108,5 +125,5 @@ func _is_same_team(target: Node) -> bool:
 	return source_team != &"" and source_team == target_team
 
 func _on_animation_finished(animation_name: StringName) -> void:
-	if animation_name == &"slash":
+	if animation_name == effect_animation:
 		queue_free()

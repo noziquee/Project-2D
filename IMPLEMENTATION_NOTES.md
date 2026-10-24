@@ -5,8 +5,12 @@ This project now combines the layered player rig and custom sword-slash effect f
 ## Controls
 
 - **WASD / Arrow keys:** Move
-- **Left mouse button:** Attack toward the mouse cursor
+- **Left mouse button (`attack_light`), tap:** Light attack toward the mouse cursor, sent when the button is released. Tapping again inside the light attack's combo window chains into the next light attack (`player_light`, then `player_light2`, then back to the first).
+- **Left mouse button, hold (longer than 0.1 s):** Starts charging the equipped weapon's heavy attack; releasing the button swings it. The sword's heavy releases on input release. A heavy set to the Threshold release mode swings by itself while the button is still held.
+- **`attack_heavy`:** Charges the heavy attack directly. It has **no default binding**: add a key or button in Project Settings > Input Map to use it.
 - **Space:** Dash in the movement direction, or the last horizontal facing direction when standing still
+
+If the equipped weapon has no heavy attack, `attack_light` is the light attack on press and holding it does nothing special.
 
 ## Implemented systems
 
@@ -20,7 +24,11 @@ This project now combines the layered player rig and custom sword-slash effect f
 - `Characters/StateMachine/`: idle, move, dash, and attack presentation states
 - `Characters/Components/Health/HealthComponent2D.gd`: health, damage, healing, death and an optional invulnerability window
 - `Characters/Components/Combat/HitData.gd`: the hit payload (`damage`, `source`, `direction`, `knockback`, `hit_stun`)
-- `player.gd`: player controls, hit reaction, and death presentation
+- `Characters/Components/Weapons/WeaponDefinition2D.gd`: one weapon as a resource (`weapon_id`, `display_name`, `weapon_scene`, `basic_combo`, `heavy_attack`) with validation
+- `Characters/Components/Weapons/WeaponController2D.gd`: validates and equips a weapon (swaps the weapon scene, sets the character's attacks, rolls back on failure)
+- `Weapons/Sword.tscn` and `Data/Weapons/SwordWeaponDefinition.tres`: the shipped sword (sprite, `HandAnim` with its clips) and its definition
+- `Characters/Controllers/AttackChoice2D.gd`: one weighted attack choice for an enemy's `EnemyBehaviorProfile`
+- `player.gd`: player controls (tap, hold and release of the attack buttons, taking attack ids from the equipped weapon), hit reaction, and death presentation
 - `Characters/Controllers/EnemyAIController2D.gd` and `Characters/Enemies/BasicEnemy2D.gd`: goblin target acquisition, chase, melee attacks, return-home behavior, and hit/death presentation
 
 ## Integration and improvements
@@ -46,7 +54,9 @@ An attack is one `AttackDefinition2D` resource. Everything below can be changed 
 
 ## Validation note
 
-The archive has been checked for referenced resource files and important animation callback/node paths. A Godot executable was not available in the editing environment, so the game still needs to be opened and run in Godot 4.7 to validate import and runtime behavior.
+The editing environment has no Godot executable, so every step is written statically and then run by you. Phases 0 to 8 and Phase 9 steps 9.0 to 9.3 were run in Godot 4.7.2 (see the status table in `docs/phase9/PLAN.md`). Steps 9.4 and later (combos, heavy attack, charge, weapons) are written and tested in code but **not yet confirmed**: several scenes and resources were edited as text, so open the project once, read the Output panel, then run the smoke test and compare its SUMMARY line with the expected total in the newest step note.
+
+Smoke test: `godot --headless --fixed-fps 60 --path . --script res://tests/smoke_checks.gd`. Run `godot --headless --import --path .` first after adding new scripts, so new classes are registered.
 
 ## Review fixes (checked against `2D_RPG_Game`, verified in headless Godot 4.7.2)
 
@@ -145,3 +155,39 @@ Nothing here has been run in this environment (no Godot executable). Open the pr
 - Deleted: `HealthBarStyle.gd`, `PlayerHealthBar.gd/.tscn`, `EnemyHealthBar2D.gd/.tscn` (and their `.uid` files).
 - The Phase 4 `health` / `max_health` shims on `Character2D` are deleted: read `character.health_component.health` / `.max_health`. `Character2D.health_changed`, `damaged` and `died` stay. The `attack_definition` shim stays.
 - Tests: section Q (detection area, profile override, enum, drag-to-resize) and R (bar bound by NodePath, value / counter / trail / colour / critical / heal / dead, enemy variant is inherited and reveals on the first hit). Older tests were updated to read `health_component.health`, and I18 / I19 use the enum and `FALLBACK_ATTACK_RANGE`. The new scripts' `.gd.uid` files are created by Godot the first time the project is opened.
+
+## Phase 9: multiple attacks, combos, heavy attacks and weapons
+
+Step notes for every sub-step are in `docs/phase9/` (`PLAN.md` holds the status table, the decisions and the expected smoke-test totals). Everything below follows section 8 and section 10.5 of `docs/Combat Architecture Review & Expansion Guide (Updated Oct 2026).md`: a weapon owns its attacks and its clips, and characters do not change per weapon.
+
+**Attacks and input (9.0 to 9.3)**
+- `AttackComponent2D.attacks` lists extra attacks next to the default `attack_definition`; every attack is started by id with `try_start_attack(id, direction)`. Helpers: `get_attack`, `has_attack`, `get_attack_ids`, `get_active_attack_id`, `set_attacks`. Bad entries (null, empty or duplicate id, missing clip) are skipped with a message naming the problem.
+- `Character2D._get_attack_requested()` returns an attack id (empty = none). The input actions are `attack_light` (left mouse button) and `attack_heavy` (unbound).
+- Enemies choose between weighted attacks: `EnemyBehaviorProfile.attack_choices` holds `AttackChoice2D` entries (attack and weight). The AI walks until it is inside the chosen attack's `ai_attack_range`. Every chosen attack must also be registered on the enemy's `AttackComponent2D`. The goblin picks between its slash (weight 3) and its lunge (weight 1).
+
+**Combos (9.4, 9.6a, 9.6b, 9.R2)**
+- A light attack chains when a request arrives inside its combo window, which a weapon clip opens and closes with `attack_event(&"combo_window_open")` and `attack_event(&"combo_window_close")` keys. Nothing chains by itself.
+- What a chain plays: the attack's `combo_sequence` (a looping ordered list that starts with the attack itself), else its `next_attack`, else the same attack again. At the end of a chain a press inside the window restarts the combo's first attack. The shipped light combo is `player_light` -> `player_light2` -> `player_light` -> ...
+- When the window closes with no press, the return clip of the attack performed last starts at once and cuts the rest of the weapon clip. During the return nothing can start, and a press is dropped (not buffered).
+- Combo index, the combo's first attack and the charge clock are runtime state in `AttackComponent2D`, never stored in a resource. The combo resets when it ends, is interrupted, is cancelled or the character dies.
+
+**Heavy attacks and charge (9.5a, 9.6c, 9.6d)**
+- `AttackDefinition2D` has a **Charge** group: `charge_animation`, `release_mode` (`INPUT_RELEASE` or `THRESHOLD`) and `charge_threshold`. `begin_charge(id, direction)` and `release_charge(direction)` on the component start and release a charge; `is_charging()`, `get_charge_time()` and `get_charge_ratio()` (0 to 1, for a charge bar) read it. Charge changes timing only: damage and knockback stay fixed per attack.
+- The player holds `attack_light` past `charge_start_time` (0.1 s) to begin a charge of the heavy attack. A press that is released earlier is a light attack. If the charge is refused (a swing or return is running), the release is a light attack, so a press held into a combo window still chains.
+- The shipped attacks use the weapon's own clips: `player_light` (`sword_slash_1`, return `sword_slash_return_1`), `player_light2` (`sword_slash_2`, return `sword_slash_return_2`) and `player_heavy` (`sword_heavy_slash`, charge clip `sword_charge_heavy_slash`, return `sword_slash_return_1`).
+- Each attack names which clip of its effect scene to play with `effect_animation` (default `slash`). `AttackSlash2D.tscn` also has a larger `heavy_slash` clip (hitbox sweep out to 80 px instead of 62), and `PlayerHeavyAttackDefinition.tres` uses it. A scene without the named clip is refused when the attack is registered or equipped, with a message naming the clip.
+- The goblin's lunge (`goblin_lunge`, clip `lunge`) slows the goblin with `movement_multiplier` 0.3 but does not push it forward; a forward impulse needs a small addition to `MovementComponent2D`.
+
+**Weapons (9.7)**
+- `WeaponDefinition2D` is data only. `validate(animation_player)` reports every problem with the weapon named: empty id, no combo attack, empty or duplicate attack ids, links that leave the weapon, combo entries no chain reaches, and missing weapon, recovery or charge clips. `validate_scene()` checks the weapon's own scene.
+- `Weapons/Sword.tscn` is the sword: root `MainHand` (a `Node2D`), the `weapon` sprite and a `HandAnim` `AnimationPlayer` with the eight sword clips. `player.tscn` holds one instance, `WeaponFacingPivot/MainHand`. The clips' `attack_event` method tracks use the path `../..`, so a weapon scene only works when it is mounted directly under `WeaponFacingPivot` (opened on its own, those tracks look invalid; that is expected).
+- `CharacterContext2D.find_weapon_player(weapon_root)` finds a weapon's player (`HandAnim`, `WeaponAnimation`, else the first `AnimationPlayer` child); `bind_weapon(root)` points the context at a newly mounted weapon. `AttackComponent2D.rebind_weapon_player()` moves its `animation_finished` connection to the new player.
+- `WeaponController2D` is an optional child of a character (the player has one, the goblin does not). `validate_equip(weapon)` and `can_equip(weapon)` change nothing. `equip(weapon)` is refused during a swing or charge, swaps the weapon scene when it differs from the mounted one (the new weapon takes the old one's name and position), sets the default attack and `attacks`, and puts the old weapon and attacks back if anything fails. It emits `weapon_equipped` or `equip_failed`. The cooldown keeps running through an equip. `starting_weapon` is equipped when the controller initializes; the player's is `SwordWeaponDefinition.tres`.
+- `player.gd` takes its ids from the equipped weapon: `get_light_attack_id()` is the component's default attack (the weapon's first combo attack) and `get_heavy_attack_id()` is the weapon's `heavy_attack`. The `light_attack_id` and `heavy_attack_id` exports are empty by default and act as overrides.
+- Nothing in the game switches weapons yet (no pickup, inventory or input); `equip()` is called from code and tests.
+
+**Adding content now**
+- A new attack: one clip in the weapon scene's `HandAnim` (with a `spawn_effect` key and, for combos, window keys), an effect scene (inherit `AttackSlash2D.tscn`), one `AttackDefinition2D` `.tres`, and an entry in the weapon's `basic_combo` or `heavy_attack`. Follow section 5 of the guide for the step-by-step.
+- A new weapon: a weapon scene (a `Node2D` root, the sprite, an `AnimationPlayer` called `HandAnim`), its attack definitions, one `WeaponDefinition2D` `.tres`, then equip it. Run `validate()` first; the messages name the weapon, attack and clip.
+
+**Not in Phase 9:** projectiles and a shared effect base class, `AttackSpawnPoint`, active skills, passives and status effects (guide phases 3 to 5), a stagger state, and weapon switching in play.

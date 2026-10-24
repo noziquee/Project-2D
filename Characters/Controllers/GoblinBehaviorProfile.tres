@@ -1,10 +1,19 @@
-[gd_resource type="Resource" script_class="EnemyBehaviorProfile" format=3]
+[gd_resource type="Resource" script_class="EnemyBehaviorProfile" format=3 uid="uid://crfo3gq0o40qf"]
 
-[ext_resource type="Script" path="res://Characters/Controllers/EnemyBehaviorProfile.gd" id="1_profile"]
+[ext_resource type="Script" uid="uid://bysdgsi3ih8o" path="res://Characters/Controllers/EnemyBehaviorProfile.gd" id="1_profile"]
+[ext_resource type="Script" uid="uid://8y3nwxuiytgq" path="res://Characters/Controllers/AttackChoice2D.gd" id="2_choice"]
+[ext_resource type="Resource" uid="uid://fxvdwr0kdi3j" path="res://Characters/Components/Combat/GoblinAttackDefinition.tres" id="3_slash"]
+[ext_resource type="Resource" path="res://Characters/Components/Combat/GoblinLungeAttackDefinition.tres" id="4_lunge"]
+
+[sub_resource type="Resource" id="Resource_slash_choice"]
+script = ExtResource("2_choice")
+attack = ExtResource("3_slash")
+weight = 3.0
+
+[sub_resource type="Resource" id="Resource_lunge_choice"]
+script = ExtResource("2_choice")
+attack = ExtResource("4_lunge")
 
 [resource]
 script = ExtResource("1_profile")
-detection_radius = 0.0
-disengage_radius = 250.0
-lost_target_grace_duration = 0.75
-home_stop_distance = 5.0
+attack_choices = Array[ExtResource("2_choice")]([SubResource("Resource_slash_choice"), SubResource("Resource_lunge_choice")])
