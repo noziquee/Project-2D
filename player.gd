@@ -76,6 +76,10 @@ func _sample_attack_input(delta: float) -> void:
 		_press_charged = false
 		_charge_requested = false
 		return
+	# Weapon switch (11.4): before the ids below are read, so this frame already uses the new weapon. The
+	# controller refuses it during a swing or charge, so a press then is simply dropped.
+	if Input.is_action_just_pressed("weapon_next") and is_instance_valid(weapon_controller):
+		weapon_controller.equip_next()
 	var heavy_id := get_heavy_attack_id()
 	var has_heavy := is_instance_valid(attack_component) and heavy_id != &"" and attack_component.has_attack(heavy_id)
 	var light_id := get_light_attack_id()
@@ -132,6 +136,16 @@ func _on_damaged(_hit: HitData) -> void:
 		_reaction_animation_player.play(&"take_damage")
 
 func _on_death() -> void:
+	# Physics processing is switched off below, so _sample_attack_input() never runs again to drop a button
+	# that was held (or a request made) when the player died. Clear that state here (V2a, test U15).
+	_light_held = false
+	_heavy_held = false
+	_press_charged = false
+	_charge_requested = false
+	_hold_elapsed = 0.0
+	_pending_light = &""
+	_pending_begin = &""
+	_pending_release = false
 	if is_instance_valid(_reaction_animation_player):
 		_reaction_animation_player.stop() # a flash must not outlive the character
 		if _reaction_animation_player.has_animation(&"RESET"):

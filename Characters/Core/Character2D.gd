@@ -28,6 +28,11 @@ signal died
 ## Optional (9.7c-4): a child named "WeaponController2D". Only characters that can swap weapons (the
 ## player) have one; the goblin does not. Its starting_weapon is equipped when it is initialized.
 @export var weapon_controller: WeaponController2D
+## Optional (10.5): a Marker2D (default name "AttackSpawnPoint") where attack effects appear, such as a
+## hand or a staff tip. Leave it empty and add no such child to spawn effects at the character's origin,
+## as before. The marker moves with whatever node it is a child of, so put it under the weapon pivot if it
+## should follow the aim, or directly under the character if it should not.
+@export var attack_spawn_point: Marker2D
 
 var context: CharacterContext2D
 ## Read-through shim for tests; the attack component owns the value. Health is read from
@@ -37,8 +42,9 @@ var attack_definition: AttackDefinition2D:
 		return attack_component.definition if is_instance_valid(attack_component) else null
 	set(value):
 		if is_instance_valid(attack_component):
-			# The component rejects definitions that reference missing clips and keeps the old one.
-			attack_component.set_attack_definition(value if value != null else AttackComponent2D.DEFAULT_ATTACK)
+			# The component rejects a null definition and definitions that reference missing clips or
+			# have no effect_scene, and keeps the old one.
+			attack_component.set_attack_definition(value)
 
 func _ready() -> void:
 	context = CharacterContext2D.new(self)
@@ -58,6 +64,8 @@ func _ready() -> void:
 	attack_component = _resolve_component(attack_component, "AttackComponent2D") as AttackComponent2D
 	state_machine = _resolve_component(state_machine, "CharacterStateMachine") as CharacterStateMachine
 	weapon_controller = _resolve_component(weapon_controller, "WeaponController2D") as WeaponController2D
+	attack_spawn_point = _resolve_spawn_point(attack_spawn_point)
+	context.attack_spawn_point = attack_spawn_point
 	var missing: Array[String] = []
 	if movement_component == null:
 		missing.append("MovementComponent2D")
@@ -85,6 +93,19 @@ func _ready() -> void:
 		push_warning("Character2D '%s' has no recognized locomotion animation node." % name)
 
 	health_changed.emit(health_component.health, health_component.max_health)
+
+## The spawn marker: `current` if set, otherwise a child named AttackSpawnPoint. Null when there is none.
+## A node with that name that is not a Marker2D is reported and ignored.
+func _resolve_spawn_point(current: Marker2D) -> Marker2D:
+	if is_instance_valid(current):
+		return current
+	var candidate := get_node_or_null("AttackSpawnPoint")
+	if candidate == null:
+		return null
+	if not candidate is Marker2D:
+		push_warning("Character2D '%s' has a child named AttackSpawnPoint that is not a Marker2D; effects spawn at the character's origin." % name)
+		return null
+	return candidate as Marker2D
 
 ## Returns `current` if set, otherwise the child with the default name (or null).
 func _resolve_component(current: Node, node_name: String) -> Node:

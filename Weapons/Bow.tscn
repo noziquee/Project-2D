@@ -1,0 +1,234 @@
+[gd_scene format=3 uid="uid://ycpajll57ywg"]
+
+[ext_resource type="Texture2D" uid="uid://dn5u0gyvv7awe" path="res://2D_RPG_Assets/Weapon/Bow.png" id="1_bow"]
+
+[sub_resource type="Animation" id="Animation_reset"]
+resource_name = "RESET"
+length = 0.001
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-4, 5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [-0.7853982]
+}
+
+[sub_resource type="Animation" id="Animation_charge"]
+resource_name = "bow_charge"
+length = 0.16667083830051124
+loop_mode = 1
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.083333336),
+"transitions": PackedFloat32Array(0.5, 2),
+"update": 0,
+"values": [Vector2(6, 8), Vector2(5.5, 8)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [-0.7853982]
+}
+
+[sub_resource type="Animation" id="Animation_ffoll"]
+resource_name = "bow_heavy_shoot"
+length = 0.500004181567952
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.083333336, 0.5),
+"transitions": PackedFloat32Array(0.5, -2, -2),
+"update": 0,
+"values": [Vector2(6, 8), Vector2(5, 8), Vector2(5, 8)]
+}
+tracks/1/type = "method"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("../..")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.041666668),
+"transitions": PackedFloat32Array(1),
+"values": [{
+"args": [&"spawn_effect"],
+"method": &"attack_event"
+}]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [-0.7853982]
+}
+
+[sub_resource type="Animation" id="Animation_return"]
+resource_name = "bow_return"
+length = 0.500004181567952
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.41666666),
+"transitions": PackedFloat32Array(1, 0.5),
+"update": 0,
+"values": [Vector2(5, 8), Vector2(-4, 5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.41666666),
+"transitions": PackedFloat32Array(-2, 0.5),
+"update": 0,
+"values": [-0.7853982, 0.08726646]
+}
+
+[sub_resource type="Animation" id="Animation_heavy"]
+resource_name = "bow_shoot"
+length = 0.500004181567952
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.083333336, 0.5),
+"transitions": PackedFloat32Array(0.5, -2, -2),
+"update": 0,
+"values": [Vector2(6, 8), Vector2(5, 8), Vector2(5, 8)]
+}
+tracks/1/type = "method"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("../..")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.041666668, 0.25, 0.4166667),
+"transitions": PackedFloat32Array(1, 1, 1),
+"values": [{
+"args": [&"spawn_effect"],
+"method": &"attack_event"
+}, {
+"args": [&"combo_window_open"],
+"method": &"attack_event"
+}, {
+"args": [&"combo_window_close"],
+"method": &"attack_event"
+}]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [-0.7853982]
+}
+
+[sub_resource type="Animation" id="Animation_idle"]
+resource_name = "idle"
+length = 0.04167083457522094
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(-4, 5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0.08726646259971647]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_bow"]
+_data = {
+&"RESET": SubResource("Animation_reset"),
+&"bow_charge": SubResource("Animation_charge"),
+&"bow_heavy_shoot": SubResource("Animation_ffoll"),
+&"bow_return": SubResource("Animation_return"),
+&"bow_shoot": SubResource("Animation_heavy"),
+&"idle": SubResource("Animation_idle")
+}
+
+[node name="MainHand" type="Node2D" unique_id=1189417972]
+z_index = 1
+position = Vector2(-4, 5)
+rotation = -0.7853982
+
+[node name="weapon" type="Sprite2D" parent="." unique_id=1050675032]
+texture = ExtResource("1_bow")
+offset = Vector2(5, -5)
+
+[node name="HandAnim" type="AnimationPlayer" parent="." unique_id=962302330]
+libraries/ = SubResource("AnimationLibrary_bow")

@@ -28,6 +28,8 @@ var animated_sprite: AnimatedSprite2D
 var weapon_pivot: Node2D
 var weapon_facing_root: Node2D
 var weapon_animation_player: AnimationPlayer
+## Optional marker where attack effects spawn (10.5); set by Character2D. Null means the character's origin.
+var attack_spawn_point: Marker2D
 
 var movement_input: Vector2 = Vector2.ZERO
 ## Horizontal facing chosen by locomotion; preserved while attacking.
@@ -75,6 +77,13 @@ func _init(owner: CharacterBody2D) -> void:
 		push_warning("CharacterContext2D: '%s' has no weapon AnimationPlayer (expected a weapon scene with an AnimationPlayer under WeaponFacingPivot, or at AnimatedSprite2D/Weapon). Attacks are disabled." % owner.name)
 		return
 	_validate_attack_event_tracks()
+
+## Where an attack effect appears: the spawn marker when there is a live one in the tree, otherwise the
+## character's origin.
+func get_attack_origin() -> Vector2:
+	if is_instance_valid(attack_spawn_point) and attack_spawn_point.is_inside_tree():
+		return attack_spawn_point.global_position
+	return character.global_position
 
 ## The AnimationPlayer that holds a weapon's clips: the child called HandAnim or WeaponAnimation, otherwise
 ## the first AnimationPlayer child of `weapon_root`. Null when there is none (or no weapon).

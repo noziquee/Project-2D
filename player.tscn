@@ -21,6 +21,9 @@
 [ext_resource type="PackedScene" uid="uid://bfesegeunf2io" path="res://Weapons/Sword.tscn" id="20_sword"]
 [ext_resource type="Script" uid="uid://cxp6co2ulrj0w" path="res://Characters/Components/Weapons/WeaponController2D.gd" id="21_weapon_controller"]
 [ext_resource type="Resource" uid="uid://bhehk7x0ebkd7" path="res://Data/Weapons/SwordWeaponDefinition.tres" id="22_sword_def"]
+[ext_resource type="Resource" uid="uid://xrvcsh4tu5qs" path="res://Characters/Components/Combat/DefaultAttackDefinition.tres" id="23_default_attack"]
+[ext_resource type="Script" uid="uid://n1fmcxqhoh6t" path="res://Characters/Components/Weapons/WeaponDefinition2D.gd" id="24_weapon_script"]
+[ext_resource type="Resource" path="res://Data/Weapons/BowWeaponDefinition.tres" id="25_bow_def"]
 
 [sub_resource type="Animation" id="Animation_n7ghd"]
 length = 0.001
@@ -479,6 +482,7 @@ height = 18.0
 [node name="Player" type="CharacterBody2D" unique_id=176143687 node_paths=PackedStringArray("movement_component", "dash_component", "attack_component", "health_component", "state_machine") groups=["damageable", "player"]]
 collision_mask = 7
 script = ExtResource("7_player_script")
+charge_start_time = 0.5
 team = &"player"
 movement_component = NodePath("MovementComponent2D")
 dash_component = NodePath("DashComponent2D")
@@ -519,7 +523,7 @@ shape = SubResource("CapsuleShape2D_2nri0")
 
 [node name="WeaponFacingPivot" type="Node2D" parent="." unique_id=1465069529]
 
-[node name="MainHand" parent="WeaponFacingPivot" unique_id=667962075 instance=ExtResource("20_sword")]
+[node name="Sword" parent="WeaponFacingPivot" unique_id=667962075 instance=ExtResource("20_sword")]
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=558928301]
 visible = false
@@ -540,11 +544,13 @@ script = ExtResource("11_dash")
 
 [node name="AttackComponent2D" type="Node" parent="." unique_id=1129759479]
 script = ExtResource("12_attack")
+attack_definition = ExtResource("23_default_attack")
 attacks = Array[ExtResource("12_pylmc")]([ExtResource("18_light2"), ExtResource("19_heavy")])
 
 [node name="WeaponController2D" type="Node" parent="." unique_id=1857204391]
 script = ExtResource("21_weapon_controller")
 starting_weapon = ExtResource("22_sword_def")
+loadout = Array[ExtResource("24_weapon_script")]([ExtResource("22_sword_def"), ExtResource("25_bow_def")])
 
 [node name="CharacterStateMachine" type="Node" parent="." unique_id=1322817306]
 script = ExtResource("13_machine")

@@ -16,9 +16,9 @@ This continues `docs/phase9/PLAN.md`. Same rules as Phase 9: small steps, each l
 
 | Phase | What | Status |
 |---|---|---|
-| V | Verify and stabilize Phase 9 | not started |
-| 10 | Effect framework (base class, spawn point, hit policy, legacy cleanup) | not started |
-| 11 | Projectiles and the bow | not started |
+| V | Verify and stabilize Phase 9 | V1 import and V2 smoke test done: **`SUMMARY passes=607 failures=0`** (baseline, `docs/phaseV/V2-baseline-notes.md`). V4 done. Open and only you can do them: opening and playing `Main.tscn` in the editor (rest of V1) and the V3 play-test |
+| 10 | Effect framework (base class, spawn point, hit policy, legacy cleanup) | 10.1 to 10.5 done and confirmed by the 607 / 0 run |
+| 11 | Projectiles and the bow | **Phase 11 done** (11.1 to 11.5), run in headless Godot 4.7.2: **`SUMMARY passes=680 failures=0`** (11.1 alone gave 623 / 0, 11.4 gave 669). Notes in `docs/phase11/` |
 | 12 | Combat resolver (defense, crits, status effects) | not started |
 | 13 | Active skills | not started |
 | 14 | Passives | not started |
@@ -29,12 +29,12 @@ This continues `docs/phase9/PLAN.md`. Same rules as Phase 9: small steps, each l
 
 | Decision | Needed by | Starting recommendation |
 |---|---|---|
-| Characters with no `attack_definition`: refuse attacks with an error, or keep one marked default | 10.1 | Refuse with a clear error (every shipped character sets one) |
-| Hit-once rule: per effect (today) or per swing | 10.4 | Per effect for melee; per projectile for arrows |
+| Characters with no `attack_definition`: refuse attacks with an error, or keep one marked default | 10.1 | **Decided: refuse with a clear error.** `player.tscn` now sets its own definition. |
+| Hit-once rule: per effect (today) or per swing | 10.4 | **Decided: per effect** (melee and, later, per projectile) |
 | Resource for skill costs: stamina, mana, or none | 13.0 | Decide per game design; start with cooldown only |
 | Number of skill slots: fixed (3 or 4) or per weapon | 13.0 | Per weapon (costs nothing extra if skills live on `WeaponDefinition2D`) |
 | Passive counter rules: do misses count, multi-target counts once per target or per attack, can stacks overlap | 14.0 | Write them down before coding (guide 10.8) |
-| Threshold release values left on `DefaultAttackDefinition.tres` | V4 | Keep or clear them; see the 9.7a note |
+| Threshold release values left on `DefaultAttackDefinition.tres` | V4 | **Decided: cleared** (inert, no check reads them) |
 
 ---
 
@@ -48,6 +48,8 @@ This continues `docs/phase9/PLAN.md`. Same rules as Phase 9: small steps, each l
 - **Do:** Run `godot --headless --fixed-fps 60 --path . --script res://tests/smoke_checks.gd`. Paste the `SUMMARY passes=N failures=M` line and every `CHECK FAIL` line.
 - **Expected in the log, not failures:** the rejected-definition errors and the `no_such_effect_clip` messages named in `docs/phase9/9.8a-notes.md`.
 - **Done when:** failures are 0 (or each failure is fixed), and the real total is written into `docs/phase9/PLAN.md` as the new baseline. Every later "previous total + N" is counted from it.
+- **Done (Oct 24 2026):** `SUMMARY passes=607 failures=0`, written into `docs/phase9/PLAN.md`. The leak lines at exit are not failures (see `docs/phaseV/V2-baseline-notes.md`).
+- **Progress:** the first real run gave `SUMMARY passes=585 failures=22`; after V2a 590 / 17. V2b found the cause of most of the rest: `Main.tscn` holds nine goblins and the checks only controlled one. Notes in `docs/phaseV/`. The final total goes into `docs/phase9/PLAN.md` when failures reach 0.
 
 ### V3. Play-test checklist
 Check each in the running game and note what feels wrong:
@@ -60,8 +62,8 @@ Check each in the running game and note what feels wrong:
 - **Done when:** each item passes or is logged as a bug. Fix bugs before Phase 10.
 
 ### V4. Small decisions and leftovers
-- Decide the leftover Threshold values on `DefaultAttackDefinition.tres`.
-- Update the validation note in `IMPLEMENTATION_NOTES.md` with the confirmed results.
+- Decide the leftover Threshold values on `DefaultAttackDefinition.tres`. **Done (V4):** cleared.
+- Update the validation note in `IMPLEMENTATION_NOTES.md` with the confirmed results. **Done:** it states the 607 / 0 baseline.
 - **Done when:** both are written down.
 
 ---
@@ -70,28 +72,28 @@ Check each in the running game and note what feels wrong:
 
 Goal: a new attack kind (arrow, burst, follow-up effect) is a new scene and script with the same `configure(...)` signature, so `AttackComponent2D` never needs to know which one it spawned.
 
-### 10.1. Remove the legacy slash fallbacks
+### 10.1. Remove the legacy slash fallbacks (done, see `docs/phase10/10.1-notes.md`)
 - **Do:** In `AttackComponent2D.gd` remove `attack_slash_scene`, `slash_scene`, `set_slash_scene()` and `DEFAULT_SLASH`, and make `_spawn_effect` use only the definition's `effect_scene`. Apply the decision above for `DEFAULT_ATTACK` (in `AttackComponent2D.gd` and the `Character2D.attack_definition` setter). Remove the deprecated wording in `AttackDefinition2D.gd` and `IMPLEMENTATION_NOTES.md`. Every shipped `.tres` already sets `effect_scene`, so game content does not change.
 - **Why it is a step and not part of the cleanup zip:** test `I27` checks the legacy fallback on purpose, so removing it means rewriting that test, and the baseline has not been run yet.
 - **Tests:** rewrite `I26` and `I27` on purpose (a definition with no `effect_scene` is rejected with an error naming the attack). `M6` stays. Say in the notes which checks changed.
 - **Done when:** no `slash_scene` or `DEFAULT_SLASH` is left in the code, and the SUMMARY matches the notes.
 
-### 10.2. `AttackEffect2D` base class
+### 10.2. `AttackEffect2D` base class (done, see `docs/phase10/10.2-notes.md`)
 - **Do:** Add `Characters/Components/Combat/AttackEffect2D.gd` (a `Node2D` base) holding the shared parts: `configure(...)` with the current signature, the `hit_contact` and `hit_confirmed` signals, the target filter (not the attacker, `apply_hit`, not the same team) and hit-once tracking. `AttackSlash2D` extends it and keeps its behavior.
 - **Tests:** the existing hit, friendly-fire and hit-once checks pass unchanged; add one check that `AttackSlash2D` is an `AttackEffect2D`.
 - **Done when:** no behavior change and the SUMMARY is the previous total + the new checks.
 
-### 10.3. Exported node paths and clip names on `AttackSlash2D`
+### 10.3. Exported node paths and clip names on `AttackSlash2D` (done, see `docs/phase10/10.3-notes.md`)
 - **Do:** Replace the fixed `@onready` paths (`$SlashEffectAnimSpritesheet/AnimationPlayer`, `$HitboxOrigin/...`) with exported `NodePath`s that default to today's names. `effect_animation` is already on the definition (9.8a).
 - **Tests:** a scene that renames a node and sets the path still works; the shipped scene is untouched.
 - **Done when:** a differently built effect scene works without editing the script.
 
-### 10.4. Hit policy: pierce and max targets
+### 10.4. Hit policy: pierce and max targets (done, see `docs/phase10/10.4-notes.md`)
 - **Do:** Add `max_targets` (0 = unlimited) and `pierce: bool` to `AttackDefinition2D` and pass them through `configure(...)` (new last arguments with defaults). Decide per-effect or per-swing hit-once as in the decisions table.
 - **Tests:** an effect with `max_targets = 1` hits only one of two targets; the default still hits both; the same target is hit once per effect.
 - **Done when:** the policy is data on the definition and the defaults keep today's behavior.
 
-### 10.5. `AttackSpawnPoint`
+### 10.5. `AttackSpawnPoint` (done, see `docs/phase10/10.5-notes.md`)
 - **Do:** Add an optional `Marker2D` named `AttackSpawnPoint` to the character scenes and an exported path on `Character2D` (or `CharacterContext2D`). `_spawn_effect` uses it when present and falls back to `character.global_position`.
 - **Tests:** with a marker, the effect spawns at its position; without one, at the attacker's origin as today.
 - **Done when:** both shipped characters still behave the same and an attack can originate from a hand or a staff tip.
@@ -102,25 +104,25 @@ Goal: a new attack kind (arrow, burst, follow-up effect) is a new scene and scri
 
 Build the bow only after Phase 10. Its job is to prove that a different weapon type needs no changes to `AttackComponent2D`.
 
-### 11.1. `ProjectileEffect2D`
+### 11.1. `ProjectileEffect2D` (done and confirmed, 623 / 0, see `docs/phase11/11.1-notes.md`)
 - **Do:** Add a script and scene that extends `AttackEffect2D`: velocity along the attack direction, a collision mask from `hit_layers`, a lifetime, and an impact. Hits go through `HitData` and `HealthComponent2D.apply_hit()`; the impact spawns the definition's `hit_effect_scene`. Respect `pierce` and `max_targets` from 10.4. It frees itself on impact, expiry or hitting the world layer.
 - **Tests:** it travels, hits an enemy, stops on a wall (world layer value 4), expires after its lifetime, never hits the shooter or the same team, and pierce works.
 - **Done when:** a test spawns an arrow and it damages a goblin through the normal damage path.
 
-### 11.2. Arrow attack definition
+### 11.2. Arrow attack definition (done, see `docs/phase11/11.2-notes.md`)
 - **Do:** `ArrowAttackDefinition.tres` with `effect_scene = Arrow.tscn`, damage, knockback, and a projectile speed field (a new `projectile_speed` on `AttackDefinition2D`, ignored by melee effects).
 - **Done when:** the validation messages name the attack and clip as for melee.
 
-### 11.3. Bow weapon scene and definition
+### 11.3. Bow weapon scene and definition (done, see `docs/phase11/11.3-notes.md`)
 - **Do:** `Weapons/Bow.tscn` (sprite plus `AnimationPlayer` with draw, release and return clips, and an `attack_event(&"spawn_effect")` key at release). `Data/Weapons/BowWeaponDefinition.tres` with `basic_combo` (one shot) and `heavy_attack` (a charged piercing shot using the Phase 9.6c charge fields).
 - **Done when:** `validate_equip()` for the bow returns no problems.
 
-### 11.4. Weapon switching input
+### 11.4. Weapon switching input (done, see `docs/phase11/11.4-notes.md`)
 - **Do:** Add a `weapon_next` input action and wire it to `WeaponController2D.equip()` in `player.gd`. Equip is already refused during a swing or charge.
 - **Tests:** swap sword to bow to sword; a failed equip rolls back; the light and heavy ids come from the equipped weapon (9.7d-1).
 - **Done when:** you can play with both weapons and switch freely.
 
-### 11.5. Goblin archer (optional proof)
+### 11.5. Goblin archer (optional proof; done, see `docs/phase11/11.5-notes.md`)
 - **Do:** An enemy using the bow definition with a ranged `ai_attack_range`. If AI needs a ranged behavior, add it as its own small step and leave `EnemyAIController2D`'s `Behavior` enum alone until then (guide section 6, item 9).
 
 ---

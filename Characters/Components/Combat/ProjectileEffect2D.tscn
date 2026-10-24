@@ -1,0 +1,20 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://Characters/Components/Combat/ProjectileEffect2D.gd" id="1_script"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hit"]
+size = Vector2(16, 16)
+
+[node name="ProjectileEffect2D" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Visual" type="Polygon2D" parent="."]
+color = Color(0.86, 0.74, 0.48, 1)
+polygon = PackedVector2Array(-6, -1.5, 3, -1.5, 3, -3.5, 8, 0, 3, 3.5, 3, 1.5, -6, 1.5)
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 7
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+shape = SubResource("RectangleShape2D_hit")

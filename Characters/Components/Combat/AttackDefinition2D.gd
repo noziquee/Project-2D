@@ -50,10 +50,16 @@ enum ReleaseMode {
 @export_range(0.0, 3000.0, 1.0) var knockback: float = 0.0
 ## Seconds the target cannot start an attack or dash after being hit. 0 = none.
 @export_range(0.0, 3.0, 0.01) var hit_stun: float = 0.0
+## The most different targets one effect can hit (10.4). 0 = no limit, which is what a melee slash does today.
+## A target that is touched but takes no damage (for example during invulnerability) still counts.
+@export_range(0, 20, 1) var max_targets: int = 0
+## When false the effect is spent by its first target, as if max_targets were 1, and a projectile ends there.
+## When true (default) it keeps going until max_targets is reached. Hit-once per target stays per effect.
+@export var pierce: bool = true
 
 @export_group("Effect + Hitbox")
-## Scene spawned by each of the weapon clip's attack_event(&"spawn_effect") events (root needs AttackSlash2D.gd).
-## When empty, the AttackComponent2D's legacy attack_slash_scene is used.
+## Scene spawned by each of the weapon clip's attack_event(&"spawn_effect") events (root needs a script that extends AttackEffect2D, such as AttackSlash2D.gd).
+## Required (10.1): an attack with no effect_scene is rejected with an error naming the attack.
 @export var effect_scene: PackedScene
 ## The clip of the effect scene's AnimationPlayer that this attack plays (9.8a). `slash` is the default;
 ## AttackSlash2D.tscn also ships `heavy_slash`. A scene without the clip is rejected with a message naming it.
@@ -64,6 +70,11 @@ enum ReleaseMode {
 @export var hitbox_size: Vector2 = Vector2(16.0, 16.0)
 ## Offset of the hitbox's animated sweep origin from the attacking character.
 @export var hitbox_offset: Vector2 = Vector2.ZERO
+
+@export_group("Projectile")
+## Flight speed in px/s handed to a projectile effect (11.2). 0 = the effect scene's own default speed. Melee effects
+## ignore it. At 60 fps keep speed / 60 below the hitbox length (hitbox_size.x), or the projectile can step over a thin target.
+@export_range(0.0, 3000.0, 1.0) var projectile_speed: float = 0.0
 
 @export_group("AI")
 ## Centre-to-centre distance at which an AI starts this attack. 0 = use the AI

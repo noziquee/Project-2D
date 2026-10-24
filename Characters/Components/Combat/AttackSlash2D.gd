@@ -1,57 +1,49 @@
-extends Node2D
+extends AttackEffect2D
 class_name AttackSlash2D
-## Uses the project's existing sprite animation, with a separate configurable hitbox origin.
+## The melee slash effect: uses the project's sprite animation, with a separate configurable hitbox origin.
+## Everything shared with other effect kinds (configure, signals, target filter, hit-once) lives in
+## AttackEffect2D (10.2); this script keeps only what belongs to the slash scene.
 
-signal hit_confirmed(target: Node, damage: int)
-## Emitted just before hit_confirmed with the world position where the hit landed
-## (halfway between the hitbox and the target), for impact effects.
-signal hit_contact(target: Node, damage: int, point: Vector2)
-
-var source: Node2D
-var damage: int = 1
-var direction: Vector2 = Vector2.RIGHT
-var hitbox_size: Vector2 = Vector2(16.0, 16.0)
-var hitbox_offset: Vector2 = Vector2.ZERO
-## Physics layers the hitbox looks at. -1 keeps the mask set in the scene.
-var hit_layers: int = -1
-var knockback: float = 0.0
-var hit_stun: float = 0.0
-const DEFAULT_ANIMATION := &"slash"
+## Default location of the effect's AnimationPlayer in AttackSlash2D.tscn.
 const ANIMATION_PLAYER_PATH := "SlashEffectAnimSpritesheet/AnimationPlayer"
 
-## The clip of SlashEffectAnimSpritesheet/AnimationPlayer this effect plays and ends with (the attack's effect_animation).
-var effect_animation: StringName = DEFAULT_ANIMATION
+@export_group("Scene nodes (10.3)")
+## Where this effect finds its nodes, relative to the root. The defaults match AttackSlash2D.tscn, so the shipped
+## scene needs no edits; an effect scene built differently only has to point these at its own nodes.
+@export var animation_player_path: NodePath = NodePath(ANIMATION_PLAYER_PATH)
+## The Area2D that detects targets.
+@export var hitbox_path: NodePath = ^"HitboxOrigin/HitboxMotion/Area2D"
+## The CollisionShape2D whose animated `disabled` track is the hit window.
+@export var collision_shape_path: NodePath = ^"HitboxOrigin/HitboxMotion/Area2D/CollisionShape2D"
+## The Node2D moved by `hitbox_offset`.
+@export var hitbox_origin_path: NodePath = ^"HitboxOrigin"
 
-## True when `scene` has the standard effect AnimationPlayer but not the clip `clip`. A scene with no such
-## player, or one that cannot be instantiated, is not judged here (false), and neither is an empty clip name.
+## True when `scene` has an effect AnimationPlayer (the one its own animation_player_path names) but not the clip
+## `clip`. A scene with no such player, or one that cannot be instantiated, is not judged here (false), and neither
+## is an empty clip name.
 static func scene_lacks_animation(scene: PackedScene, clip: StringName) -> bool:
 	if scene == null or clip == &"" or not scene.can_instantiate():
 		return false
 	var instance := scene.instantiate()
-	var player := instance.get_node_or_null(ANIMATION_PLAYER_PATH) as AnimationPlayer
+	var path := NodePath(ANIMATION_PLAYER_PATH)
+	var custom: Variant = instance.get("animation_player_path")
+	if custom is NodePath and not (custom as NodePath).is_empty():
+		path = custom
+	var player := instance.get_node_or_null(path) as AnimationPlayer
 	var lacks := player != null and not player.has_animation(clip)
 	instance.free()
 	return lacks
 
-@onready var _slash_animation_player: AnimationPlayer = $SlashEffectAnimSpritesheet/AnimationPlayer
-@onready var _hitbox: Area2D = $HitboxOrigin/HitboxMotion/Area2D
-@onready var _collision_shape: CollisionShape2D = $HitboxOrigin/HitboxMotion/Area2D/CollisionShape2D
-@onready var _hitbox_origin: Node2D = $HitboxOrigin
-
-var _hit_targets: Dictionary = {}
-
-func configure(attacker: Node2D, damage_amount: int, aim_direction: Vector2, shape_size: Vector2, origin_offset: Vector2, layers: int = -1, knockback_strength: float = 0.0, stun_seconds: float = 0.0, animation: StringName = DEFAULT_ANIMATION) -> void:
-	source = attacker
-	damage = maxi(damage_amount, 0)
-	direction = aim_direction.normalized() if aim_direction.length_squared() > 0.0001 else Vector2.RIGHT
-	hitbox_size = Vector2(maxf(shape_size.x, 1.0), maxf(shape_size.y, 1.0))
-	hitbox_offset = origin_offset
-	hit_layers = layers
-	knockback = maxf(knockback_strength, 0.0)
-	hit_stun = maxf(stun_seconds, 0.0)
-	effect_animation = animation if animation != &"" else DEFAULT_ANIMATION
+var _slash_animation_player: AnimationPlayer
+var _hitbox: Area2D
+var _collision_shape: CollisionShape2D
+var _hitbox_origin: Node2D
 
 func _ready() -> void:
+	if not _resolve_nodes():
+		set_physics_process(false)
+		queue_free()
+		return
 	global_rotation = direction.angle()
 	_hitbox_origin.position = hitbox_offset
 	# Collision layer lives on the Area2D in AttackSlash2D.tscn; the mask comes from the
@@ -67,13 +59,35 @@ func _ready() -> void:
 	_hitbox.body_entered.connect(_on_body_entered)
 	_slash_animation_player.animation_finished.connect(_on_animation_finished)
 	if not _slash_animation_player.has_animation(effect_animation):
-		push_error("AttackSlash2D requires SlashEffectAnimSpritesheet/AnimationPlayer animation '%s'." % effect_animation)
+		push_error("AttackSlash2D requires the animation player '%s' to have the animation '%s'." % [animation_player_path, effect_animation])
 		queue_free()
 		return
 	_slash_animation_player.play(effect_animation)
 
+## Looks up the four nodes through the exported paths. A path that leads to nothing (or to the wrong kind of
+## node) is reported by property name and the effect removes itself instead of failing later with a null error.
+func _resolve_nodes() -> bool:
+	_slash_animation_player = get_node_or_null(animation_player_path) as AnimationPlayer
+	_hitbox = get_node_or_null(hitbox_path) as Area2D
+	_collision_shape = get_node_or_null(collision_shape_path) as CollisionShape2D
+	_hitbox_origin = get_node_or_null(hitbox_origin_path) as Node2D
+	var ok := true
+	if _slash_animation_player == null:
+		push_error("AttackSlash2D: animation_player_path '%s' does not lead to an AnimationPlayer." % animation_player_path)
+		ok = false
+	if _hitbox == null:
+		push_error("AttackSlash2D: hitbox_path '%s' does not lead to an Area2D." % hitbox_path)
+		ok = false
+	if _collision_shape == null:
+		push_error("AttackSlash2D: collision_shape_path '%s' does not lead to a CollisionShape2D." % collision_shape_path)
+		ok = false
+	if _hitbox_origin == null:
+		push_error("AttackSlash2D: hitbox_origin_path '%s' does not lead to a Node2D." % hitbox_origin_path)
+		ok = false
+	return ok
+
 func _physics_process(_delta: float) -> void:
-	if not _hitbox.monitoring or _collision_shape.disabled:
+	if not _can_hit():
 		return
 	for body in _hitbox.get_overlapping_bodies():
 		_try_hit(body)
@@ -81,48 +95,12 @@ func _physics_process(_delta: float) -> void:
 func _on_body_entered(body: Node2D) -> void:
 	_try_hit(body)
 
-func _try_hit(target: Node) -> void:
-	if (
-		not is_instance_valid(target)
-		or not _hitbox.monitoring
-		or _collision_shape.disabled
-		or target == source
-		or not target.is_in_group("damageable")
-		or not (target.has_method("apply_hit") or target.has_method("take_damage"))
-	):
-		return
-	if _is_same_team(target):
-		return
-	var target_id := target.get_instance_id()
-	if _hit_targets.has(target_id):
-		return
-	_hit_targets[target_id] = true
-	# Read the contact point first: the hit may kill and free the target.
-	var point := _contact_point(target)
-	if target.has_method("apply_hit"):
-		var dealt := int(target.call("apply_hit", HitData.new(damage, source, direction, knockback, hit_stun)))
-		if dealt > 0:
-			hit_contact.emit(target, dealt, point)
-			hit_confirmed.emit(target, dealt)
-	else:
-		target.call("take_damage", damage)
-		hit_contact.emit(target, damage, point)
-		hit_confirmed.emit(target, damage)
+## The hit window: the hitbox is monitoring and the animated CollisionShape2D:disabled track has enabled it.
+func _can_hit() -> bool:
+	return _hitbox != null and _collision_shape != null and _hitbox.monitoring and not _collision_shape.disabled
 
-func _contact_point(target: Node) -> Vector2:
-	if target is Node2D:
-		return _hitbox.global_position.lerp((target as Node2D).global_position, 0.5)
-	return _hitbox.global_position
-
-## Teams come from the `team` property on the attacker and the target. An empty team is
-## neutral and can always be hit; two characters on the same non-empty team cannot hit
-## each other. A new faction is just a new team name.
-func _is_same_team(target: Node) -> bool:
-	if not is_instance_valid(source):
-		return false
-	var source_team := StringName(source.get("team")) if source.get("team") != null else &""
-	var target_team := StringName(target.get("team")) if target.get("team") != null else &""
-	return source_team != &"" and source_team == target_team
+func _get_hit_origin() -> Vector2:
+	return _hitbox.global_position if _hitbox != null else global_position
 
 func _on_animation_finished(animation_name: StringName) -> void:
 	if animation_name == effect_animation:

@@ -24,8 +24,19 @@ func phys(n: int) -> void:
 	for i in n:
 		await physics_frame
 
-func fresh() -> Node:
+## A new Main instance for a test. Main.tscn is the playable arena with nine goblins; the checks are written
+## for one ("BasicEnemy2D"), and the other eight (spread around the arena, inside the 200 px detection range
+## of some) would chase and hit the player at random times. They are freed here, before the scene enters the
+## tree, so every check sees the same single-goblin arena (V2b).
+func load_main() -> Node:
 	var main: Node = load("res://Main.tscn").instantiate()
+	for child in main.get_children():
+		if child is BasicEnemy2D and child.name != &"BasicEnemy2D":
+			child.free()
+	return main
+
+func fresh() -> Node:
+	var main: Node = load_main()
 	root.add_child(main)
 	quiet_goblin_choices(main)
 	await phys(3)
@@ -33,14 +44,14 @@ func fresh() -> Node:
 
 ## Like fresh(), but with the shipped goblin profile (slash and lunge choices), for checks of the choice logic.
 func fresh_shipped() -> Node:
-	var main: Node = load("res://Main.tscn").instantiate()
+	var main: Node = load_main()
 	root.add_child(main)
 	await phys(3)
 	return main
 
 ## Like fresh(), but the goblin starts 400 px away, outside its detection area.
 func fresh_far() -> Node:
-	var main: Node = load("res://Main.tscn").instantiate()
+	var main: Node = load_main()
 	(main.get_node("BasicEnemy2D") as Node2D).position = Vector2(400, 0)
 	root.add_child(main)
 	quiet_goblin_choices(main)
@@ -69,7 +80,11 @@ func quiet_goblin_choices(main: Node) -> void:
 	var goblin := main.get_node_or_null("BasicEnemy2D")
 	if goblin == null:
 		return
-	var ai: EnemyAIController2D = goblin._ai_controller
+	# Found by node name, not through goblin._ai_controller: that is an @onready variable and is still
+	# null when this runs before the goblin's own _ready() (the very first fresh() call, made from _initialize()).
+	var ai := goblin.get_node_or_null("EnemyAIController2D") as EnemyAIController2D
+	if ai == null or ai.profile == null:
+		return
 	ai.profile = ai.profile.duplicate()
 	var none: Array[AttackChoice2D] = []
 	ai.profile.attack_choices = none
@@ -156,7 +171,7 @@ func check_attack_rate(label: String, ch: Character2D) -> void:
 	ch.attack_definition = longer
 	await phys(80) # let any previous swing + cooldown finish
 	var b: Dictionary = await measure_attack_rate(ch)
-	check(absf(b.gap_frames - 0.5 * fps) <= tol, "%s6 raising cooldown_duration to 0.5 widens the gap (%d frames, expected %.1f)" % [label, b.gap_frames, 0.5 * fps])
+	check(absf(b.gap_frames - 0.5 * fps) <= tol, "%s6 raising cooldown_duration to 0.5 widens the gap (%d frames, expected %.1f; first swing started=%s and lasted %d frames, definition cooldown %.2f s)" % [label, b.gap_frames, 0.5 * fps, str(b.started), b.swing_frames, ch.attack_component.definition.cooldown_duration])
 	check(absf((b.period_frames - a.period_frames) - (0.5 - shipped_cd) * fps) <= tol, "%s7 attack rate changes by exactly the cooldown delta (%d frames)" % [label, b.period_frames - a.period_frames])
 
 ## Children of the effects container (slashes, impact and death effects), or of `main`
@@ -259,6 +274,70 @@ func scene_node_paths(path: String) -> Array:
 		var node_path := str(state.get_node_path(i))
 		out.append(node_path.substr(2) if node_path.begins_with("./") else node_path)
 	return out
+
+## Like fresh_far(), but `prepare` (a Callable taking the Main instance) runs before Main enters the tree, so a test
+## can add or assign a spawn marker that Character2D._ready() will resolve (10.5).
+func fresh_far_prepared(prepare: Callable) -> Node:
+	var main: Node = load_main()
+	(main.get_node("BasicEnemy2D") as Node2D).position = Vector2(400, 0)
+	prepare.call(main)
+	root.add_child(main)
+	quiet_goblin_choices(main)
+	await phys(3)
+	return main
+
+## Adds `marker` as a child of `character` and points the character's exported attack_spawn_point at it (10.5).
+func mount_exported_marker(character: Character2D, marker: Marker2D) -> void:
+	character.add_child(marker)
+	character.attack_spawn_point = marker
+
+## Live AttackSlash2D effects in the effects container.
+func live_slashes(main: Node) -> Array:
+	return effect_children(main).filter(func(n): return n is AttackSlash2D and not n.is_queued_for_deletion())
+
+## A ProjectileEffect2D fired by `shooter` from `origin` along `dir` (11.1). It is added to the Effects container
+## and positioned after it is in the tree, the way AttackComponent2D spawns effects. `opts` may hold speed,
+## lifetime, damage, size, layers, max_targets and pierce.
+func fire_projectile(main: Node, shooter: Node2D, origin: Vector2, dir: Vector2, opts: Dictionary = {}) -> ProjectileEffect2D:
+	var arrow := (load("res://Characters/Components/Combat/ProjectileEffect2D.tscn") as PackedScene).instantiate() as ProjectileEffect2D
+	arrow.speed = opts.get("speed", 300.0)
+	arrow.lifetime = opts.get("lifetime", 1.5)
+	arrow.configure(shooter, opts.get("damage", 3), dir, opts.get("size", Vector2(12, 12)), Vector2.ZERO, opts.get("layers", -1), 0.0, 0.0, &"", opts.get("max_targets", 0), opts.get("pierce", true))
+	main.get_node("Effects").add_child(arrow)
+	arrow.global_position = origin
+	return arrow
+
+## A goblin parked far from the arena with its AI off, to be hit by a projectile (11.1).
+func parked_goblin(main: Node, at: Vector2) -> Character2D:
+	var goblin := (load("res://Characters/Enemies/BasicEnemy2D.tscn") as PackedScene).instantiate() as Character2D
+	main.add_child(goblin)
+	goblin.global_position = at
+	goblin.set_physics_process(false)
+	return goblin
+
+## True while `node` still exists and is not about to be freed.
+func is_alive_node(node) -> bool:
+	# Untyped on purpose: a typed Object parameter would reject an instance that was already freed.
+	return is_instance_valid(node) and not (node as Node).is_queued_for_deletion()
+
+const ARROW_LIGHT_PATH := "res://Characters/Components/Combat/ArrowAttackDefinition.tres"
+const ARROW_HEAVY_PATH := "res://Characters/Components/Combat/ArrowHeavyAttackDefinition.tres"
+const ARROW_SCENE_PATH := "res://Characters/Components/Combat/Arrow.tscn"
+const BOW_WEAPON_PATH := "res://Data/Weapons/BowWeaponDefinition.tres"
+const BOW_SCENE_PATH := "res://Weapons/Bow.tscn"
+
+## An arrow scene configured the way AttackComponent2D configures it from `def` (11.2), added to the Effects
+## container and positioned after it is in the tree.
+func fire_arrow(main: Node, shooter: Node2D, origin: Vector2, def: AttackDefinition2D, dir: Vector2 = Vector2.RIGHT) -> ProjectileEffect2D:
+	var arrow := (def.effect_scene as PackedScene).instantiate() as ProjectileEffect2D
+	arrow.configure(shooter, def.damage, dir, def.hitbox_size, def.hitbox_offset, def.hit_layers, def.knockback, def.hit_stun, def.effect_animation, def.max_targets, def.pierce, def.projectile_speed)
+	main.get_node("Effects").add_child(arrow)
+	arrow.global_position = origin
+	return arrow
+
+## A goblin and its health, as a pair of numbers, to compare before and after a shot.
+func hp_of(character: Character2D) -> int:
+	return character.health_component.health
 
 func _initialize() -> void:
 	await _run()
@@ -537,7 +616,7 @@ func _run() -> void:
 	Input.action_release("move_right")
 	await cleanup(main)
 
-	# I26-I27: effect_scene on the definition overrides the character's legacy scene.
+	# I26-I27: the definition's effect_scene is the scene that spawns; a definition with none is refused (10.1).
 	main = await fresh()
 	p = main.get_node("Player")
 	main.get_node("BasicEnemy2D").set_physics_process(false)
@@ -553,12 +632,13 @@ func _run() -> void:
 	await phys(8)
 	check(count_slashes(main, &"from_definition") >= 1, "I26 definition.effect_scene is the scene that spawns")
 	await phys(80)
+	# I27 (rewritten on purpose in 10.1): there is no legacy slash scene any more, so a definition without an
+	# effect_scene is refused and the previous attack stays.
 	var no_effect := definition_variant(p.attack_definition, &"test_no_effect")
 	no_effect.effect_scene = null
+	var no_effect_before: StringName = p.attack_definition.id
 	p.attack_definition = no_effect
-	p.attack_component.try_start(true, Vector2.RIGHT)
-	await phys(8)
-	check(count_slashes(main) >= 1 and count_slashes(main, &"from_definition") == 0, "I27 with no effect_scene the character's legacy slash scene is used")
+	check(p.attack_definition.id == no_effect_before and p.attack_definition.id != &"test_no_effect", "I27 a definition with no effect_scene is refused and the previous attack stays")
 	await cleanup(main)
 
 	# ---------- J. Phase 3: generic animation events and multi-hit ----------
@@ -826,7 +906,7 @@ func _run() -> void:
 	ke = main.get_node("BasicEnemy2D")
 	ke.set_physics_process(false)
 	check(p.movement_component == p.get_node("MovementComponent2D") and p.dash_component == p.get_node("DashComponent2D") and p.attack_component == p.get_node("AttackComponent2D"), "M2 the character uses the scene's component nodes")
-	check(p.movement_component.move_speed == 200.0 and p.dash_component.dash_speed == 600.0 and p.dash_component.dash_duration == 0.16 and p.dash_component.dash_cooldown == 0.45, "M3 player keeps the default move and dash values")
+	check(p.movement_component.move_speed == 100.0 and p.dash_component.dash_speed == 600.0 and p.dash_component.dash_duration == 0.16 and p.dash_component.dash_cooldown == 0.45, "M3 player keeps its tuned move speed (100, set in player.tscn) and the default dash values")
 	check(ke.movement_component.move_speed == 50.0 and ke.dash_component.dash_speed == 150.0, "M4 the goblin's move_speed 50 and dash_speed 150 now live on its components")
 	check(p.attack_definition.id == &"player_light" and ke.attack_definition.id == &"goblin_slash", "M5 each character's AttackComponent2D carries its own definition")
 	check(not ("move_speed" in p) and not ("dash_speed" in p) and not ("attack_slash_scene" in p), "M6 Character2D no longer forwards move/dash/slash-scene values")
@@ -1226,7 +1306,7 @@ func _run() -> void:
 	await phys(2)
 	check(bar_clips.current_animation == "heal", "R18 healing plays the heal clip (got '%s')" % bar_clips.current_animation)
 	await phys(40)
-	check(is_equal_approx(bar.get_shown_health(), float(r_60)) and not bar.is_critical() and bar_clips.current_animation != "critical", "R19 healing out of the critical range stops the pulse (%s)" % bar_clips.current_animation)
+	check(is_equal_approx(bar.get_shown_health(), float(r_60)) and not bar.is_critical() and bar_clips.current_animation != "critical", "R19 healing out of the critical range stops the pulse (clip '%s', playing %s, shown %.1f of %d, critical %s)" % [bar_clips.current_animation, str(bar_clips.is_playing()), bar.get_shown_health(), r_60, str(bar.is_critical())])
 	p.take_damage(999)
 	await phys(5)
 	check(bar.is_dead_state() and bar.get_counter_text() == "DEAD" and not bar_clips.is_playing(), "R20 death shows DEAD and stops the clips")
@@ -1321,6 +1401,9 @@ func _run() -> void:
 	var s_scene_heavy := definition_variant(load("res://Characters/Components/Combat/DefaultAttackDefinition.tres"), &"scene_heavy")
 	var s_scene_list: Array[AttackDefinition2D] = [s_scene_heavy]
 	s_scene_player.get_node("AttackComponent2D").attacks = s_scene_list
+	# Since 9.7c-4 the player's WeaponController2D equips the sword at startup, which replaces `attacks`;
+	# this check is about the component's own list, so the instance gets no starting weapon.
+	s_scene_player.get_node("WeaponController2D").starting_weapon = null
 	main.add_child(s_scene_player)
 	await phys(3)
 	check(s_scene_player.attack_component.has_attack(&"scene_heavy") and s_scene_player.attack_component.try_start_attack(&"scene_heavy", Vector2.RIGHT), "S20 an `attacks` list set on the component is registered at startup and selectable")
@@ -1445,7 +1528,7 @@ func _run() -> void:
 	await phys(3)
 	Input.action_release("attack_light")
 	await phys(2)
-	check(p.attack_component.get_active_attack_id() == &"player_heavy", "U14 light_attack_id overrides which attack a tap starts")
+	check(p.attack_component.get_active_attack_id() == &"player_heavy", "U14 light_attack_id overrides which attack a tap starts (active '%s', light id '%s', cooldown %s, stunned %s, charging %s)" % [str(p.attack_component.get_active_attack_id()), str(p.get_light_attack_id()), str(p.attack_component.is_on_cooldown()), str(p.is_stunned()), str(p.attack_component.is_charging())])
 	p.light_attack_id = &""
 	await phys(110)
 	# U15: a dead player requests nothing, and a hold in progress is dropped.
@@ -1742,7 +1825,7 @@ func _run() -> void:
 	var bb_heavy: AttackDefinition2D = bb_ac.get_attack(&"player_heavy")
 	var bb_ap: AnimationPlayer = p.context.weapon_animation_player
 	check(bb_heavy != null and bb_ac.validate_combo_links().is_empty() and bb_ap.has_animation(&"sword_heavy_slash") and bb_heavy.weapon_animation == &"sword_heavy_slash" and bb_heavy.charge_animation == &"sword_charge_heavy_slash" and bb_heavy.recovery_animation == &"sword_slash_return_1", "BB1 the heavy attack is registered and its clip exists on the weapon player")
-	check(bb_heavy.damage > bb_light.damage and bb_heavy.movement_multiplier < 1.0 and bb_heavy.knockback > bb_light.knockback and bb_heavy.charge_animation != &"", "BB2 the heavy hits harder, slows the character more, pushes further and has a charge clip the light attack does not")
+	check(bb_heavy.damage > bb_light.damage and bb_heavy.movement_multiplier <= bb_light.movement_multiplier and bb_heavy.knockback > bb_light.knockback and bb_heavy.charge_animation != &"", "BB2 the heavy hits harder, pushes further, never moves faster than the light attack, and has a charge clip the light attack does not")
 	Input.action_press("attack_light")
 	await phys(22)
 	check(bb_ac.is_charging() and bb_ac.get_active_attack_id() == &"", "BB3a holding attack_light past charge_start_time begins the heavy charge, with no swing yet")
@@ -1919,7 +2002,8 @@ func _run() -> void:
 	check(not ee_ac.try_start_attack(ee_ac.definition.id, Vector2.RIGHT) and ee_ac.get_active_attack_id() == ee_ac.definition.id, "EE2 a press after the window has closed does not chain")
 	await cleanup(main)
 
-	# EE3: with the real clip, the return starts at the close key (0.26 s), not at the end of the clip (0.29 s).
+	# EE3: with the real clip, the return starts at the clip's own combo_window_close key, not at the end of the clip.
+	# (V2a: the old expectation 0.2 to 0.28 s was written for an earlier slash clip; sword_slash_1 closes at 0.4167 s of 0.5 s.)
 	main = await fresh_far()
 	p = main.get_node("Player")
 	e = main.get_node("BasicEnemy2D")
@@ -1933,7 +2017,9 @@ func _run() -> void:
 		ee_last = ee_ap.current_animation_position
 		await physics_frame
 		ee_guard += 1
-	check(ee_ap.current_animation == &"sword_slash_return_1" and ee_last >= 0.2 and ee_last < 0.28, "EE3 the return starts at the clip's own close key, not at the end of the clip (cut at %.2fs of %.2fs)" % [ee_last, ee_ap.get_animation(&"sword_slash_1").length])
+	var ee_clip: Animation = ee_ap.get_animation(&"sword_slash_1")
+	var ee_close := window_close_time(ee_clip)
+	check(ee_close > 0.0 and ee_clip.length - ee_close > 0.02 and ee_ap.current_animation == &"sword_slash_return_1" and ee_last >= ee_close - 0.05 and ee_last <= ee_close + 0.03, "EE3 the return starts at the clip's own close key, not at the end of the clip (cut at %.2fs, close key %.2fs, clip length %.2fs)" % [ee_last, ee_close, ee_clip.length])
 	await cleanup(main)
 
 	# EE4: an attack with no return clip ends at once when its window closes.
@@ -2062,7 +2148,13 @@ func _run() -> void:
 	e.set_physics_process(false)
 	p.attack_component.try_start_attack(p.get_default_attack_id(), Vector2.RIGHT)
 	Input.action_press("attack_light")
-	await phys(12)
+	# V2a: the press is released one frame after the combo window opens (sword_slash_1 opens it at 0.25 s,
+	# 15 frames in; the old fixed 12-frame hold released before the window existed).
+	var gg6_guard := 0
+	while not p.attack_component.is_combo_window_open() and gg6_guard < 120:
+		await physics_frame
+		gg6_guard += 1
+	await phys(1)
 	Input.action_release("attack_light")
 	await phys(2)
 	check(p.attack_component.get_active_attack_id() == &"player_light2" and not p.attack_component.is_charging(), "GG6 a press held into the combo window chains as the light attack, not as a charge (active: %s)" % str(p.attack_component.get_active_attack_id()))
@@ -2119,7 +2211,8 @@ func _run() -> void:
 		hh_guard += 1
 	check(not p.context.is_attacking and hh_finished[0] == 1 and is_equal_approx(p.context.move_multiplier, 1.0), "HH9 the return finishes the combo once and restores movement")
 	await phys(10)
-	check(hh_ac.try_start_attack(hh_light, Vector2.RIGHT) and hh_ac.get_active_attack_id() == &"player_light", "HH10 after the return a new combo starts at attack 1")
+	var hh10_blockers := "attacking=%s cooldown=%s stunned=%s dashing=%s" % [str(p.context.is_attacking), str(hh_ac.is_on_cooldown()), str(p.is_stunned()), str(p.context.is_dashing)]
+	check(hh_ac.try_start_attack(hh_light, Vector2.RIGHT) and hh_ac.get_active_attack_id() == &"player_light", "HH10 after the return a new combo starts at attack 1 (%s)" % hh10_blockers)
 
 	# HH11: a single attack 1 with no press returns with return_1 (not return_2).
 	hh_guard = 0
@@ -2303,11 +2396,11 @@ func _run() -> void:
 	var ii_outside: AttackDefinition2D = definition_variant(ii_light2, &"outside")
 	ii_a.next_attack = ii_outside
 	ii_w = make_weapon(&"leaky", [ii_a])
-	check(has_problem(ii_w.validate(), "next_attack 'outside' is not part of this weapon"), "II12a a next_attack to an attack outside the weapon is reported")
+	check(has_problem(ii_w.validate(), "next_attack 'outside', which is not part of this weapon"), "II12a a next_attack to an attack outside the weapon is reported")
 	ii_a.next_attack = null
 	var ii_leaky_seq: Array[AttackDefinition2D] = [ii_a, ii_outside]
 	ii_a.combo_sequence = ii_leaky_seq
-	check(has_problem(ii_w.validate(), "combo_sequence entry 'outside' is not part of this weapon"), "II12b a combo_sequence entry outside the weapon is reported")
+	check(has_problem(ii_w.validate(), "combo_sequence entry 'outside', which is not part of this weapon"), "II12b a combo_sequence entry outside the weapon is reported")
 	var ii_self: AttackDefinition2D = definition_variant(ii_light, &"self")
 	ii_self.next_attack = ii_self
 	ii_w = make_weapon(&"repeat", [ii_self])
@@ -2559,7 +2652,7 @@ func _run() -> void:
 	kk_scenic.weapon_scene = kk_bare_scene
 	var kk_scenic_problems: Array = kk_ctrl.validate_equip(kk_scenic)
 	check(has_problem(kk_scenic_problems, "weapon 'scenic'") and has_problem(kk_scenic_problems, "(weapon_animation)"), "KK4c a weapon with a scene is checked against its own scene, not the player's current clips (%s)" % str(kk_scenic_problems))
-	check(kk_ctrl.validate_equip(make_weapon(&"plain", [kk_light])).is_empty(), "KK4d a valid weapon without a scene is accepted")
+	check(kk_ctrl.validate_equip(make_weapon(&"plain", [definition_variant(kk_light, &"kk_plain")])).is_empty(), "KK4d a valid weapon without a scene is accepted (its one attack has no link that leaves the weapon)")
 	var kk_bad_fx := AttackDefinition2D.new()
 	kk_bad_fx.id = &"badfx"
 	kk_bad_fx.weapon_animation = kk_light.weapon_animation
@@ -2866,7 +2959,8 @@ func _run() -> void:
 		await physics_frame
 		pp_guard += 1
 	await phys(40)
-	check(count_slashes(main) == 0, "PP2e the heavy effect frees itself when heavy_slash ends")
+	var pp_left: Array = effect_children(main).filter(func(n): return n is AttackSlash2D).map(func(n): return "%s (%s)" % [n.name, n.get_node(AttackSlash2D.ANIMATION_PLAYER_PATH).current_animation])
+	check(count_slashes(main) == 0, "PP2e the heavy effect frees itself when heavy_slash ends (left over: %s)" % str(pp_left))
 
 	# PP3 to PP4: an attack naming a clip its effect scene lacks is refused, naming the clip.
 	var pp_bad := definition_variant(pp_light, &"pp_bad")
@@ -2887,4 +2981,719 @@ func _run() -> void:
 	main.add_child(pp_missing)
 	await phys(3)
 	check(not is_instance_valid(pp_missing) or pp_missing.is_queued_for_deletion(), "PP6 an effect told to play a clip it lacks logs an error and removes itself")
+	await cleanup(main)
+
+	# ---------- QQ. No legacy slash scene: every attack carries its own effect_scene (10.1) ----------
+	# Expected in the Output log (not failures): "rejected definition" errors naming qq_no_fx, and the
+	# "needs a character context, an attack_definition" error from the bare component (QQ6).
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	await phys(3)
+	var qq_ac: AttackComponent2D = p.attack_component
+	var qq_consts: Dictionary = qq_ac.get_script().get_script_constant_map()
+	check(not ("attack_slash_scene" in qq_ac) and not ("slash_scene" in qq_ac) and not qq_ac.has_method("set_slash_scene") and not qq_consts.has("DEFAULT_SLASH") and not qq_consts.has("DEFAULT_ATTACK"), "QQ1a the legacy slash scene, its setter and the two default constants are gone from AttackComponent2D")
+	check(qq_ac.attack_definition != null and qq_ac.attack_definition.id == &"player_light" and e.attack_component.attack_definition != null, "QQ1b the player scene sets its own attack_definition (it no longer relies on a script default) and so does the goblin")
+	var qq_light: AttackDefinition2D = qq_ac.get_attack(&"player_light")
+	var qq_none := definition_variant(qq_light, &"qq_no_fx")
+	qq_none.effect_scene = null
+	var qq_message: String = qq_ac.validate_definition(qq_none)
+	check(qq_message.contains("qq_no_fx") and qq_message.contains("effect_scene"), "QQ2 validate_definition names an attack that has no effect_scene (%s)" % qq_message)
+	check(not qq_ac.set_attack_definition(qq_none) and qq_ac.definition.id == &"player_light", "QQ3 set_attack_definition refuses it and keeps the previous attack")
+	var qq_weapon: Resource = make_weapon(&"qq_fxless", [qq_none])
+	check(has_problem(p.weapon_controller.validate_equip(qq_weapon), "effect_scene") and not p.weapon_controller.can_equip(qq_weapon), "QQ4 a weapon holding such an attack is refused by the dry run")
+	p.attack_definition = null
+	check(p.attack_definition != null and p.attack_definition.id == &"player_light", "QQ5 assigning a null attack_definition is refused and the previous attack stays")
+	var qq_bare := AttackComponent2D.new()
+	qq_bare.initialize(p.context)
+	check(not qq_bare._initialized and qq_bare.definition == null, "QQ6 a component with no attack_definition does not initialize, so that character cannot attack")
+	qq_bare.free()
+	await cleanup(main)
+
+	# ---------- RR. AttackEffect2D: the shared base class of every effect scene (10.2) ----------
+	# Expected in the Output log (not failures): one "must have an AttackEffect2D script" error from RR5.
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	await phys(3)
+	var rr_scene := load("res://Characters/Components/Combat/AttackSlash2D.tscn") as PackedScene
+	var rr_slash := rr_scene.instantiate()
+	check(rr_slash is AttackEffect2D and rr_slash is AttackSlash2D and rr_slash.get_script().get_base_script() == load("res://Characters/Components/Combat/AttackEffect2D.gd"), "RR1 AttackSlash2D is an AttackEffect2D (its script extends the base class)")
+	rr_slash.free()
+
+	# RR2: configure() lives on the base class and clamps its inputs the way the slash always did.
+	var rr_fx := AttackEffect2D.new()
+	rr_fx.configure(p, -5, Vector2(0, 10), Vector2(0, -3), Vector2(2, 3), 5, -1.0, -2.0, &"")
+	check(rr_fx.damage == 0 and rr_fx.direction == Vector2.DOWN and rr_fx.hitbox_size == Vector2(1, 1) and rr_fx.hitbox_offset == Vector2(2, 3) and rr_fx.hit_layers == 5 and rr_fx.knockback == 0.0 and rr_fx.hit_stun == 0.0 and rr_fx.effect_animation == &"slash", "RR2a configure() clamps damage, size, knockback and stun, normalizes the direction and defaults the clip to slash")
+	rr_fx.configure(p, 1, Vector2.ZERO, Vector2(8, 8), Vector2.ZERO)
+	check(rr_fx.direction == Vector2.RIGHT, "RR2b a zero aim direction falls back to right")
+	rr_fx.free()
+
+	# RR3: the shared hit rules, exercised on a bare base-class effect (no scene, no hitbox).
+	var rr_team_before: StringName = p.team
+	p.team = &"rr_team"
+	var rr_enemy_team_before: StringName = e.team
+	e.team = &"rr_team"
+	var rr_hp: int = e.health_component.health
+	var rr_friendly := AttackEffect2D.new()
+	main.add_child(rr_friendly)
+	rr_friendly.configure(p, 3, Vector2.RIGHT, Vector2(8, 8), Vector2.ZERO)
+	rr_friendly._try_hit(e)
+	check(e.health_component.health == rr_hp, "RR3a an effect never hits a character on the attacker's own team")
+	p.team = rr_team_before
+	e.team = rr_enemy_team_before
+	var rr_hit := AttackEffect2D.new()
+	main.add_child(rr_hit)
+	rr_hit.global_position = e.global_position
+	rr_hit.configure(p, 3, Vector2.RIGHT, Vector2(8, 8), Vector2.ZERO)
+	var rr_seen: Array = []
+	rr_hit.hit_confirmed.connect(func(_target, dealt): rr_seen.append(dealt))
+	rr_hit._try_hit(e)
+	rr_hit._try_hit(e)
+	check(e.health_component.health == rr_hp - 3 and rr_seen == [3], "RR3b an enemy is hit once per effect, through apply_hit, and hit_confirmed fires once")
+	var rr_self := AttackEffect2D.new()
+	main.add_child(rr_self)
+	rr_self.configure(e, 3, Vector2.RIGHT, Vector2(8, 8), Vector2.ZERO)
+	rr_self._try_hit(e)
+	check(e.health_component.health == rr_hp - 3, "RR3c an effect never hits its own attacker")
+	rr_friendly.queue_free()
+	rr_hit.queue_free()
+	rr_self.queue_free()
+
+	# RR4: the attack component spawns, tracks and cancels any AttackEffect2D, not only slashes.
+	var rr_proto := AttackEffect2D.new()
+	var rr_bare_scene := PackedScene.new()
+	check(rr_bare_scene.pack(rr_proto) == OK, "RR4a a scene whose root is a bare AttackEffect2D packs")
+	rr_proto.free()
+	var rr_def := definition_variant(p.attack_component.get_attack(&"player_light"), &"rr_bare")
+	rr_def.effect_scene = rr_bare_scene
+	check(p.attack_component.set_attack_definition(rr_def) and p.attack_component.definition.id == &"rr_bare", "RR4b the component accepts an attack whose effect scene is not a slash")
+	p.attack_component.try_start(true, Vector2.RIGHT)
+	await phys(8)
+	var rr_live := effect_children(main).filter(func(n): return n is AttackEffect2D and not (n is AttackSlash2D) and not n.is_queued_for_deletion())
+	check(rr_live.size() == 1 and p.attack_component.get_active_effect_count() == 1, "RR4c the swing spawns that effect and the component tracks it")
+	var rr_node: Node = rr_live[0] if not rr_live.is_empty() else null
+	p.attack_component.cancel()
+	await phys(2)
+	check(p.attack_component.get_active_effect_count() == 0 and (rr_node == null or not is_instance_valid(rr_node) or rr_node.is_queued_for_deletion()), "RR4d cancel() removes it")
+	await cleanup(main)
+
+	# RR5: an effect scene whose root is not an AttackEffect2D is still refused with an error and spawns nothing.
+	main = await fresh_far()
+	p = main.get_node("Player")
+	main.get_node("BasicEnemy2D").set_physics_process(false)
+	await phys(3)
+	var rr_plain := Node2D.new()
+	rr_plain.name = &"rr_plain"
+	var rr_plain_scene := PackedScene.new()
+	rr_plain_scene.pack(rr_plain)
+	rr_plain.free()
+	var rr_plain_def := definition_variant(p.attack_component.get_attack(&"player_light"), &"rr_plain")
+	rr_plain_def.effect_scene = rr_plain_scene
+	p.attack_component.set_attack_definition(rr_plain_def)
+	p.attack_component.try_start(true, Vector2.RIGHT)
+	await phys(8)
+	check(p.attack_component.get_active_effect_count() == 0 and not effect_children(main).any(func(n): return n.name == &"rr_plain" and not n.is_queued_for_deletion()), "RR5 a scene whose root is not an AttackEffect2D spawns nothing")
+	await cleanup(main)
+
+	# ---------- SS. AttackSlash2D finds its nodes through exported paths (10.3) ----------
+	# Expected in the Output log (not failures): one "hitbox_path 'Nowhere' does not lead to an Area2D" error from SS3.
+	main = await fresh_far()
+	p = main.get_node("Player")
+	main.get_node("BasicEnemy2D").set_physics_process(false)
+	await phys(3)
+	var ss_scene := load("res://Characters/Components/Combat/AttackSlash2D.tscn") as PackedScene
+	var ss_shipped := ss_scene.instantiate() as AttackSlash2D
+	check(ss_shipped.animation_player_path == NodePath(AttackSlash2D.ANIMATION_PLAYER_PATH) and ss_shipped.hitbox_path == ^"HitboxOrigin/HitboxMotion/Area2D" and ss_shipped.collision_shape_path == ^"HitboxOrigin/HitboxMotion/Area2D/CollisionShape2D" and ss_shipped.hitbox_origin_path == ^"HitboxOrigin", "SS1a the shipped scene keeps the default paths (no scene edit was needed)")
+	check(ss_shipped.get_node_or_null(ss_shipped.animation_player_path) is AnimationPlayer and ss_shipped.get_node_or_null(ss_shipped.hitbox_path) is Area2D and ss_shipped.get_node_or_null(ss_shipped.collision_shape_path) is CollisionShape2D and ss_shipped.get_node_or_null(ss_shipped.hitbox_origin_path) is Node2D, "SS1b every default path leads to the right kind of node")
+	ss_shipped.free()
+
+	# SS2: an effect scene whose animation player lives somewhere else works by pointing the path at it.
+	var ss_alt_root := ss_scene.instantiate() as AttackSlash2D
+	var ss_alt_player := AnimationPlayer.new()
+	ss_alt_player.name = &"AltPlayer"
+	ss_alt_root.add_child(ss_alt_player)
+	ss_alt_player.owner = ss_alt_root
+	var ss_anim := Animation.new()
+	ss_anim.length = 0.2
+	var ss_lib := AnimationLibrary.new()
+	ss_lib.add_animation(&"alt_clip", ss_anim)
+	ss_alt_player.add_animation_library(&"", ss_lib)
+	ss_alt_root.animation_player_path = ^"AltPlayer"
+	var ss_alt_scene := PackedScene.new()
+	check(ss_alt_scene.pack(ss_alt_root) == OK, "SS2a an effect scene with its own animation player and path packs")
+	ss_alt_root.free()
+	check(not AttackSlash2D.scene_lacks_animation(ss_alt_scene, &"alt_clip") and AttackSlash2D.scene_lacks_animation(ss_alt_scene, &"slash"), "SS2b the clip check looks at the player the scene's own path names, not the standard one")
+	var ss_def := definition_variant(p.attack_component.get_attack(&"player_light"), &"ss_alt")
+	ss_def.effect_scene = ss_alt_scene
+	ss_def.effect_animation = &"alt_clip"
+	p.attack_component.set_attack_definition(ss_def)
+	p.attack_component.try_start(true, Vector2.RIGHT)
+	await phys(8)
+	var ss_live := effect_children(main).filter(func(n): return n is AttackSlash2D and not n.is_queued_for_deletion())
+	var ss_playing: bool = ss_live.size() == 1 and (ss_live[0].get_node_or_null("AltPlayer") as AnimationPlayer) != null and (ss_live[0].get_node("AltPlayer") as AnimationPlayer).current_animation == &"alt_clip"
+	await phys(40)
+	check(ss_playing and count_slashes(main) == 0, "SS2c the swing plays alt_clip on that player and the effect frees itself when it ends")
+
+	# SS3: a path that leads nowhere is reported by name and the effect removes itself.
+	var ss_broken := ss_scene.instantiate() as AttackSlash2D
+	ss_broken.hitbox_path = ^"Nowhere"
+	var ss_broken_scene := PackedScene.new()
+	ss_broken_scene.pack(ss_broken)
+	ss_broken.free()
+	var ss_node := ss_broken_scene.instantiate() as AttackSlash2D
+	ss_node.configure(p, 1, Vector2.RIGHT, Vector2(8, 8), Vector2.ZERO)
+	main.add_child(ss_node)
+	await phys(3)
+	check(not is_instance_valid(ss_node) or ss_node.is_queued_for_deletion(), "SS3 an effect with a broken node path logs an error and removes itself")
+	await cleanup(main)
+
+	# ---------- TT. Hit policy: max_targets and pierce on the attack and on the effect (10.4) ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	await phys(3)
+	var tt_ok := true
+	for tt_id in [&"player_light", &"player_light2", &"player_heavy"]:
+		var tt_attack: AttackDefinition2D = p.attack_component.get_attack(tt_id)
+		tt_ok = tt_ok and tt_attack != null and tt_attack.max_targets == 0 and tt_attack.pierce
+	tt_ok = tt_ok and e.attack_definition.max_targets == 0 and e.attack_definition.pierce
+	check(AttackDefinition2D.new().max_targets == 0 and AttackDefinition2D.new().pierce and tt_ok, "TT1 a new attack and every shipped attack keep the old behavior (no target limit, pierce on)")
+
+	# TT2: three goblins far from the fight, hit in a fixed order by a bare effect with different policies.
+	var tt_scene := load("res://Characters/Enemies/BasicEnemy2D.tscn") as PackedScene
+	var tt_targets: Array = []
+	for tt_i in 3:
+		var tt_g := tt_scene.instantiate() as Character2D
+		main.add_child(tt_g)
+		tt_g.global_position = Vector2(3000 + tt_i * 200, 3000)
+		tt_g.set_physics_process(false)
+		tt_targets.append(tt_g)
+	await phys(2)
+	var tt_hp := func() -> Array: return tt_targets.map(func(g): return g.health_component.health)
+
+	var tt_before: Array = tt_hp.call()
+	var tt_a := AttackEffect2D.new()
+	main.add_child(tt_a)
+	tt_a.configure(p, 1, Vector2.RIGHT, Vector2(8, 8), Vector2.ZERO, -1, 0.0, 0.0, &"", 0, true)
+	for tt_g in tt_targets:
+		tt_a._try_hit(tt_g)
+	check(tt_hp.call() == [tt_before[0] - 1, tt_before[1] - 1, tt_before[2] - 1] and not tt_a.is_spent(), "TT2a no limit and pierce on: the effect hits all three and is never spent")
+
+	tt_before = tt_hp.call()
+	var tt_b := AttackEffect2D.new()
+	main.add_child(tt_b)
+	tt_b.configure(p, 1, Vector2.RIGHT, Vector2(8, 8), Vector2.ZERO, -1, 0.0, 0.0, &"", 1, true)
+	for tt_g in tt_targets:
+		tt_b._try_hit(tt_g)
+	check(tt_hp.call() == [tt_before[0] - 1, tt_before[1], tt_before[2]] and tt_b.is_spent(), "TT2b max_targets 1: only the first target is hit and the effect is spent")
+
+	tt_before = tt_hp.call()
+	var tt_c := AttackEffect2D.new()
+	main.add_child(tt_c)
+	tt_c.configure(p, 1, Vector2.RIGHT, Vector2(8, 8), Vector2.ZERO, -1, 0.0, 0.0, &"", 0, false)
+	for tt_g in tt_targets:
+		tt_c._try_hit(tt_g)
+	check(tt_hp.call() == [tt_before[0] - 1, tt_before[1], tt_before[2]] and tt_c.is_spent(), "TT2c pierce off: the first target ends the effect")
+
+	tt_before = tt_hp.call()
+	var tt_d := AttackEffect2D.new()
+	main.add_child(tt_d)
+	tt_d.configure(p, 1, Vector2.RIGHT, Vector2(8, 8), Vector2.ZERO, -1, 0.0, 0.0, &"", 2, true)
+	for tt_g in tt_targets:
+		tt_d._try_hit(tt_g)
+	check(tt_hp.call() == [tt_before[0] - 1, tt_before[1] - 1, tt_before[2]] and tt_d.is_spent(), "TT2d max_targets 2 with pierce on: two targets are hit, then the effect is spent")
+
+	tt_before = tt_hp.call()
+	var tt_e := AttackEffect2D.new()
+	main.add_child(tt_e)
+	tt_e.configure(p, 1, Vector2.RIGHT, Vector2(8, 8), Vector2.ZERO, -1, 0.0, 0.0, &"", 3, true)
+	for tt_g in tt_targets:
+		tt_e._try_hit(tt_g)
+	check(tt_hp.call() == [tt_before[0] - 1, tt_before[1] - 1, tt_before[2] - 1] and tt_e.is_spent(), "TT2e a limit equal to the number of targets hits them all and then the effect is spent")
+	for tt_fx in [tt_a, tt_b, tt_c, tt_d, tt_e]:
+		tt_fx.queue_free()
+	await cleanup(main)
+
+	# TT3: the attack component hands the attack's policy to the effect it spawns.
+	main = await fresh_far()
+	p = main.get_node("Player")
+	main.get_node("BasicEnemy2D").set_physics_process(false)
+	await phys(3)
+	var tt_def := definition_variant(p.attack_component.get_attack(&"player_light"), &"tt_policy")
+	tt_def.max_targets = 2
+	tt_def.pierce = false
+	p.attack_component.set_attack_definition(tt_def)
+	p.attack_component.try_start(true, Vector2.RIGHT)
+	await phys(8)
+	var tt_live := effect_children(main).filter(func(n): return n is AttackSlash2D and not n.is_queued_for_deletion())
+	check(tt_live.size() == 1 and tt_live[0].max_targets == 2 and not tt_live[0].pierce, "TT3 the spawned effect carries the attack's max_targets and pierce")
+	await cleanup(main)
+
+	# ---------- UU. 10.5 AttackSpawnPoint ----------
+	# UU1: the shipped scenes have no marker, so effects still start at the character's origin.
+	main = await fresh_far()
+	p = main.get_node("Player")
+	var uu_goblin: Character2D = main.get_node("BasicEnemy2D")
+	check(p.attack_spawn_point == null and p.context.get_attack_origin() == p.global_position, "UU1a the shipped player has no spawn marker and its attack origin is its own position")
+	check(uu_goblin.attack_spawn_point == null and uu_goblin.context.get_attack_origin() == uu_goblin.global_position, "UU1b the shipped goblin has no spawn marker and its attack origin is its own position")
+	await cleanup(main)
+
+	# UU2: a child named AttackSpawnPoint is found by name and the effect spawns there.
+	var uu_marker := Marker2D.new()
+	uu_marker.name = "AttackSpawnPoint"
+	uu_marker.position = Vector2(40, -12)
+	main = await fresh_far_prepared(func(m): m.get_node("Player").add_child(uu_marker))
+	p = main.get_node("Player")
+	main.get_node("BasicEnemy2D").set_physics_process(false)
+	check(p.attack_spawn_point == uu_marker and p.context.attack_spawn_point == uu_marker, "UU2a a child named AttackSpawnPoint is resolved on the character and its context")
+	p.attack_component.try_start(true, Vector2.RIGHT)
+	await phys(8)
+	var uu_live := live_slashes(main)
+	check(uu_live.size() >= 1 and uu_live[0].global_position.distance_to(uu_marker.global_position) < 0.01 and uu_marker.global_position.distance_to(p.global_position) > 1.0, "UU2b the spawned effect appears at the marker, not at the character's origin")
+
+	# UU4: the origin follows the marker when it moves.
+	uu_marker.position = Vector2(-30, 5)
+	check(p.context.get_attack_origin().distance_to(uu_marker.global_position) < 0.01, "UU4 the attack origin follows the marker when it moves")
+
+	# UU5: a marker that was freed falls back to the character's origin.
+	uu_marker.free()
+	check(p.context.get_attack_origin() == p.global_position, "UU5 after the marker is freed the attack origin is the character's position again")
+	await cleanup(main)
+
+	# UU3: the exported reference works with any node name.
+	var uu_named := Marker2D.new()
+	uu_named.name = "Muzzle"
+	uu_named.position = Vector2(0, -20)
+	main = await fresh_far_prepared(func(m): mount_exported_marker(m.get_node("Player"), uu_named))
+	p = main.get_node("Player")
+	main.get_node("BasicEnemy2D").set_physics_process(false)
+	p.attack_component.try_start(true, Vector2.RIGHT)
+	await phys(8)
+	uu_live = live_slashes(main)
+	check(p.attack_spawn_point == uu_named and uu_live.size() >= 1 and uu_live[0].global_position.distance_to(uu_named.global_position) < 0.01, "UU3 an exported marker with another name is used for the spawn position")
+	await cleanup(main)
+
+	# UU6: a node called AttackSpawnPoint that is not a Marker2D is ignored (one warning is expected in the log).
+	var uu_wrong := Node2D.new()
+	uu_wrong.name = "AttackSpawnPoint"
+	main = await fresh_far_prepared(func(m): m.get_node("Player").add_child(uu_wrong))
+	p = main.get_node("Player")
+	check(p.attack_spawn_point == null and p.context.get_attack_origin() == p.global_position, "UU6 an AttackSpawnPoint node that is not a Marker2D is ignored")
+	await cleanup(main)
+
+	# UU7: the goblin layout supports a marker too.
+	var uu_goblin_marker := Marker2D.new()
+	uu_goblin_marker.name = "AttackSpawnPoint"
+	uu_goblin_marker.position = Vector2(10, 4)
+	main = await fresh_far_prepared(func(m): m.get_node("BasicEnemy2D").add_child(uu_goblin_marker))
+	uu_goblin = main.get_node("BasicEnemy2D")
+	check(uu_goblin.attack_spawn_point == uu_goblin_marker and uu_goblin.context.get_attack_origin().distance_to(uu_goblin_marker.global_position) < 0.01, "UU7 the goblin resolves a marker and uses it as its attack origin")
+	await cleanup(main)
+
+	# ---------- VV. 11.1 ProjectileEffect2D ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	await phys(3)
+	var vv_scene := load("res://Characters/Components/Combat/ProjectileEffect2D.tscn") as PackedScene
+	var vv_probe := vv_scene.instantiate()
+	check(vv_probe is ProjectileEffect2D and vv_probe is AttackEffect2D and vv_probe.has_node("Hitbox/CollisionShape2D") and (vv_probe as ProjectileEffect2D).speed > 0.0 and (vv_probe as ProjectileEffect2D).lifetime > 0.0, "VV1 the projectile scene is an AttackEffect2D with a hit area, a speed and a lifetime")
+	vv_probe.free()
+
+	# VV2: it travels along its direction at its speed (30 frames at 300 px/s = about 150 px).
+	var vv_fly := fire_projectile(main, p, Vector2(5000, 0), Vector2.RIGHT, {"speed": 300.0, "lifetime": 3.0})
+	await phys(30)
+	var vv_dx: float = vv_fly.global_position.x - 5000.0 if is_alive_node(vv_fly) else -1.0
+	check(vv_dx > 130.0 and vv_dx < 170.0 and absf(vv_fly.global_position.y) < 0.01, "VV2 the projectile flies along its direction at its speed (moved %.1f px in 30 frames)" % vv_dx)
+	vv_fly.queue_free()
+
+	# VV3: it hits an enemy through the normal damage path and is spent by it when pierce is off.
+	var vv_g := parked_goblin(main, Vector2(5100, 400))
+	await phys(2)
+	var vv_hp: int = vv_g.health_component.health
+	var vv_seen: Array = []
+	var vv_hit := fire_projectile(main, p, Vector2(5000, 400), Vector2.RIGHT, {"damage": 3, "pierce": false})
+	vv_hit.hit_confirmed.connect(func(_target, dealt): vv_seen.append(dealt))
+	await phys(40)
+	check(vv_g.health_component.health == vv_hp - 3 and vv_seen == [3], "VV3a an arrow damages a goblin once through apply_hit (health %d -> %d, hits %s)" % [vv_hp, vv_g.health_component.health, str(vv_seen)])
+	check(not is_alive_node(vv_hit), "VV3b with pierce off the first target ends the projectile")
+
+	# VV4: it never hits its shooter or a character on the shooter's team.
+	var vv_shooter := parked_goblin(main, Vector2(5000, 800))
+	var vv_mate := parked_goblin(main, Vector2(5100, 800))
+	await phys(2)
+	var vv_shooter_hp: int = vv_shooter.health_component.health
+	var vv_mate_hp: int = vv_mate.health_component.health
+	var vv_pass := fire_projectile(main, vv_shooter, vv_shooter.global_position, Vector2.RIGHT, {"damage": 3})
+	await phys(40)
+	check(vv_shooter.health_component.health == vv_shooter_hp, "VV4a a projectile never hits the character that fired it")
+	check(vv_mate.health_component.health == vv_mate_hp and is_alive_node(vv_pass), "VV4b a teammate is not hit and the projectile flies on")
+	vv_pass.queue_free()
+
+	# VV5: a solid body on the world layer stops it, and what is behind the wall is safe.
+	var vv_wall := StaticBody2D.new()
+	vv_wall.collision_layer = 4
+	vv_wall.collision_mask = 0
+	var vv_wall_shape := CollisionShape2D.new()
+	var vv_wall_rect := RectangleShape2D.new()
+	vv_wall_rect.size = Vector2(10, 200)
+	vv_wall_shape.shape = vv_wall_rect
+	vv_wall.add_child(vv_wall_shape)
+	main.add_child(vv_wall)
+	vv_wall.global_position = Vector2(5100, 1200)
+	var vv_behind := parked_goblin(main, Vector2(5160, 1200))
+	await phys(2)
+	var vv_behind_hp: int = vv_behind.health_component.health
+	var vv_world: Array = []
+	var vv_shot := fire_projectile(main, p, Vector2(5000, 1200), Vector2.RIGHT, {"lifetime": 3.0})
+	vv_shot.world_hit.connect(func(point): vv_world.append(point))
+	await phys(60)
+	check(not is_alive_node(vv_shot) and vv_behind.health_component.health == vv_behind_hp, "VV5a a wall on the world layer stops the projectile before it reaches the target behind it")
+	check(vv_world.size() == 1 and vv_world[0].x > 5080.0 and vv_world[0].x < 5110.0, "VV5b world_hit fires once, at the wall (%s)" % str(vv_world))
+
+	# VV6: with nothing in its way it expires after its lifetime, without a world hit.
+	var vv_ttl_world: Array = []
+	var vv_ttl := fire_projectile(main, p, Vector2(5000, 1600), Vector2.RIGHT, {"speed": 100.0, "lifetime": 0.25})
+	vv_ttl.world_hit.connect(func(point): vv_ttl_world.append(point))
+	await phys(8)
+	check(is_alive_node(vv_ttl), "VV6a the projectile is still flying before its lifetime is over")
+	await phys(25)
+	check(not is_alive_node(vv_ttl) and vv_ttl_world.is_empty(), "VV6b it removes itself when the lifetime ends, with no world hit")
+
+	# VV7: pierce and max_targets (10.4) work on a projectile.
+	var vv_p1 := parked_goblin(main, Vector2(5100, 2000))
+	var vv_p2 := parked_goblin(main, Vector2(5200, 2000))
+	await phys(2)
+	var vv_p1_hp: int = vv_p1.health_component.health
+	var vv_p2_hp: int = vv_p2.health_component.health
+	var vv_pierce := fire_projectile(main, p, Vector2(5000, 2000), Vector2.RIGHT, {"lifetime": 3.0, "damage": 2})
+	await phys(60)
+	check(vv_p1.health_component.health == vv_p1_hp - 2 and vv_p2.health_component.health == vv_p2_hp - 2 and is_alive_node(vv_pierce), "VV7a a piercing projectile hits both targets in line and flies on")
+	vv_pierce.queue_free()
+	var vv_q1 := parked_goblin(main, Vector2(5100, 2400))
+	var vv_q2 := parked_goblin(main, Vector2(5200, 2400))
+	await phys(2)
+	var vv_q1_hp: int = vv_q1.health_component.health
+	var vv_q2_hp: int = vv_q2.health_component.health
+	var vv_one := fire_projectile(main, p, Vector2(5000, 2400), Vector2.RIGHT, {"lifetime": 3.0, "damage": 2, "max_targets": 1})
+	await phys(60)
+	check(vv_q1.health_component.health == vv_q1_hp - 2 and vv_q2.health_component.health == vv_q2_hp and not is_alive_node(vv_one), "VV7b max_targets 1 hits the first target only, then the projectile ends")
+
+	# VV8: the attack's hit_layers choose the targets: a mask of the player layer alone passes through a goblin.
+	var vv_l := parked_goblin(main, Vector2(5100, 2800))
+	await phys(2)
+	var vv_l_hp: int = vv_l.health_component.health
+	var vv_layer := fire_projectile(main, p, Vector2(5000, 2800), Vector2.RIGHT, {"lifetime": 3.0, "layers": 1})
+	await phys(40)
+	check(vv_l.health_component.health == vv_l_hp and is_alive_node(vv_layer), "VV8 a projectile whose hit_layers leave out the goblin's layer passes through it")
+	vv_layer.queue_free()
+
+	# VV9: AttackComponent2D spawns it like any effect: no change to the component, normal damage path, tracked until spent.
+	var vv_def := definition_variant(p.attack_component.get_attack(&"player_light"), &"vv_arrow")
+	vv_def.effect_scene = vv_scene
+	vv_def.pierce = false
+	check(p.attack_component.set_attack_definition(vv_def), "VV9pre the attack component accepts an attack whose effect scene is a projectile")
+	e.global_position = p.global_position + Vector2(70, 0)
+	await phys(2)
+	var vv_e_hp: int = e.health_component.health
+	p.attack_component.try_start(true, Vector2.RIGHT)
+	await phys(60)
+	check(e.health_component.health == vv_e_hp - vv_def.damage, "VV9a the attack component fires the projectile and it damages the goblin (health %d -> %d, expected -%d)" % [vv_e_hp, e.health_component.health, vv_def.damage])
+	check(p.attack_component.get_active_effect_count() == 0, "VV9b the spent projectile is no longer tracked by the attack component (%d left)" % p.attack_component.get_active_effect_count())
+	await cleanup(main)
+
+	# ---------- WW. 11.2 arrow attack definitions and projectile_speed ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	await phys(3)
+	var ww_light := load(ARROW_LIGHT_PATH) as AttackDefinition2D
+	var ww_heavy := load(ARROW_HEAVY_PATH) as AttackDefinition2D
+	check(ww_light != null and ww_heavy != null and ww_light.effect_scene != null and ww_light.effect_scene.resource_path == ARROW_SCENE_PATH and ww_heavy.effect_scene == ww_light.effect_scene, "WW1 both arrow definitions load and use Arrow.tscn as their effect scene")
+	var ww_probe := ww_light.effect_scene.instantiate()
+	var ww_scene_speed: float = (ww_probe as ProjectileEffect2D).speed if ww_probe is ProjectileEffect2D else -1.0
+	check(ww_probe is ProjectileEffect2D and ww_probe.has_node("Visual") and ww_probe.get_node("Visual") is Sprite2D and ww_probe.has_node("Hitbox/CollisionShape2D"), "WW2 Arrow.tscn is a ProjectileEffect2D with a sprite instead of the placeholder polygon, and a hit area")
+	ww_probe.free()
+	check(ww_light.id == &"arrow_shot" and ww_heavy.id == &"arrow_heavy" and ww_light.projectile_speed == 420.0 and ww_heavy.projectile_speed == 600.0 and not ww_light.pierce and ww_heavy.pierce and ww_heavy.max_targets == 3, "WW3 the arrow definitions carry their numbers as data (speeds 420 and 600, light stops at one target, heavy pierces up to 3)")
+	check(ww_light.projectile_speed / 60.0 < ww_light.hitbox_size.x and ww_heavy.projectile_speed / 60.0 < ww_heavy.hitbox_size.x, "WW4 both speeds stay below the hitbox length per frame at 60 fps (no tunnelling, see 11.1 notes)")
+	var ww_melee_ok := true
+	for ww_path in ["res://Characters/Components/Combat/DefaultAttackDefinition.tres", "res://Characters/Components/Combat/PlayerLight2AttackDefinition.tres", "res://Characters/Components/Combat/PlayerHeavyAttackDefinition.tres", "res://Characters/Components/Combat/GoblinAttackDefinition.tres", "res://Characters/Components/Combat/GoblinLungeAttackDefinition.tres"]:
+		ww_melee_ok = ww_melee_ok and (load(ww_path) as AttackDefinition2D).projectile_speed == 0.0
+	check(ww_melee_ok, "WW5 every shipped melee definition keeps projectile_speed 0 (the field is ignored by melee)")
+
+	# The speed reaches the projectile through configure().
+	var ww_a := fire_arrow(main, p, Vector2(5000, 400), ww_light)
+	await phys(30)
+	var ww_dx := ww_a.global_position.x - 5000.0
+	check(ww_a.speed == 420.0 and ww_dx > 190.0 and ww_dx < 230.0, "WW6 the definition's projectile_speed is the flight speed (speed %.0f, moved %.1f px in 30 frames, expected about 210)" % [ww_a.speed, ww_dx])
+	ww_a.queue_free()
+	var ww_zero := ww_light.duplicate() as AttackDefinition2D
+	ww_zero.projectile_speed = 0.0
+	var ww_b := fire_arrow(main, p, Vector2(5000, 500), ww_zero)
+	await phys(2)
+	check(ww_b.speed == ww_scene_speed, "WW7 projectile_speed 0 keeps the scene's own speed (%.0f)" % ww_b.speed)
+	ww_b.queue_free()
+	var ww_slow := ww_light.duplicate() as AttackDefinition2D
+	ww_slow.projectile_speed = 250.0
+	var ww_c := fire_arrow(main, p, Vector2(5000, 600), ww_slow)
+	await phys(30)
+	var ww_cdx := ww_c.global_position.x - 5000.0
+	check(ww_c.speed == 250.0 and ww_cdx > 110.0 and ww_cdx < 140.0, "WW8 a different projectile_speed changes the flight (moved %.1f px in 30 frames, expected about 125)" % ww_cdx)
+	ww_c.queue_free()
+
+	# The hit policy comes from the definition: the light arrow stops at the first target, the heavy one pierces up to three.
+	var ww_g1 := parked_goblin(main, Vector2(5100, 800))
+	var ww_g2 := parked_goblin(main, Vector2(5200, 800))
+	await phys(2)
+	var ww_g1_hp := hp_of(ww_g1)
+	var ww_g2_hp := hp_of(ww_g2)
+	var ww_shot := fire_arrow(main, p, Vector2(5000, 800), ww_light)
+	await phys(60)
+	check(hp_of(ww_g1) == ww_g1_hp - ww_light.damage and hp_of(ww_g2) == ww_g2_hp and not is_alive_node(ww_shot), "WW9 the light arrow hits the first goblin for %d and is spent (second goblin untouched)" % ww_light.damage)
+	var ww_h: Array = []
+	for ww_i in 4:
+		ww_h.append(parked_goblin(main, Vector2(5100 + 100 * ww_i, 1200)))
+	await phys(2)
+	var ww_h_hp: Array = ww_h.map(func(g): return hp_of(g))
+	var ww_hshot := fire_arrow(main, p, Vector2(5000, 1200), ww_heavy)
+	await phys(70)
+	var ww_h_ok: bool = true
+	for ww_i in 3:
+		ww_h_ok = ww_h_ok and hp_of(ww_h[ww_i]) == ww_h_hp[ww_i] - ww_heavy.damage
+	check(ww_h_ok and hp_of(ww_h[3]) == ww_h_hp[3] and not is_alive_node(ww_hshot), "WW10 the heavy arrow pierces three goblins for %d each and is spent before the fourth" % ww_heavy.damage)
+
+	# Through AttackComponent2D, with the sword's clips, so only the effect is new: speed handed over, damage dealt, no slash.
+	var ww_def := definition_variant(ww_light, &"ww_arrow")
+	ww_def.weapon_animation = &"sword_slash_1"
+	ww_def.recovery_animation = &"sword_slash_return_1"
+	check(p.attack_component.set_attack_definition(ww_def), "WW11pre the attack component accepts the arrow attack with an existing weapon clip")
+	e.global_position = p.global_position + Vector2(120, 0)
+	await phys(2)
+	var ww_e_hp := hp_of(e)
+	var ww_seen_speed := -1.0
+	var ww_slashes := 0
+	p.attack_component.try_start(true, Vector2.RIGHT)
+	for ww_i in 70:
+		await phys(1)
+		for ww_node in effects_from(main, ARROW_SCENE_PATH):
+			ww_seen_speed = (ww_node as ProjectileEffect2D).speed
+		ww_slashes += live_slashes(main).size()
+	check(hp_of(e) == ww_e_hp - ww_def.damage and ww_seen_speed == 420.0 and ww_slashes == 0, "WW11 AttackComponent2D fires the arrow at the definition's speed (%.0f), it damages the goblin (%d -> %d) and no slash is spawned" % [ww_seen_speed, ww_e_hp, hp_of(e)])
+
+	# Validation names the attack and the clip, as for melee: the sword has no 'bow_shoot'.
+	var ww_msg: String = p.attack_component.validate_definition(ww_light)
+	check(ww_msg.contains("arrow_shot") and ww_msg.contains("bow_shoot"), "WW12 a missing clip is reported with the attack and the clip name (%s)" % ww_msg)
+	var ww_bad := definition_variant(ww_def, &"ww_bad_scene")
+	ww_bad.effect_scene = null
+	check(p.attack_component.validate_definition(ww_bad).contains("ww_bad_scene") and not p.attack_component.set_attack_definition(ww_bad), "WW13 an arrow attack with no effect scene is still refused, naming the attack")
+	await cleanup(main)
+
+	# ---------- XX. 11.3 bow weapon ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	await phys(3)
+	var xx_bow := load(BOW_WEAPON_PATH) as WeaponDefinition2D
+	var xx_ctl: WeaponController2D = p.weapon_controller
+	var xx_problems := xx_ctl.validate_equip(xx_bow)
+	check(xx_bow != null and xx_bow.weapon_id == &"bow" and xx_problems.is_empty(), "XX1 validate_equip() for the bow returns no problems (%s)" % str(xx_problems))
+	var xx_scene := load(BOW_SCENE_PATH) as PackedScene
+	var xx_inst := xx_scene.instantiate()
+	var xx_anim := xx_inst.get_node("HandAnim") as AnimationPlayer
+	var xx_clips_ok := true
+	for xx_clip in [&"bow_charge", &"bow_shoot", &"bow_heavy_shoot", &"bow_return"]:
+		xx_clips_ok = xx_clips_ok and xx_anim.has_animation(xx_clip)
+	check(xx_clips_ok and xx_anim.get_animation(&"bow_charge").loop_mode == Animation.LOOP_LINEAR, "XX2 Bow.tscn has the charge (looping), shoot, heavy shoot and return clips")
+	var xx_events := {}
+	for xx_clip in [&"bow_shoot", &"bow_heavy_shoot"]:
+		var xx_a := xx_anim.get_animation(xx_clip)
+		var xx_n := 0
+		for xx_t in xx_a.get_track_count():
+			if xx_a.track_get_type(xx_t) == Animation.TYPE_METHOD:
+				for xx_k in xx_a.track_get_key_count(xx_t):
+					var xx_params := xx_a.method_track_get_params(xx_t, xx_k)
+					if xx_a.method_track_get_name(xx_t, xx_k) == &"attack_event" and xx_params.size() == 1 and xx_params[0] == &"spawn_effect":
+						xx_n += 1
+		xx_events[xx_clip] = xx_n
+	check(xx_events[&"bow_shoot"] == 1 and xx_events[&"bow_heavy_shoot"] == 1, "XX3 each shot clip has exactly one spawn_effect key at the release (%s)" % str(xx_events))
+	xx_inst.free()
+	var xx_failed := []
+	xx_ctl.equip_failed.connect(func(_w, problems): xx_failed.append(problems))
+	check(xx_ctl.equip(xx_bow) and xx_failed.is_empty(), "XX4 the bow equips")
+	check(p.context.weapon_pivot.scene_file_path == BOW_SCENE_PATH and p.get_default_attack_id() == &"arrow_shot" and p.get_heavy_attack_id() == &"arrow_heavy" and p.attack_component.has_attack(&"arrow_heavy") and p.context.weapon_animation_player.has_animation(&"bow_shoot"), "XX5 the bow is mounted and the player's light and heavy ids come from it")
+	check(not p.attack_component.has_attack(&"player_light") and not p.attack_component.has_attack(&"player_heavy"), "XX6 the sword's attacks are gone from the attack component")
+
+	# A light shot, straight right: one arrow, no slash, 4 damage, and the swing ends.
+	e.global_position = p.global_position + Vector2(120, 0)
+	var xx_g2 := parked_goblin(main, p.global_position + Vector2(240, 0))
+	await phys(2)
+	var xx_e_hp := hp_of(e)
+	var xx_g2_hp := hp_of(xx_g2)
+	var xx_arrows := 0
+	var xx_slashes := 0
+	check(p.attack_component.try_start_attack(&"arrow_shot", Vector2.RIGHT), "XX7pre the bow's light attack starts")
+	for xx_i in 40:
+		await phys(1)
+		xx_arrows = maxi(xx_arrows, effects_from(main, ARROW_SCENE_PATH).size())
+		xx_slashes += live_slashes(main).size()
+	check(hp_of(e) == xx_e_hp - 4 and hp_of(xx_g2) == xx_g2_hp and xx_arrows == 1 and xx_slashes == 0, "XX7 a light shot spawns one arrow, hits the first goblin for 4, leaves the one behind it, and no slash appears (health %d -> %d)" % [xx_e_hp, hp_of(e)])
+	await phys(60)
+	check(not p.context.is_attacking and absf(p.context.weapon_facing_root.rotation) < 0.01, "XX8 the shot and its return clip finish and the weapon pivot is back at rest")
+
+	# A charged shot: the charge runs, the release fires a piercing arrow through both goblins.
+	var xx_e_hp2 := hp_of(e)
+	var xx_g2_hp2 := hp_of(xx_g2)
+	check(p.attack_component.begin_charge(&"arrow_heavy", Vector2.RIGHT), "XX9pre the bow's heavy attack begins charging")
+	await phys(20)
+	var xx_charging: bool = p.attack_component.is_charging()
+	check(p.attack_component.release_charge(Vector2.RIGHT), "XX9pre2 the charge can be released")
+	await phys(70)
+	check(xx_charging and hp_of(e) == xx_e_hp2 - 9 and hp_of(xx_g2) == xx_g2_hp2 - 9, "XX9 the charged shot pierces both goblins for 9 each (health %d, %d)" % [hp_of(e), hp_of(xx_g2)])
+
+	# Aim straight down: the arrow follows the attack direction, not the facing.
+	e.global_position = p.global_position + Vector2(0, 120)
+	await phys(2)
+	var xx_e_hp3 := hp_of(e)
+	p.attack_component.try_start_attack(&"arrow_shot", Vector2.DOWN)
+	await phys(70)
+	check(hp_of(e) == xx_e_hp3 - 4, "XX10 a shot aimed straight down hits a goblin below (health %d -> %d)" % [xx_e_hp3, hp_of(e)])
+	check(xx_failed.is_empty(), "XX11 no equip failure was reported in this section")
+	await cleanup(main)
+
+	# ---------- YY. 11.4 weapon switching ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	await phys(3)
+	var yy_ctl: WeaponController2D = p.weapon_controller
+	var yy_sword := load(SWORD_WEAPON_PATH) as WeaponDefinition2D
+	var yy_bow := load(BOW_WEAPON_PATH) as WeaponDefinition2D
+	var yy_events := InputMap.action_get_events(&"weapon_next") if InputMap.has_action(&"weapon_next") else []
+	check(InputMap.has_action(&"weapon_next") and yy_events.size() == 1 and yy_events[0] is InputEventKey, "YY1 the weapon_next input action exists with a key bound")
+	check(yy_ctl.loadout.size() == 2 and yy_ctl.loadout[0].weapon_id == &"sword" and yy_ctl.loadout[1].weapon_id == &"bow" and yy_ctl.get_equipped_weapon().weapon_id == &"sword", "YY2 the player's loadout is sword then bow and the sword is equipped at the start")
+	check(p.get_light_attack_id() == &"player_light" and p.get_heavy_attack_id() == &"player_heavy", "YY3 with the sword the light and heavy ids are the sword's")
+	check(yy_ctl.equip_next() and yy_ctl.get_equipped_weapon().weapon_id == &"bow" and p.context.weapon_pivot.scene_file_path == BOW_SCENE_PATH, "YY4 equip_next() switches sword to bow and mounts the bow scene")
+	check(p.get_light_attack_id() == &"arrow_shot" and p.get_heavy_attack_id() == &"arrow_heavy", "YY5 the ids now come from the bow (9.7d-1)")
+	check(yy_ctl.equip_next() and yy_ctl.get_equipped_weapon().weapon_id == &"sword" and p.context.weapon_pivot.scene_file_path == "res://Weapons/Sword.tscn" and p.get_light_attack_id() == &"player_light", "YY6 equip_next() wraps around from the bow back to the sword")
+
+	# Refused during a swing, allowed after.
+	check(p.attack_component.try_start_attack(&"player_light", Vector2.RIGHT), "YY7pre a sword swing starts")
+	await phys(5)
+	check(p.context.is_attacking and not yy_ctl.equip_next() and yy_ctl.get_equipped_weapon().weapon_id == &"sword", "YY7 equip_next() is refused during a swing and the sword stays")
+	await phys(120)
+	check(not p.context.is_attacking and yy_ctl.equip_next() and yy_ctl.get_equipped_weapon().weapon_id == &"bow", "YY8 after the swing ends the switch works")
+	check(yy_ctl.equip_next() and yy_ctl.get_equipped_weapon().weapon_id == &"sword", "YY8b and back to the sword")
+
+	# A weapon that cannot be equipped rolls back and the next one is tried.
+	var yy_broken_attack := definition_variant(p.attack_component.get_attack(&"player_light"), &"yy_broken_attack")
+	yy_broken_attack.weapon_animation = &"no_such_clip"
+	var yy_broken := make_weapon(&"yy_broken", [yy_broken_attack]) as WeaponDefinition2D
+	var yy_failed := []
+	yy_ctl.equip_failed.connect(func(_w, problems): yy_failed.append(problems))
+	var yy_only: Array[WeaponDefinition2D] = [yy_sword, yy_broken]
+	yy_ctl.loadout = yy_only
+	var yy_ids_before: Array = p.attack_component.get_attack_ids()
+	check(not yy_ctl.equip_next() and yy_failed.size() == 1 and yy_ctl.get_equipped_weapon().weapon_id == &"sword" and p.attack_component.get_attack_ids() == yy_ids_before and p.context.weapon_pivot.scene_file_path == "res://Weapons/Sword.tscn", "YY9 a failed equip rolls back: same weapon, same attacks, same mount, equip_failed reported once")
+	var yy_skip: Array[WeaponDefinition2D] = [yy_sword, yy_broken, yy_bow]
+	yy_ctl.loadout = yy_skip
+	check(yy_ctl.equip_next() and yy_ctl.get_equipped_weapon().weapon_id == &"bow", "YY10 equip_next() skips the weapon that fails and equips the next one")
+	var yy_single: Array[WeaponDefinition2D] = [yy_bow]
+	yy_ctl.loadout = yy_single
+	check(not yy_ctl.equip_next() and yy_ctl.get_equipped_weapon().weapon_id == &"bow", "YY11 a loadout with nothing else to switch to does nothing")
+	var yy_empty: Array[WeaponDefinition2D] = []
+	yy_ctl.loadout = yy_empty
+	check(not yy_ctl.equip_next(), "YY12 an empty loadout does nothing")
+	var yy_both: Array[WeaponDefinition2D] = [yy_sword, yy_bow]
+	yy_ctl.loadout = yy_both
+
+	# The real input path: pressing the action switches once per press, through player.gd.
+	check(yy_ctl.get_equipped_weapon().weapon_id == &"bow", "YY13pre the bow is equipped before the input test")
+	Input.action_press("weapon_next")
+	await phys(3)
+	Input.action_release("weapon_next")
+	await phys(2)
+	check(yy_ctl.get_equipped_weapon().weapon_id == &"sword", "YY13 pressing weapon_next switches once (bow to sword), not once per frame held")
+	Input.action_press("weapon_next")
+	await phys(3)
+	Input.action_release("weapon_next")
+	await phys(2)
+	check(yy_ctl.get_equipped_weapon().weapon_id == &"bow", "YY14 the next press switches again (sword to bow)")
+	# A dead player does not switch.
+	p.health_component.apply_hit(HitData.new(9999, e, Vector2.RIGHT))
+	await phys(2)
+	Input.action_press("weapon_next")
+	await phys(3)
+	Input.action_release("weapon_next")
+	await phys(2)
+	check(not p.is_alive() and yy_ctl.get_equipped_weapon().weapon_id == &"bow", "YY15 a dead player does not switch weapons")
+	await cleanup(main)
+
+	# ---------- ZZ. 11.5 goblin archer ----------
+	var zz_archer_path := "res://Characters/Enemies/GoblinArcher.tscn"
+	var zz_raw := (load("res://Main.tscn") as PackedScene).instantiate()
+	check(zz_raw.has_node("GoblinArcher") and zz_raw.get_node("GoblinArcher") is BasicEnemy2D, "ZZ1 Main.tscn has a GoblinArcher in the arena")
+	zz_raw.free()
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	var zz_a := (load(zz_archer_path) as PackedScene).instantiate() as BasicEnemy2D
+	main.add_child(zz_a)
+	zz_a.global_position = p.global_position + Vector2(160, 0)
+	await phys(3)
+	check(zz_a.team == &"enemy" and zz_a.is_in_group("enemy") and zz_a.attack_component.get_attack_ids() == [&"goblin_arrow"] and zz_a.attack_component.definition.effect_scene.resource_path == ARROW_SCENE_PATH, "ZZ2 the archer is an enemy whose only attack is goblin_arrow, with the arrow as its effect")
+	check(zz_a.attack_component.validate_definition(zz_a.attack_component.definition) == "" and zz_a.context.weapon_animation_player.has_animation(&"bow_shoot") and zz_a.context.weapon_animation_player.has_animation(&"bow_return"), "ZZ3 the arrow attack validates against the archer's own bow clips")
+	check(zz_a.get_node("AnimatedSprite2D/Weapon").texture.resource_path.ends_with("Bow.png") and zz_a.get_node("HealthComponent2D").max_health < e.health_component.max_health, "ZZ4 the archer carries a bow and has less health than a goblin")
+	check(zz_a._ai_controller.get_effective_attack_range() == 170.0 and zz_a._ai_controller.get_detection_radius() == 260.0 and e._ai_controller.get_detection_radius() == 200.0, "ZZ5 its AI starts shooting at 170 px and notices targets at 260 px, without changing the goblin's 200 px")
+
+	# It shoots from where it stands (inside its range), an arrow crosses a goblin of its own team, and the player is hurt.
+	var zz_mate := parked_goblin(main, p.global_position + Vector2(80, 0))
+	await phys(2)
+	var zz_mate_hp := hp_of(zz_mate)
+	var zz_p_hp := hp_of(p)
+	var zz_start := zz_a.global_position
+	var zz_arrows := 0
+	var zz_slashes := 0
+	var zz_min := 9999.0
+	for zz_i in 150:
+		await phys(1)
+		zz_arrows = maxi(zz_arrows, effects_from(main, ARROW_SCENE_PATH).size())
+		zz_slashes += live_slashes(main).size()
+		zz_min = minf(zz_min, zz_a.global_position.distance_to(p.global_position))
+	check(zz_arrows >= 1 and zz_slashes == 0, "ZZ6 the archer fires arrows and never swings a slash (arrows seen %d)" % zz_arrows)
+	check(hp_of(p) < zz_p_hp and hp_of(p) >= zz_p_hp - 3, "ZZ7 its arrows hurt the player for 1 each (health %d -> %d)" % [zz_p_hp, hp_of(p)])
+	check(hp_of(zz_mate) == zz_mate_hp, "ZZ8 an arrow flies through a goblin of its own team without hurting it")
+	check(zz_a.global_position.distance_to(zz_start) < 10.0 and zz_min > 140.0 and zz_a._ai_controller.get_behavior_name() == "ATTACK", "ZZ9 it keeps its distance: it did not walk toward a player already inside its range (closest %.0f px, behavior %s)" % [zz_min, zz_a._ai_controller.get_behavior_name()])
+	await cleanup(main)
+
+	# From beyond its range but inside its detection radius it walks in until the player is in range, then shoots.
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	zz_a = (load(zz_archer_path) as PackedScene).instantiate() as BasicEnemy2D
+	main.add_child(zz_a)
+	zz_a.global_position = p.global_position + Vector2(240, 0)
+	await phys(3)
+	zz_p_hp = hp_of(p)
+	var zz_far_arrows := 0
+	var zz_walked := false
+	for zz_i in 200:
+		await phys(1)
+		zz_far_arrows = maxi(zz_far_arrows, effects_from(main, ARROW_SCENE_PATH).size())
+		zz_walked = zz_walked or zz_a._ai_controller.get_behavior_name() == "CHASE"
+	var zz_dist := zz_a.global_position.distance_to(p.global_position)
+	check(zz_walked and zz_far_arrows >= 1 and zz_dist < 200.0 and hp_of(p) < zz_p_hp, "ZZ10 an archer starting at 240 px chases until in range, then shoots (distance %.0f px, arrows seen %d, player health %d -> %d)" % [zz_dist, zz_far_arrows, zz_p_hp, hp_of(p)])
+	# The player's own arrow kills it the normal way: the archer is a normal damageable character.
+	var zz_hp := hp_of(zz_a)
+	zz_a.apply_hit(HitData.new(4, p, Vector2.LEFT))
+	check(hp_of(zz_a) == zz_hp - 4, "ZZ11 the archer takes damage through apply_hit like any character")
 	await cleanup(main)

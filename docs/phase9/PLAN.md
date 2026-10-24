@@ -6,36 +6,38 @@ Each step ends with a smoke-test run (`godot --headless --fixed-fps 60 --path . 
 
 | Step | What | Status | Expected SUMMARY | Confirmed in Godot |
 |---|---|---|---|---|
-| 9.0 | Test trust, parse error, path helper, quick wins | done (9.0 and 9.0b) | 244 / 0 (then 318 / 0) | 9.0 yes; 9.0b pending |
+| 9.0 | Test trust, parse error, path helper, quick wins | done (9.0 and 9.0b) | 244 / 0 (then 318 / 0) | yes (607 / 0, Oct 24) |
 | 9.1 | `attacks` array and `try_start_attack(id)` | done | 264 / 0 | yes |
 | 9.2 | Attack ids, `attack_light` / `attack_heavy` input | done (9.2a, 9.2b) | 266 / 23 | yes (23 later repaired) |
 | 9.3 | Weighted AI attack choice | done | 279 / 23 | yes |
-| 9.4 | Combos: `next_attack`, window events, chaining, shipped combo | done (9.4a–e) | 318 / 23 | 9.4a–9.4e pending |
-| 9.0b | Repair the 23 health-value checks | done | 318 / 0 | pending |
-| 9.5a | Player heavy attack (scene-authored) | done | 326 / 0 | pending |
-| 9.5b | Goblin lunge and weighted AI choice | data was missing from the archive; rebuilt in 9.5b (see 9.5b-notes) | see notes | pending |
-| 9.6a | Looping combo sequences, repeat when unlinked, reset | done (code and tests only) | 339 / 0 | pending |
-| 9.6b | Return on window close | done (code and tests only) | 343 / 0 | pending |
-| 9.6c | Heavy charge and release modes | done (component API and tests; player wiring in 9.6d) | 354 / 0 | pending |
-| 9.6d | Player wiring: press, hold, release | done | 361 / 0 | pending |
-| 9.R | Player attacks on the new `sword_*` clips, shipped light combo link | done (data and tests) | see 9.R-notes | pending |
-| 9.R2 | Combo restart at chain end, return-before-attack rule tested, heavy release flow tested, charge retry, `get_charge_ratio()` | done (code and tests) | see 9.R2-notes | pending |
-| 9.7a | `WeaponDefinition2D` resource, validation, shipped `SwordWeaponDefinition.tres` (data and tests only, nothing equips it) | done (data and tests) | baseline + 32 new checks (section II) | pending |
-| 9.7b | Sword as a weapon scene (`Weapons/Sword.tscn`), `CharacterContext2D` reads the weapon player from it | done (scene, code and tests) | baseline + 32 new checks (section JJ) | pending |
-| 9.7c-1 | `WeaponController2D` dry run: `validate_equip()` / `can_equip()`, changes nothing | done (code and tests) | previous total + 19 (section KK) | pending |
-| 9.7c-2 | `equip()` for the weapon already mounted: set default attack and `attacks`, roll back on failure, `weapon_equipped` / `equip_failed` | done (code and tests) | previous total + 20 (section LL) | pending |
-| 9.7c-3 | `equip()` swaps to another weapon scene (free old `MainHand`, mount, `bind_weapon`, rewire `animation_finished`), restores the old weapon on failure | done (code and tests) | previous total + 16 (section MM adds 19, section LL loses 3) | pending |
-| 9.7c-4 | `Character2D` resolves an optional `WeaponController2D`; `starting_weapon` equipped at initialize; node added to `player.tscn` in the editor with the sword as starting weapon | done (code and tests; needs the editor steps) | previous total + 8 (section NN) | pending |
-| 9.7c-4 (editor step) | `WeaponController2D` node added to `player.tscn` with the sword as starting weapon (done in text, `player.tscn` re-sent) | done | NN1a to NN3d now pass | pending |
-| 9.7d-1 | `player.gd` takes the light and heavy ids from the equipped weapon (`get_light_attack_id()`, `get_heavy_attack_id()`); the two exports become empty overrides | done (code and tests) | previous total + 12 (section OO) | pending |
+| 9.4 | Combos: `next_attack`, window events, chaining, shipped combo | done (9.4a–e) | 318 / 23 | yes (607 / 0, Oct 24) |
+| 9.0b | Repair the 23 health-value checks | done | 318 / 0 | yes (607 / 0, Oct 24) |
+| 9.5a | Player heavy attack (scene-authored) | done | 326 / 0 | yes (607 / 0, Oct 24) |
+| 9.5b | Goblin lunge and weighted AI choice | data was missing from the archive; rebuilt in 9.5b (see 9.5b-notes) | see notes | yes (607 / 0, Oct 24) |
+| 9.6a | Looping combo sequences, repeat when unlinked, reset | done (code and tests only) | 339 / 0 | yes (607 / 0, Oct 24) |
+| 9.6b | Return on window close | done (code and tests only) | 343 / 0 | yes (607 / 0, Oct 24) |
+| 9.6c | Heavy charge and release modes | done (component API and tests; player wiring in 9.6d) | 354 / 0 | yes (607 / 0, Oct 24) |
+| 9.6d | Player wiring: press, hold, release | done | 361 / 0 | yes (607 / 0, Oct 24) |
+| 9.R | Player attacks on the new `sword_*` clips, shipped light combo link | done (data and tests) | see 9.R-notes | yes (607 / 0, Oct 24) |
+| 9.R2 | Combo restart at chain end, return-before-attack rule tested, heavy release flow tested, charge retry, `get_charge_ratio()` | done (code and tests) | see 9.R2-notes | yes (607 / 0, Oct 24) |
+| 9.7a | `WeaponDefinition2D` resource, validation, shipped `SwordWeaponDefinition.tres` (data and tests only, nothing equips it) | done (data and tests) | baseline + 32 new checks (section II) | yes (607 / 0, Oct 24) |
+| 9.7b | Sword as a weapon scene (`Weapons/Sword.tscn`), `CharacterContext2D` reads the weapon player from it | done (scene, code and tests) | baseline + 32 new checks (section JJ) | yes (607 / 0, Oct 24) |
+| 9.7c-1 | `WeaponController2D` dry run: `validate_equip()` / `can_equip()`, changes nothing | done (code and tests) | previous total + 19 (section KK) | yes (607 / 0, Oct 24) |
+| 9.7c-2 | `equip()` for the weapon already mounted: set default attack and `attacks`, roll back on failure, `weapon_equipped` / `equip_failed` | done (code and tests) | previous total + 20 (section LL) | yes (607 / 0, Oct 24) |
+| 9.7c-3 | `equip()` swaps to another weapon scene (free old `MainHand`, mount, `bind_weapon`, rewire `animation_finished`), restores the old weapon on failure | done (code and tests) | previous total + 16 (section MM adds 19, section LL loses 3) | yes (607 / 0, Oct 24) |
+| 9.7c-4 | `Character2D` resolves an optional `WeaponController2D`; `starting_weapon` equipped at initialize; node added to `player.tscn` in the editor with the sword as starting weapon | done (code and tests; needs the editor steps) | previous total + 8 (section NN) | yes (607 / 0, Oct 24) |
+| 9.7c-4 (editor step) | `WeaponController2D` node added to `player.tscn` with the sword as starting weapon (done in text, `player.tscn` re-sent) | done | NN1a to NN3d now pass | yes (607 / 0, Oct 24) |
+| 9.7d-1 | `player.gd` takes the light and heavy ids from the equipped weapon (`get_light_attack_id()`, `get_heavy_attack_id()`); the two exports become empty overrides | done (code and tests) | previous total + 12 (section OO) | yes (607 / 0, Oct 24) |
 | 9.7d-2 | README controls and "add an attack or weapon", `IMPLEMENTATION_NOTES.md` for Phases 9.0 to 9.7 | done (docs only) | unchanged (no code or test change) | n/a |
 | 9.7d-3 | Refresh stale notes and this plan, duplicate guide copies, leftover Threshold values on `DefaultAttackDefinition.tres` | done (docs only; the root guide copies were deleted in the Oct 24 cleanup) | unchanged | n/a |
 
-| 9.8a | Effect clip per attack: `effect_animation` on `AttackDefinition2D`, played by `AttackSlash2D`; the shipped heavy uses the scene's `heavy_slash` | done (code, data and tests) | previous total + 12 (section PP) | pending |
+| 9.8a | Effect clip per attack: `effect_animation` on `AttackDefinition2D`, played by `AttackSlash2D`; the shipped heavy uses the scene's `heavy_slash` | done (code, data and tests) | previous total + 12 (section PP) | yes (607 / 0, Oct 24) |
 
-**Totals:** the numbers in the Expected SUMMARY column are the ones the notes predicted at the time. Nothing from 9.4 on has been run, so the next real run sets the baseline; later step notes only state how many checks they add.
+**Baseline (Oct 24 2026, after V2b):** `SUMMARY passes=607 failures=0`. Every later step counts "previous total + N" from 607. The older Expected SUMMARY numbers in the table above were predictions made at the time; the run confirmed the final total, not each intermediate one.
 
-**Baseline gap:** every step from 9.2 onward is unverified in Godot. The last confirmed run is 9.1. Each pending row needs its SUMMARY line pasted back before the next step's numbers can be trusted.
+**Run history:** first real run 585 / 22 (after Phase 10.5); V2a 590 / 17; V2b 607 / 0. Details in `docs/phaseV/`.
+
+**Still not confirmed by playing:** the smoke test proves the code paths, not the feel. V3 (play-test) is still open.
 
 ## Decisions (recorded 2026-10-24)
 
@@ -107,6 +109,6 @@ Not in 9.7: projectiles, the effect base class, `AttackSpawnPoint`, skills, pass
 
 ## Open items outside Phase 9
 - Done (Oct 24 cleanup): the two duplicate guide copies in the project root are deleted; the guide lives only in `docs/`.
-- Decide on the Threshold values on `DefaultAttackDefinition.tres` (the light attack; see the 9.7a note).
+- Done in V4: the leftover Threshold values on `DefaultAttackDefinition.tres` were cleared (see `docs/phaseV/V4-notes.md`).
 - A forward movement impulse for the goblin lunge (needs `MovementComponent2D`).
 - Projectiles, active skills and passives (guide phases 3 to 5): see `docs/Combat-Roadmap-Step-by-Step-Plan.md`.

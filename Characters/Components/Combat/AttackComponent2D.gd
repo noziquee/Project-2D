@@ -33,35 +33,27 @@ const EVENT_SPAWN_EFFECT := &"spawn_effect"
 const EVENT_COMBO_WINDOW_OPEN := &"combo_window_open"
 const EVENT_COMBO_WINDOW_CLOSE := &"combo_window_close"
 
-const DEFAULT_ATTACK = preload("res://Characters/Components/Combat/DefaultAttackDefinition.tres")
-const DEFAULT_SLASH = preload("res://Characters/Components/Combat/AttackSlash2D.tscn")
-
 ## The attack this component starts with (edit it per character in the Scene dock).
-## Empty falls back to DefaultAttackDefinition.tres.
-@export var attack_definition: AttackDefinition2D = DEFAULT_ATTACK
+## Required (10.1): with no definition the component logs an error and the character cannot attack.
+@export var attack_definition: AttackDefinition2D
 ## Extra attacks this character can start by id with try_start_attack() (a heavy attack, a
 ## lunge...). The default attack above is always selectable by its own id as well, so list
 ## only the additional ones. Ids must be unique and non-empty; an entry whose clips are
 ## missing on the weapon AnimationPlayer is rejected with an error naming the clip, and
 ## the other attacks keep working.
 @export var attacks: Array[AttackDefinition2D] = []
-## DEPRECATED: set AttackDefinition2D.effect_scene instead. Only used as a fallback when
-## the active attack definition has no effect_scene of its own.
-@export var attack_slash_scene: PackedScene = DEFAULT_SLASH
 
 var context: CharacterContext2D
 ## The attack currently in effect at runtime (starts as attack_definition; see
 ## set_attack_definition()).
 var definition: AttackDefinition2D
-## Runtime copy of attack_slash_scene.
-var slash_scene: PackedScene
 ## Counts down the definition's cooldown_duration. It starts when the swing ENDS
 ## (recovery clip finished), so the resource value is the real gap between attacks.
 var _cooldown_remaining := 0.0
 var _initialized := false
 ## Effects spawned by the swing in progress. An entry removes itself when its effect
 ## leaves the tree; cancel() frees whatever is still alive.
-var _active_effects: Array[AttackSlash2D] = []
+var _active_effects: Array[AttackEffect2D] = []
 ## The definition the swing in progress started with. Swapping `definition` mid-swing
 ## therefore cannot strand the running attack waiting for a clip that no longer applies.
 var _active_definition: AttackDefinition2D
@@ -89,18 +81,15 @@ var _connected_player: AnimationPlayer
 
 func initialize(shared_context: CharacterContext2D) -> void:
 	context = shared_context
-	definition = attack_definition if attack_definition != null else DEFAULT_ATTACK
-	slash_scene = attack_slash_scene if attack_slash_scene != null else DEFAULT_SLASH
+	definition = attack_definition
 	_initialized = (
 		context != null
 		and context.character is CharacterBody2D
 		and definition != null
-		and slash_scene != null
 		and is_instance_valid(context.weapon_animation_player)
-		and slash_scene.can_instantiate()
 	)
 	if not _initialized:
-		push_error("AttackComponent2D needs a character context, attack definition, slash scene, and weapon AnimationPlayer.")
+		push_error("AttackComponent2D needs a character context, an attack_definition, and a weapon AnimationPlayer.")
 		return
 
 	var problem := validate_definition(definition)
@@ -147,6 +136,8 @@ func validate_definition(candidate: AttackDefinition2D) -> String:
 		return "attack '%s' on '%s': weapon AnimationPlayer has no clip '%s' (charge_animation)." % [candidate.id, owner_name, candidate.charge_animation]
 	if candidate.release_mode == AttackDefinition2D.ReleaseMode.THRESHOLD and candidate.charge_threshold <= 0.0:
 		return "attack '%s': a THRESHOLD release needs charge_threshold > 0." % candidate.id
+	if candidate.effect_scene == null:
+		return "attack '%s' on '%s': no effect_scene (every attack needs its own effect scene)." % [candidate.id, owner_name]
 	return ""
 
 ## Swaps the attack definition. A definition that references a missing clip is rejected
@@ -160,12 +151,6 @@ func set_attack_definition(new_definition: AttackDefinition2D) -> bool:
 		return false
 	definition = new_definition
 	return true
-
-func set_slash_scene(new_scene: PackedScene) -> void:
-	if new_scene != null and new_scene.can_instantiate():
-		slash_scene = new_scene
-	else:
-		push_warning("AttackComponent2D ignored an invalid slash scene assignment.")
 
 ## Starts the default attack (`definition`) when `requested` is true.
 func try_start(requested: bool, direction: Vector2 = Vector2.ZERO) -> bool:
@@ -467,14 +452,17 @@ func get_active_effect_count() -> int:
 
 func _spawn_effect() -> void:
 	var active := _active_definition
-	var scene: PackedScene = active.effect_scene if active.effect_scene != null else slash_scene
+	var scene: PackedScene = active.effect_scene
+	if scene == null:
+		push_error("AttackComponent2D: attack '%s' has no effect_scene." % active.id)
+		return
 	var node := scene.instantiate()
-	var slash := node as AttackSlash2D
+	var slash := node as AttackEffect2D
 	if slash == null:
-		push_error("AttackComponent2D: effect scene for attack '%s' must have AttackSlash2D.gd on its root." % active.id)
+		push_error("AttackComponent2D: effect scene for attack '%s' must have an AttackEffect2D script (such as AttackSlash2D.gd) on its root." % active.id)
 		node.queue_free()
 		return
-	slash.configure(context.character, active.damage, context.attack_direction, active.hitbox_size, active.hitbox_offset, active.hit_layers, active.knockback, active.hit_stun, active.effect_animation)
+	slash.configure(context.character, active.damage, context.attack_direction, active.hitbox_size, active.hitbox_offset, active.hit_layers, active.knockback, active.hit_stun, active.effect_animation, active.max_targets, active.pierce, active.projectile_speed)
 	slash.hit_confirmed.connect(_on_slash_hit)
 	# The impact effect belongs to the attack that spawned the slash, which may outlive the swing.
 	slash.hit_contact.connect(_on_slash_contact.bind(active.hit_effect_scene))
@@ -483,10 +471,10 @@ func _spawn_effect() -> void:
 	if host == null:
 		host = context.character
 	host.add_child(slash)
-	slash.global_position = context.character.global_position
+	slash.global_position = context.get_attack_origin()
 	_active_effects.append(slash)
 
-func _forget_effect(slash: AttackSlash2D) -> void:
+func _forget_effect(slash: AttackEffect2D) -> void:
 	_active_effects.erase(slash)
 
 func cancel() -> void:

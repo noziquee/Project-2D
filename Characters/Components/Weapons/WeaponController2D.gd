@@ -22,6 +22,9 @@ signal equip_failed(weapon: WeaponDefinition2D, problems: Array)
 ## The weapon equipped when the controller is initialized (9.7c-4). Empty keeps whatever the character
 ## scene has: the mounted weapon and the attacks set on its AttackComponent2D.
 @export var starting_weapon: WeaponDefinition2D
+## The weapons equip_next() cycles through, in order (11.4). Empty or a single entry means there is nothing to switch to.
+## Put starting_weapon in the list too, so the cycle continues from it.
+@export var loadout: Array[WeaponDefinition2D] = []
 
 var context: CharacterContext2D
 var attack_component: AttackComponent2D
@@ -87,6 +90,22 @@ func equip(weapon: WeaponDefinition2D) -> bool:
 	weapon_equipped.emit(weapon)
 	return true
 
+## Equips the next weapon of `loadout` after the one equipped now (11.4), wrapping around. Returns false and
+## changes nothing when there is nothing to switch to or the character is in a swing or charge. A weapon that
+## cannot be equipped is skipped (its problems are logged by equip(), the old weapon stays mounted), and the
+## next one is tried; false when none could be equipped.
+func equip_next() -> bool:
+	if not _initialized or loadout.is_empty() or context.is_attacking:
+		return false
+	var start := loadout.find(_equipped_weapon)
+	for step in range(1, loadout.size() + 1):
+		var candidate: WeaponDefinition2D = loadout[(start + step) % loadout.size()]
+		if candidate == null or candidate == _equipped_weapon:
+			continue
+		if equip(candidate):
+			return true
+	return false
+
 ## True when validate_equip() finds nothing wrong.
 func can_equip(weapon: WeaponDefinition2D) -> bool:
 	return validate_equip(weapon).is_empty()
@@ -100,8 +119,8 @@ func can_equip(weapon: WeaponDefinition2D) -> bool:
 ##   - the weapon's own data (WeaponDefinition2D.validate());
 ##   - the clips: against the weapon's scene when it has one, otherwise against the weapon player
 ##     the character has now;
-##   - per attack, what AttackComponent2D would reject: an effect scene that cannot be instantiated,
-##     and a THRESHOLD release with no charge_threshold.
+##   - per attack, what AttackComponent2D would reject: no effect scene (10.1), an effect scene that cannot
+##     be instantiated or lacks the attack's effect clip, and a THRESHOLD release with no charge_threshold.
 func validate_equip(weapon: WeaponDefinition2D) -> Array[String]:
 	var problems: Array[String] = []
 	if weapon == null:
@@ -126,6 +145,8 @@ func validate_equip(weapon: WeaponDefinition2D) -> Array[String]:
 			_add(problems, message)
 
 	for attack in weapon.get_all_attacks():
+		if attack.effect_scene == null:
+			_add(problems, "%s: attack '%s' has no effect_scene (every attack needs its own effect scene)." % [label, attack.id])
 		if attack.effect_scene != null and not attack.effect_scene.can_instantiate():
 			_add(problems, "%s: attack '%s' has an effect_scene that cannot be instantiated." % [label, attack.id])
 		if attack.effect_scene != null and AttackSlash2D.scene_lacks_animation(attack.effect_scene, attack.effect_animation):
