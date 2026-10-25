@@ -36,6 +36,8 @@ signal died
 ## Optional (13.2): a child named "SkillComponent2D". Only characters that use active skills have one; a weapon's
 ## active_skills are given to it when the weapon is equipped.
 @export var skill_component: SkillComponent2D
+## Optional (14.1): a child named "PassiveController2D", which runs the equipped weapon's passives.
+@export var passive_controller: PassiveController2D
 ## Optional (10.5): a Marker2D (default name "AttackSpawnPoint") where attack effects appear, such as a
 ## hand or a staff tip. Leave it empty and add no such child to spawn effects at the character's origin,
 ## as before. The marker moves with whatever node it is a child of, so put it under the weapon pivot if it
@@ -75,6 +77,7 @@ func _ready() -> void:
 	status_controller = _resolve_component(status_controller, "StatusController2D") as StatusController2D
 	mana_component = _resolve_component(mana_component, "ManaComponent2D") as ManaComponent2D
 	skill_component = _resolve_component(skill_component, "SkillComponent2D") as SkillComponent2D
+	passive_controller = _resolve_component(passive_controller, "PassiveController2D") as PassiveController2D
 	attack_spawn_point = _resolve_spawn_point(attack_spawn_point)
 	context.attack_spawn_point = attack_spawn_point
 	var missing: Array[String] = []
@@ -99,10 +102,13 @@ func _ready() -> void:
 		skill_component.initialize(context, mana_component)
 	if is_instance_valid(weapon_controller):
 		weapon_controller.skill_component = skill_component
+		weapon_controller.passive_controller = passive_controller
 		weapon_controller.initialize(context, attack_component)
 
 	if is_instance_valid(status_controller):
 		status_controller.initialize(health_component)
+	if is_instance_valid(passive_controller):
+		passive_controller.initialize(attack_component, status_controller, health_component)
 
 	state_machine.initialize(context)
 

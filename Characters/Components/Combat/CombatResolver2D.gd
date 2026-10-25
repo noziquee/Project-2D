@@ -6,7 +6,8 @@ class_name CombatResolver2D
 ## attack effects or to the health component.
 ##
 ## Order (13.3.4, 12.3, 12.2):  damage = base
-##   0. buff:    if the attacker carries statuses that change its damage (an empowerment), damage = round(damage x multiplier)
+##   0. buff:    if the attacker carries statuses that change its damage (an empowerment) or has a passive that boosts
+##               damage against this target (14.3, low health), damage = round(damage x both multipliers)
 ##   1. crit:    if the hit rolls a crit, damage = round(damage x max(crit_multiplier, 1))
 ##   2. defense: if the target has defense, damage = max(damage - defense, MIN_DAMAGE)
 ## A periodic hit (a status tick) skips both. A hit with 0 damage is returned as it is.
@@ -32,7 +33,7 @@ static func resolve(hit: HitData, health: HealthComponent2D) -> HitData:
 		return hit
 	var crit := _rolls_crit(hit.crit_chance)
 	var defense := health.defense if is_instance_valid(health) else 0
-	var multiplier := _damage_multiplier(hit.source)
+	var multiplier := _damage_multiplier(hit.source) * _passive_multiplier(hit.source, health)
 	var buffed := not is_equal_approx(multiplier, 1.0)
 	if not crit and defense <= 0 and not buffed:
 		return hit
@@ -54,6 +55,16 @@ static func _damage_multiplier(source: Node) -> float:
 	var controller: Variant = source.get("status_controller")
 	if is_instance_valid(controller) and controller is StatusController2D:
 		return (controller as StatusController2D).get_damage_multiplier()
+	return 1.0
+
+## The wielder's passive bonus against this target (14.3): 1 for a source with no PassiveController2D, a freed one or null.
+## Multiplies with the status multiplier above.
+static func _passive_multiplier(source: Node, health: HealthComponent2D) -> float:
+	if not is_instance_valid(source):
+		return 1.0
+	var controller: Variant = source.get("passive_controller")
+	if is_instance_valid(controller) and controller is PassiveController2D:
+		return (controller as PassiveController2D).get_damage_multiplier_against(health)
 	return 1.0
 
 ## A chance of 0 never rolls and 1 always crits, and neither uses a random number.

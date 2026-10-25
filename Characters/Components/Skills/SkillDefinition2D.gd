@@ -64,6 +64,13 @@ enum Targeting { AIM_DIRECTION, SELF }
 @export var weapon_animation: StringName = &""
 ## The attack a projectile, area or dash skill performs (damage, effect scene, hit policy).
 @export var attack: AttackDefinition2D
+
+@export_group("Projectile Volley")
+## Number of projectiles spawned by a projectile skill. 1 preserves the original single-projectile behavior.
+@export_range(1, 12, 1) var projectile_count: int = 1
+## Total fan angle across the volley. For 3 projectiles and 24 degrees, the shots are -12, 0 and +12 degrees.
+@export_range(0.0, 180.0, 0.5) var spread_degrees: float = 0.0
+
 ## The status a buff skill puts on the caster.
 @export var status_effect: StatusEffectDefinition2D
 
@@ -90,6 +97,14 @@ func validate(animation_player: AnimationPlayer = null, slot_count: int = 3) -> 
 		problems.append("%s: channel_time is reserved for channel skills and must be 0 for now." % label)
 	if max_range < 0.0 or area_radius < 0.0:
 		problems.append("%s: max_range and area_radius cannot be negative." % label)
+	if projectile_count < 1 or projectile_count > 12:
+		problems.append("%s: projectile_count must be between 1 and 12." % label)
+	if spread_degrees < 0.0 or spread_degrees > 180.0:
+		problems.append("%s: spread_degrees must be between 0 and 180." % label)
+	if behavior == Behavior.PROJECTILE and projectile_count == 1 and spread_degrees > 0.0:
+		problems.append("%s: spread_degrees needs projectile_count above 1." % label)
+	if behavior != Behavior.PROJECTILE and (projectile_count != 1 or not is_zero_approx(spread_degrees)):
+		problems.append("%s: projectile_count and spread_degrees are only valid for PROJECTILE skills." % label)
 	if animation_player != null and weapon_animation != &"" and not animation_player.has_animation(weapon_animation):
 		problems.append("%s: needs clip '%s' (weapon_animation) on the weapon AnimationPlayer." % [label, weapon_animation])
 	if behavior == Behavior.PROJECTILE:

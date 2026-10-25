@@ -4,6 +4,8 @@
 [ext_resource type="PackedScene" uid="uid://dla0du8tgdel1" path="res://Characters/Enemies/BasicEnemy2D.tscn" id="2_enemy"]
 [ext_resource type="PackedScene" path="res://Characters/Enemies/GoblinArcher.tscn" id="2_archer"]
 [ext_resource type="PackedScene" path="res://UI/HUD/HealthBar.tscn" id="3_hud"]
+[ext_resource type="PackedScene" path="res://UI/HUD/ManaBar.tscn" id="4_mana_hud"]
+[ext_resource type="PackedScene" path="res://UI/HUD/SkillBar.tscn" id="5_skill_bar"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_arena_wall"]
 size = Vector2(900, 24)
@@ -95,3 +97,12 @@ offset_top = 4.0
 offset_right = 362.0
 offset_bottom = 80.0
 health_source = NodePath("../../Player/HealthComponent2D")
+
+[node name="PlayerManaBar" parent="HUD" instance=ExtResource("4_mana_hud")]
+offset_left = 6.0
+offset_top = 82.0
+offset_right = 362.0
+offset_bottom = 146.0
+mana_source = NodePath("../../Player/ManaComponent2D")
+
+[node name="PlayerSkillBar" parent="HUD" instance=ExtResource("5_skill_bar")]

@@ -1,8 +1,8 @@
-[gd_resource type="Resource" script_class="SkillDefinition2D" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="SkillDefinition2D" format=3 uid="uid://pdycoabh7m0u"]
 
-[ext_resource type="Script" path="res://Characters/Components/Skills/SkillDefinition2D.gd" id="1_skill"]
+[ext_resource type="Script" uid="uid://bddw52d2igqtf" path="res://Characters/Components/Skills/SkillDefinition2D.gd" id="1_skill"]
 [ext_resource type="Resource" path="res://Characters/Components/Status/EmpoweredStatusDefinition.tres" id="2_status"]
-[ext_resource type="Texture2D" path="res://UI/HUD/Icons/EmpowerIcon.tres" id="3_icon"]
+[ext_resource type="Texture2D" uid="uid://djq5d13ql4v7i" path="res://UI/HUD/Icons/EmpowerIcon.tres" id="3_icon"]
 
 [resource]
 script = ExtResource("1_skill")

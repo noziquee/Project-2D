@@ -375,9 +375,16 @@ func collect_projectile(node: Node, into: Array) -> void:
 	if node is ProjectileEffect2D:
 		into.append(node)
 
+func collect_projectile_direction(node: Node, projectiles: Array, directions: Array) -> void:
+	if node is ProjectileEffect2D:
+		projectiles.append(node)
+		directions.append((node as ProjectileEffect2D).direction)
+
 const GROUND_SLAM_PATH := "res://Characters/Components/Skills/GroundSlamSkillDefinition.tres"
 const EMPOWER_PATH := "res://Characters/Components/Skills/EmpowerSkillDefinition.tres"
 const LUNGE_PATH := "res://Characters/Components/Skills/LungeSkillDefinition.tres"
+const SPIN_PATH := "res://Characters/Components/Skills/SpinSkillDefinition.tres"
+const MULTI_SHOT_PATH := "res://Characters/Components/Skills/MultiShotSkillDefinition.tres"
 const AREA_SCENE_PATH := "res://Characters/Components/Combat/AreaEffect2D.tscn"
 
 ## Appends `node` to `into` when it is an area effect. Connected to the Effects container's child_entered_tree so a check
@@ -1396,15 +1403,18 @@ func _run() -> void:
 	e.set_physics_process(false)
 	var base_state := (load("res://UI/HUD/EnemyHealthBar.tscn") as PackedScene).get_state()
 	check(base_state.get_node_instance(0) != null and base_state.get_node_instance(0).resource_path == "res://UI/HUD/HealthBar.tscn", "R21 EnemyHealthBar.tscn inherits HealthBar.tscn")
-	var ebar: HealthBar = e.get_node("EnemyHealthBar2D")
+	var ebar: HealthBar = e.get_node("EnemyHealthBar")
 	check(ebar != null and ebar.hide_until_damaged and ebar.hide_on_death and ebar.get_node(ebar.health_source) == e.health_component, "R22 the enemy bar is bound to the goblin's HealthComponent2D by NodePath")
 	check(not ebar.visible, "R23 the enemy bar stays hidden until damaged")
-	check(not ebar.get_node("Card/Padding/Content/Header").visible and ebar.get_node("Card/Padding/Content/BarStack/BarLabel").visible, "R24 the compact variant shows the on-bar label instead of the header")
+	check(not ebar.get_node("Card/Padding/Content/Header").visible and not ebar.get_node("Card/Padding/Content/BarStack/BarLabel").visible and not ebar.get_node("Accent").visible and ebar.get_node("Card").get_theme_stylebox("panel") is StyleBoxEmpty and ebar.get_node("Card/Padding").get_theme_constant("margin_left") == 0 and ebar.get_node("Card/Padding").get_theme_constant("margin_top") == 0, "R24 the enemy bar is only the bars (changed in V6): no header, number, accent, card panel or padding")
 	e.take_damage(1)
 	await phys(40)
 	var expected_counter := "%d / %d" % [e.health_component.health, e.health_component.max_health]
 	check(ebar.visible and ebar.get_counter_text() == expected_counter and is_equal_approx(ebar.get_shown_health(), float(e.health_component.health)), "R25 the first hit reveals the bar and it follows health (%s)" % ebar.get_counter_text())
-	check(ebar.get_node("Card/Padding/Content/BarStack/BarLabel").text == expected_counter, "R26 the on-bar label shows the same counter")
+	var ebar_stack: Control = ebar.get_node("Card/Padding/Content/BarStack")
+	check(ebar.size.is_equal_approx(Vector2(ebar.offset_right - ebar.offset_left, ebar.offset_bottom - ebar.offset_top)) and ebar.size.x < 40.0 and ebar.size.y < 10.0, "R27 the enemy bar is not inflated by a minimum size: it is as large as its offsets (%s) and thin" % str(ebar.size))
+	check(ebar.get_node("Card/Padding/Content/BarStack/DamageBar").visible and ebar.get_node("Card/Padding/Content/BarStack/ProgressBar").visible and ebar_stack.size.y > 0.0 and ebar.get_trail_health() >= ebar.get_shown_health(), "R28 the fill bar and the damage trail bar are what the enemy bar shows")
+	check(ebar.get_node("Card/Padding/Content/BarStack/BarLabel").text == expected_counter, "R26 the hidden on-bar label still tracks the same counter")
 	await cleanup(main)
 
 	# ---------- S. Phase 9.1: attacks array and try_start_attack ----------
@@ -4076,7 +4086,7 @@ func _run() -> void:
 	e.global_position = p.global_position + Vector2(0, 300)
 	var eee_sword := load(SWORD_WEAPON_PATH) as WeaponDefinition2D
 	var eee_bow := load("res://Data/Weapons/BowWeaponDefinition.tres") as WeaponDefinition2D
-	check(p.skill_component != null and p.mana_component != null and e.skill_component == null and e.mana_component == null and p.skill_component.get_skills().size() == 3 and WeaponDefinition2D.MAX_SKILL_SLOTS == 3 and eee_sword.active_skills.size() == 3 and eee_bow.active_skills.size() == 2 and eee_sword.validate().is_empty() and eee_bow.validate().is_empty(), "EEE1 the shipped player has the skill components and, since 13.4.3, the sword's three skills; the sword has 3 skills and the bow 2, both still validate, the goblin has neither component, 3 slots per weapon")
+	check(p.skill_component != null and p.mana_component != null and e.skill_component == null and e.mana_component == null and p.skill_component.get_skills().size() == 3 and WeaponDefinition2D.MAX_SKILL_SLOTS == 3 and eee_sword.active_skills.size() == 3 and eee_bow.active_skills.size() == 3 and eee_sword.validate().is_empty() and eee_bow.validate().is_empty(), "EEE1 the shipped player has the skill components and, since 13.4.3, the sword's three skills; the sword has 3 skills and the bow 2, both still validate, the goblin has neither component, 3 slots per weapon")
 
 	# SkillDefinition2D.validate()
 	var eee_fire := make_skill(&"fireball", 0, 0.5, 0.0, 25.0)
@@ -4373,7 +4383,12 @@ func _run() -> void:
 	e.global_position = p.global_position + Vector2(0, 500)
 	await phys(2)
 	var eee4_spawned: Array = []
+	var eee4_hit_effect_spawns: Array[Node] = []
 	main.get_node("Effects").child_entered_tree.connect(collect_area.bind(eee4_spawned))
+	main.get_node("Effects").child_entered_tree.connect(func(node: Node) -> void:
+		if node.scene_file_path == "res://Characters/Effects/HitEffect.tscn":
+			eee4_hit_effect_spawns.append(node)
+	)
 	var eee4_slam := load(GROUND_SLAM_PATH) as SkillDefinition2D
 	var eee4_attack: AttackDefinition2D = eee4_slam.attack if eee4_slam != null else null
 	check(eee4_slam != null and eee4_attack != null and eee4_slam.id == &"ground_slam" and eee4_slam.behavior == SkillDefinition2D.Behavior.AREA and eee4_slam.cost_resource == SkillDefinition2D.CostResource.MANA and is_equal_approx(eee4_slam.cost_amount, 15.0) and eee4_slam.validate().is_empty() and eee4_slam.validate(p.context.weapon_animation_player).is_empty() and eee4_attack.effect_scene.resource_path == AREA_SCENE_PATH, "EEE51 the shipped Ground Slam skill loads: a mana area skill that uses AreaEffect2D.tscn and has no validation problems")
@@ -4417,10 +4432,12 @@ func _run() -> void:
 	var eee4_hp_out := hp_of(eee4_out)
 	var eee4_p_hp := hp_of(p)
 
+	# The weapon spawn marker can move with its animation, so compare against the live origin at activation time.
+	eee4_origin = p.context.get_attack_origin()
 	# Using the skill spawns one area at the attack origin, owned by the caster and aimed along the direction.
 	var eee4_used := eee4_sk.try_use_skill(&"ground_slam", Vector2.RIGHT)
 	var eee4_area: AreaEffect2D = eee4_spawned[0] if eee4_spawned.size() == 1 else null
-	check(eee4_used and eee4_area != null and eee4_area.source == p and eee4_area.direction.is_equal_approx(Vector2.RIGHT) and eee4_area.global_position.distance_to(eee4_origin) < 0.01 and is_equal_approx(eee4_mana.mana, 85.0) and eee4_sk.get_cooldown_remaining(&"ground_slam") > 5.9 and eee4_done.size() == 1, "EEE54 using the skill spawns exactly one area at the attack origin, owned by the caster and aimed along the direction; it pays 15 mana, starts the 6 s cooldown and executes once")
+	check(eee4_used and eee4_area != null and eee4_area.source == p and eee4_area.direction.is_equal_approx(Vector2.RIGHT) and eee4_area.global_position.distance_to(eee4_origin) < 0.01 and is_equal_approx(eee4_mana.mana, 85.0) and eee4_sk.get_cooldown_remaining(&"ground_slam") > 5.9 and eee4_done.size() == 1, "EEE54 using the skill spawns exactly one area at the attack origin, owned by the caster and aimed along the direction; it pays 15 mana, starts the 6 s cooldown and executes once (used=%s, spawned=%d, source_ok=%s, direction=%s, origin_distance=%.3f, mana=%.2f, cooldown=%.3f, executed=%d)" % [str(eee4_used), eee4_spawned.size(), str(eee4_area != null and eee4_area.source == p), str(eee4_area.direction if eee4_area != null else Vector2.ZERO), eee4_area.global_position.distance_to(eee4_origin) if eee4_area != null else -1.0, eee4_mana.mana, eee4_sk.get_cooldown_remaining(&"ground_slam"), eee4_done.size()])
 	check(eee4_area != null and eee4_area.damage == eee4_attack.damage and is_equal_approx(eee4_area.knockback, eee4_attack.knockback) and is_equal_approx(eee4_area.hit_stun, eee4_attack.hit_stun) and eee4_area.hit_layers == eee4_attack.hit_layers and eee4_area.max_targets == eee4_attack.max_targets and eee4_area.hitbox_offset.is_equal_approx(eee4_attack.hitbox_offset), "EEE55 the area is configured from the skill's attack: damage, knockback, stun, hit layers, hit policy and offset")
 	var eee4_circle: CircleShape2D = eee4_area.get_node("Hitbox/CollisionShape2D").shape as CircleShape2D if eee4_area != null else null
 	check(eee4_area != null and eee4_circle != null and is_equal_approx(eee4_area.get_radius(), 40.0) and is_equal_approx(eee4_circle.radius, 40.0) and eee4_area.get_node("Hitbox").position.is_equal_approx(Vector2(32, 0)), "EEE56 area_radius 40 gives a circle of radius 40 centred 32 px in front of the caster")
@@ -4431,7 +4448,7 @@ func _run() -> void:
 	var eee4_hit_b := eee4_hits.filter(func(h): return h[1] == eee4_in_b).size()
 	check(eee4_hit_a == 1 and eee4_hit_b == 1 and eee4_hits.size() == 2 and eee4_hits[0][0] == &"ground_slam" and hp_of(eee4_in_a) < eee4_hp_a and hp_of(eee4_in_b) < eee4_hp_b, "EEE57 both goblins inside the area are damaged exactly once and skill_hit names the skill for each")
 	check(hp_of(eee4_out) == eee4_hp_out and hp_of(p) == eee4_p_hp, "EEE58 a goblin outside the circle and the caster itself are not hurt")
-	check(effects_from(main, "res://Characters/Effects/HitEffect.tscn").size() >= 2, "EEE59 the attack's hit_effect_scene spawns an impact effect at each hit")
+	check(eee4_hit_effect_spawns.size() >= 2, "EEE59 the attack's hit_effect_scene spawns an impact effect at each hit (spawned=%d; short-lived effects are counted at creation)" % eee4_hit_effect_spawns.size())
 	check(not is_alive_node(eee4_area), "EEE60 the area removes itself once its active time is over")
 
 	# Refused uses fire nothing and spend nothing.
@@ -4457,10 +4474,19 @@ func _run() -> void:
 	var eee4_near := parked_goblin(main, p.global_position + Vector2(0, 30))
 	await phys(3)
 	var eee4_near_hp := hp_of(eee4_near)
-	eee4_sk.try_use_skill(&"nova")
+	var eee4_nova_used := eee4_sk.try_use_skill(&"nova")
 	var eee4_nova_area: AreaEffect2D = eee4_spawned[eee4_n] if eee4_spawned.size() == eee4_n + 1 else null
+	# Cache existence while the transient area is still alive. AreaEffect2D ends itself after active_time,
+	# so checking the Object reference after the physics wait can incorrectly fail despite a valid spawn.
+	var eee4_nova_area_spawned: bool = is_instance_valid(eee4_nova_area)
+	var eee4_nova_centered: bool = eee4_nova_area_spawned and eee4_nova_area.get_node("Hitbox").position.is_equal_approx(Vector2.ZERO)
+	var eee4_nova_radius: float = eee4_nova_area.get_radius() if eee4_nova_area_spawned else -1.0
+	var eee4_nova_expected_radius: float = eee4_nova.attack.hitbox_size.x * 0.5
 	await phys(25)
-	check(eee4_nova_area != null and eee4_nova_area.get_node("Hitbox").position.is_equal_approx(Vector2.ZERO) and is_equal_approx(eee4_nova_area.get_radius(), eee4_attack.hitbox_size.x * 0.5) and hp_of(eee4_near) < eee4_near_hp and hp_of(p) == eee4_p_hp, "EEE62 a SELF area is centred on the caster, takes its size from the attack when area_radius is 0, hurts a goblin beside the caster and never the caster")
+	var eee4_nova_radius_ok: bool = is_equal_approx(eee4_nova_radius, eee4_nova_expected_radius)
+	var eee4_nova_near_hit: bool = hp_of(eee4_near) < eee4_near_hp
+	var eee4_nova_caster_safe: bool = hp_of(p) == eee4_p_hp
+	check(eee4_nova_used and eee4_nova_area_spawned and eee4_nova_centered and eee4_nova_radius_ok and eee4_nova_near_hit and eee4_nova_caster_safe, "EEE62 a SELF area is centred on the caster, takes its size from the attack when area_radius is 0, hurts a goblin beside the caster and never the caster (used=%s, spawned=%d, area_valid_at_spawn=%s, centered=%s, radius=%.1f expected=%.1f radius_ok=%s, nearby_hp=%d->%d hit=%s, player_hp=%d->%d safe=%s)" % [str(eee4_nova_used), eee4_spawned.size() - eee4_n, str(eee4_nova_area_spawned), str(eee4_nova_centered), eee4_nova_radius, eee4_nova_expected_radius, str(eee4_nova_radius_ok), eee4_near_hp, hp_of(eee4_near), str(eee4_nova_near_hit), eee4_p_hp, hp_of(p), str(eee4_nova_caster_safe)])
 
 	# The hit policy applies: max_targets 1 ends the area after its first target.
 	var eee4_one_attack := eee4_attack.duplicate() as AttackDefinition2D
@@ -4649,7 +4675,7 @@ func _run() -> void:
 	var eee5_cast_start: Vector2 = p.global_position
 	eee5_sk.try_use_skill(&"cast_dash", Vector2.RIGHT)
 	await phys(8)
-	var eee5_cast_idle := not p.context.is_dashing and p.global_position.is_equal_approx(eee5_cast_start)
+	var eee5_cast_idle: bool = not p.context.is_dashing and p.global_position.is_equal_approx(eee5_cast_start)
 	await phys(30)
 	var eee5_cast_moved: bool = p.global_position.x - eee5_cast_start.x > 100.0
 	p.global_position = eee5_start
@@ -4882,7 +4908,7 @@ func _run() -> void:
 	fff1_mana.mana = 100.0
 	fff1_sk.try_use_skill(&"quick")
 	await phys(3)
-	var fff1_equipped := p.weapon_controller.equip(load(BOW_WEAPON_PATH))
+	var fff1_equipped: bool = p.weapon_controller.equip(load(BOW_WEAPON_PATH))
 	var fff1_still_set := fff1_sk.has_skill(&"quick")
 	var fff1_switch_duration := fff1_sk.get_cooldown_duration(&"quick")
 	var fff1_switch_remaining := fff1_sk.get_cooldown_remaining(&"quick")
@@ -5010,32 +5036,52 @@ func _run() -> void:
 	var hhh_bow := load(BOW_WEAPON_PATH) as WeaponDefinition2D
 	var hhh_lunge := load(LUNGE_PATH) as SkillDefinition2D
 	var hhh_slam := load(GROUND_SLAM_PATH) as SkillDefinition2D
+	var hhh_spin := load(SPIN_PATH) as SkillDefinition2D
 	var hhh_empower := load(EMPOWER_PATH) as SkillDefinition2D
 	var hhh_power := load(POWER_SHOT_PATH) as SkillDefinition2D
+	var hhh_multi := load(MULTI_SHOT_PATH) as SkillDefinition2D
 	var hhh_icons_ok := true
-	for hhh_s in [hhh_lunge, hhh_slam, hhh_empower, hhh_power]:
+	for hhh_s in [hhh_lunge, hhh_slam, hhh_spin, hhh_empower, hhh_power, hhh_multi]:
 		hhh_icons_ok = hhh_icons_ok and hhh_s.icon != null and hhh_s.icon.get_width() == 64 and hhh_s.icon.get_height() == 64
-	check(hhh_icons_ok and hhh_lunge.icon != hhh_slam.icon and hhh_slam.icon != hhh_empower.icon and hhh_empower.icon != hhh_power.icon, "HHH1 each of the four shipped skills has its own 64 x 64 placeholder icon")
-	check(hhh_sword.active_skills.size() == 3 and hhh_sword.get_skill_in_slot(0) == hhh_lunge and hhh_sword.get_skill_in_slot(1) == hhh_slam and hhh_sword.get_skill_in_slot(2) == hhh_empower and hhh_bow.active_skills.size() == 2 and hhh_bow.get_skill_in_slot(0) == hhh_power and hhh_bow.get_skill_in_slot(1) == null and hhh_bow.get_skill_in_slot(2) == hhh_empower and hhh_sword.validate().is_empty() and hhh_bow.validate().is_empty() and hhh_sword.validate_scene().is_empty() and hhh_bow.validate_scene().is_empty(), "HHH2 the sword has Lunge, Ground Slam and Empowerment in slots 0 to 2; the bow has Power Shot in slot 0, nothing in slot 1 and Empowerment in slot 2; both weapons still validate")
+	check(hhh_icons_ok and hhh_lunge.icon != hhh_slam.icon and hhh_slam.icon != hhh_empower.icon and hhh_empower.icon != hhh_power.icon and hhh_power.icon != hhh_spin.icon and hhh_spin.icon != hhh_multi.icon, "HHH1 each shipped skill has its own 64 x 64 placeholder icon")
+	check(hhh_sword.active_skills.size() == 3 and hhh_sword.get_skill_in_slot(0) == hhh_lunge and hhh_sword.get_skill_in_slot(1) == hhh_spin and hhh_sword.get_skill_in_slot(2) == hhh_empower and hhh_bow.active_skills.size() == 3 and hhh_bow.get_skill_in_slot(0) == hhh_power and hhh_bow.get_skill_in_slot(1) == hhh_multi and hhh_bow.get_skill_in_slot(2) == hhh_empower and hhh_sword.validate().is_empty() and hhh_bow.validate().is_empty() and hhh_sword.validate_scene().is_empty() and hhh_bow.validate_scene().is_empty(), "HHH2 the sword has Lunge, Spin and Empowerment; the bow has Power Shot, Multi-shot and Empowerment; both weapons still validate")
 	var hhh_sk: SkillComponent2D = p.skill_component
 	var hhh_mana: ManaComponent2D = p.mana_component
-	check(p.weapon_controller.get_equipped_weapon() == hhh_sword and hhh_sk.get_skills().size() == 3 and hhh_sk.get_skill_in_slot(0) == hhh_lunge and hhh_sk.get_skill_in_slot(1) == hhh_slam and hhh_sk.get_skill_in_slot(2) == hhh_empower, "HHH3 the player starts with the sword and the sword's three skills in the player's own SkillComponent2D")
+	check(p.weapon_controller.get_equipped_weapon() == hhh_sword and hhh_sk.get_skills().size() == 3 and hhh_sk.get_skill_in_slot(0) == hhh_lunge and hhh_sk.get_skill_in_slot(1) == hhh_spin and hhh_sk.get_skill_in_slot(2) == hhh_empower, "HHH3 the player starts with the sword and the sword's three skills in the player's own SkillComponent2D")
 	var hhh_to_bow: bool = p.weapon_controller.equip(hhh_bow)
-	var hhh_bow_ok: bool = hhh_sk.get_skills().size() == 2 and hhh_sk.get_skill_in_slot(0) == hhh_power and hhh_sk.get_skill_in_slot(1) == null and hhh_sk.get_skill_in_slot(2) == hhh_empower
+	var hhh_bow_ok: bool = hhh_sk.get_skills().size() == 3 and hhh_sk.get_skill_in_slot(0) == hhh_power and hhh_sk.get_skill_in_slot(1) == hhh_multi and hhh_sk.get_skill_in_slot(2) == hhh_empower
 	var hhh_to_sword: bool = p.weapon_controller.equip(hhh_sword)
-	check(hhh_to_bow and hhh_bow_ok and hhh_to_sword and hhh_sk.get_skills().size() == 3 and hhh_sk.get_skill_in_slot(1) == hhh_slam, "HHH4 equipping the bow gives Power Shot and Empowerment (slot 1 empty), equipping the sword gives its three back")
+	check(hhh_to_bow and hhh_bow_ok and hhh_to_sword and hhh_sk.get_skills().size() == 3 and hhh_sk.get_skill_in_slot(1) == hhh_spin, "HHH4 equipping the bow gives Power Shot, Multi-shot and Empowerment, and equipping the sword restores its three skills")
 
-	# Ground Slam (sword, slot 1) hurts a goblin in front of the player and pays 15 mana.
-	var hhh_origin: Vector2 = p.context.get_attack_origin()
-	var hhh_target := parked_goblin(main, hhh_origin + Vector2(32, 0))
+	# Spin (sword, slot 1) is centred on the caster, not the weapon's attack spawn marker.
+	var hhh_origin: Vector2 = p.global_position
+	var hhh_marker := Marker2D.new()
+	hhh_marker.name = "TestAttackSpawnPoint"
+	hhh_marker.position = Vector2(24, 0)
+	p.add_child(hhh_marker)
+	p.attack_spawn_point = hhh_marker
+	p.context.attack_spawn_point = hhh_marker
+	var hhh_spin_positions: Array[Vector2] = []
+	hhh_sk.skill_executed.connect(func(skill: SkillDefinition2D, _direction: Vector2) -> void:
+		if skill.id == &"sword_spin":
+			for hhh_effect in main.get_node("Effects").get_children():
+				if hhh_effect is AreaEffect2D and hhh_effect.source == p:
+					hhh_spin_positions.append(hhh_effect.global_position)
+	)
+	var hhh_target := parked_goblin(main, hhh_origin + Vector2(-40, 0))
 	await phys(3)
 	var hhh_target_hp := hp_of(hhh_target)
-	var hhh_used_slam := hhh_sk.try_use_slot(1, Vector2.RIGHT)
+	var hhh_player_hp_before_spin := hp_of(p)
+	hhh_mana.regen_per_second = 0.0
+	hhh_origin = p.global_position
+	var hhh_used_spin := hhh_sk.try_use_slot(1, Vector2.RIGHT)
+	var hhh_mana_after_spin := hhh_mana.mana
 	for hhh_i in 40:
 		if hp_of(hhh_target) < hhh_target_hp:
 			break
 		await phys(1)
-	check(hhh_used_slam and hp_of(hhh_target) < hhh_target_hp and hhh_mana.mana >= 84.99 and hhh_mana.mana < 88.0 and hhh_sk.get_cooldown_remaining(&"ground_slam") > 5.0, "HHH5 Ground Slam from the sword's slot 1 hurts the goblin in front of the player, pays 15 mana and starts its 6 s cooldown")
+	var hhh_spin_centered := not hhh_spin_positions.is_empty() and hhh_spin_positions[0].distance_to(hhh_origin) < 0.01
+	check(hhh_used_spin and hp_of(hhh_target) < hhh_target_hp and hp_of(p) == hhh_player_hp_before_spin and hhh_mana_after_spin >= 79.99 and hhh_mana_after_spin < 80.01 and hhh_sk.get_cooldown_remaining(&"sword_spin") > 6.0 and hhh_spin_centered, "HHH5 Sword Spin hits around the caster but not the caster, even with an offset spawn marker; pays 20 mana and starts its 7 s cooldown (used=%s, target_hp=%d->%d, player_hp=%d->%d, mana_after_cost=%.2f, cooldown=%.2f, centered=%s)" % [str(hhh_used_spin), hhh_target_hp, hp_of(hhh_target), hhh_player_hp_before_spin, hp_of(p), hhh_mana_after_spin, hhh_sk.get_cooldown_remaining(&"sword_spin"), str(hhh_spin_centered)])
 	hhh_target.queue_free()
 	await phys(3)
 
@@ -5071,3 +5117,511 @@ func _run() -> void:
 	var hhh_back: bool = p.weapon_controller.equip(hhh_sword)
 	check(hhh_back and hhh_sk.get_skill_in_slot(2) == hhh_empower and hhh_sk.get_cooldown_remaining(&"empower") > 8.0 and not hhh_sk.is_ready(&"empower") and has_problem([hhh_sk.can_use(&"empower")], "cooldown"), "HHH9 Empowerment is slot 2 on both weapons, and switching from the bow to the sword does not reset its cooldown")
 	await cleanup(main)
+
+	# ---------- MMM (13.4.4). Scene-based mana HUD ----------
+	main = await fresh()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	var mmm_bar: ManaBar = main.get_node("HUD/PlayerManaBar")
+	var mmm_pool: ManaComponent2D = p.mana_component
+	check(mmm_bar != null and mmm_bar.scene_file_path == "res://UI/HUD/ManaBar.tscn", "MMM1 Main uses the reusable ManaBar scene")
+	check(mmm_bar.get_node(mmm_bar.mana_source) == mmm_pool, "MMM2 mana_source resolves to the player's ManaComponent2D")
+	var mmm_clips: AnimationPlayer = mmm_bar.get_node("AnimationPlayer")
+	check(mmm_clips.has_animation(&"intro") and mmm_clips.has_animation(&"spend") and mmm_clips.has_animation(&"restore"), "MMM3 the mana bar defines intro, spend and restore clips")
+	var mmm_fill: StyleBox = mmm_bar.progress_bar.get_theme_stylebox("fill")
+	check(mmm_fill != null and mmm_fill.resource_path == "res://UI/HUD/Styles/mana_bar_fill.tres", "MMM4 mana fill styling comes from its blue StyleBox resource")
+	check(is_equal_approx(mmm_bar.get_shown_mana(), mmm_pool.mana) and mmm_bar.get_counter_text() == "%d / %d" % [roundi(mmm_pool.mana), roundi(mmm_pool.max_mana)], "MMM5 the mana bar starts synced to the resource")
+	await phys(25)
+	mmm_pool.regen_per_second = 0.0
+	var mmm_before: float = mmm_bar.get_shown_mana()
+	var mmm_spent: bool = mmm_pool.spend(20.0)
+	await phys(2)
+	check(mmm_spent and mmm_clips.current_animation == "spend", "MMM6 spending mana plays the spend feedback clip")
+	await phys(20)
+	check(mmm_bar.get_shown_mana() < mmm_before and mmm_bar.get_counter_text() == "%d / %d" % [roundi(mmm_pool.mana), roundi(mmm_pool.max_mana)], "MMM7 spending mana smoothly updates the bar and counter")
+	var mmm_after_spend: float = mmm_bar.get_shown_mana()
+	mmm_pool.restore(10.0)
+	await phys(2)
+	check(mmm_clips.current_animation == "restore", "MMM8 restoring mana plays the restore feedback clip")
+	await phys(20)
+	check(mmm_bar.get_shown_mana() > mmm_after_spend, "MMM9 restoring/regenerating mana raises the displayed value")
+	var mmm_orphan := (load("res://UI/HUD/ManaBar.tscn") as PackedScene).instantiate() as ManaBar
+	mmm_orphan.name = "UnboundManaBar"
+	main.get_node("HUD").add_child(mmm_orphan)
+	check(is_instance_valid(mmm_orphan) and mmm_orphan.get_node_or_null("AnimationPlayer") != null, "MMM10 a mana bar without a source warns but remains safe to instantiate")
+	await cleanup(main)
+
+	# ---------- SSS (13.4.5). One reusable, scene-based active-skill slot ----------
+	main = await fresh()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	var sss_scene := load("res://UI/HUD/SkillSlot.tscn") as PackedScene
+	var sss_slot := sss_scene.instantiate() as SkillSlot
+	sss_slot.name = "SkillSlotSmokeTest"
+	main.get_node("HUD").add_child(sss_slot)
+	check(sss_slot != null and sss_slot.get_node_or_null("Card/Icon") != null and sss_slot.get_node_or_null("Card/CooldownWipe") is TextureProgressBar, "SSS1 the reusable SkillSlot scene instantiates with its icon and radial TextureProgressBar")
+	check(sss_slot.get_node("AnimationPlayer").has_animation(&"ready") and sss_slot.get_node("AnimationPlayer").has_animation(&"denied") and sss_slot.get_node("AnimationPlayer").has_animation(&"started") and sss_slot.get_node("AnimationPlayer").has_animation(&"unaffordable"), "SSS2 the slot defines ready, denied, started and unaffordable scene animations")
+	check(not sss_slot.icon_rect.visible and not sss_slot.cost_label.visible and not sss_slot.cooldown_wipe.visible, "SSS3 an unbound slot shows only its frame and hotkey")
+	var sss_skill := make_skill(&"skill_slot_smoke", 0, 0.35, 0.0, 20.0)
+	sss_skill.display_name = "Slot Smoke Test"
+	sss_skill.icon = load("res://UI/HUD/Icons/LungeIcon.tres") as Texture2D
+	p.mana_component.regen_per_second = 0.0
+	p.skill_component.set_skills([sss_skill])
+	sss_slot.bind(p.skill_component, sss_skill, "1")
+	check(sss_slot.get_bound_skill() == sss_skill and sss_slot.icon_rect.texture == sss_skill.icon and sss_slot.hotkey_label.text == "1" and sss_slot.cost_label.visible and sss_slot.cost_label.text.contains("20"), "SSS4 bind displays the skill icon, hotkey and mana-cost badge")
+	check(sss_slot.call("_format_seconds", 3.44) == "3.4" and sss_slot.call("_format_seconds", 10.0) == "10", "SSS5 cooldown formatting uses one decimal below ten seconds and whole seconds at ten or above")
+	var sss_used: bool = p.skill_component.try_use_skill(sss_skill.id, Vector2.RIGHT)
+	await phys(2)
+	check(sss_used and sss_slot.cooldown_wipe.visible and sss_slot.cooldown_wipe.value > 0.0 and sss_slot.cooldown_wipe.max_value > 0.0, "SSS6 using a skill drives the radial cooldown wipe from SkillComponent2D remaining time (used=%s, remaining=%.3f, duration=%.3f, visible=%s, wipe=%.3f/%.3f)" % [str(sss_used), p.skill_component.get_cooldown_remaining(sss_skill.id), p.skill_component.get_cooldown_duration(sss_skill.id), str(sss_slot.cooldown_wipe.visible), sss_slot.cooldown_wipe.value, sss_slot.cooldown_wipe.max_value])
+	var sss_refused: bool = p.skill_component.try_use_skill(sss_skill.id, Vector2.RIGHT)
+	check(not sss_refused and sss_slot.animation_player.current_animation == "denied", "SSS7 pressing a cooling skill plays the denied shake through skill_refused")
+	await phys(24)
+	check(not sss_slot.cooldown_wipe.visible and sss_slot.animation_player.current_animation == "ready", "SSS8 cooldown completion clears the wipe and plays the ready flash/pop")
+	p.mana_component.spend(p.mana_component.mana)
+	await phys(1)
+	check(sss_slot.is_unaffordable() and sss_slot.icon_rect.self_modulate.r < 1.0, "SSS9 a skill that cannot afford its mana cost dims its icon")
+	var sss_cast_skill := make_skill(&"skill_slot_cast_smoke", 0, 1.0, 0.5, 0.0)
+	sss_cast_skill.icon = load("res://UI/HUD/Icons/GroundSlamIcon.tres") as Texture2D
+	p.skill_component.set_skills([sss_cast_skill])
+	sss_slot.bind(p.skill_component, sss_cast_skill, "1")
+	check(not sss_slot.cost_label.visible, "SSS10 a skill with no resource cost hides its cost badge")
+	var sss_cast_started: bool = p.skill_component.try_use_skill(sss_cast_skill.id, Vector2.RIGHT)
+	await phys(2)
+	check(sss_cast_started and p.skill_component.is_casting() and sss_slot.cooldown_wipe.visible and sss_slot.cooldown_wipe.tint_progress == sss_slot.cast_color, "SSS11 cast progress reuses the radial wipe with the cast tint")
+	await cleanup(main)
+
+	# ---------- TTT (13.4.6). Scene-based skill bar, input labels and weapon switching ----------
+	main = await fresh()
+	p = main.get_node("Player")
+	var ttt_bar := main.get_node_or_null("HUD/PlayerSkillBar") as SkillBar
+	check(ttt_bar != null and ttt_bar.get_child_count() == 3 and ttt_bar.get_slot(0) != null and ttt_bar.get_slot(1) != null and ttt_bar.get_slot(2) != null, "TTT1 Main instantiates a SkillBar scene containing exactly three reusable SkillSlot scenes")
+	check(ttt_bar != null and ttt_bar.get_skill_component() == p.skill_component and ttt_bar.get_mana_component() == p.mana_component, "TTT2 SkillBar resolves the player's SkillComponent2D and ManaComponent2D through exported paths")
+	check(p.skill_component != null and p.skill_component.get_skill_in_slot(0).id == &"lunge" and p.skill_component.get_skill_in_slot(1).id == &"sword_spin" and p.skill_component.get_skill_in_slot(2).id == &"empower", "TTT3 the player's starting sword supplies Lunge, Spin and Empowerment to the three slots")
+	check(ttt_bar.get_slot(0).get_bound_skill().id == &"lunge" and ttt_bar.get_slot(1).get_bound_skill().id == &"sword_spin" and ttt_bar.get_slot(2).get_bound_skill().id == &"empower", "TTT4 SkillBar initially binds the slots to the equipped sword's skills")
+	check(ttt_bar.get_slot(0).hotkey_label.text == "1" and ttt_bar.get_slot(1).hotkey_label.text == "2" and ttt_bar.get_slot(2).hotkey_label.text == "3", "TTT5 hotkey labels are derived from the skill_1 to skill_3 Input Map events")
+
+	p.mana_component.regen_per_second = 0.0
+	var ttt_spin: SkillDefinition2D = p.skill_component.get_skill_in_slot(1)
+	var ttt_spin_used: bool = p.skill_component.try_use_slot(1, Vector2.RIGHT)
+	await phys(2)
+	var ttt_to_bow: bool = p.weapon_controller.equip_next()
+	check(ttt_spin_used and ttt_to_bow and p.weapon_controller.get_equipped_weapon().weapon_id == &"bow", "TTT6 the player can switch to the bow after starting a cooldown")
+	check(ttt_bar.get_slot(0).get_bound_skill().id == &"power_shot" and ttt_bar.get_slot(1).get_bound_skill().id == &"multi_shot" and ttt_bar.get_slot(2).get_bound_skill().id == &"empower", "TTT7 weapon switching rebuilds the slots for the bow's three skills")
+	check(p.skill_component.get_cooldown_remaining(ttt_spin.id) > 0.0, "TTT8 switching weapons does not clear the previous weapon skill's cooldown")
+	var ttt_to_sword: bool = p.weapon_controller.equip_next()
+	check(ttt_to_sword and ttt_bar.get_slot(1).get_bound_skill().id == &"sword_spin" and ttt_bar.get_slot(1).cooldown_wipe.visible and ttt_bar.get_slot(1).cooldown_wipe.value > 0.0, "TTT9 switching back restores the correct skill and its still-running cooldown wipe")
+
+	var ttt_old_skill_1_events := InputMap.action_get_events(&"skill_1")
+	InputMap.action_erase_events(&"skill_1")
+	var ttt_rebound_key := InputEventKey.new()
+	ttt_rebound_key.keycode = KEY_R
+	ttt_rebound_key.physical_keycode = KEY_R
+	InputMap.action_add_event(&"skill_1", ttt_rebound_key)
+	await phys(1)
+	check(ttt_bar.get_slot(0).hotkey_label.text == "R", "TTT10 a runtime Input Map rebind updates the displayed hotkey")
+	InputMap.action_erase_events(&"skill_1")
+	for ttt_old_event in ttt_old_skill_1_events:
+		InputMap.action_add_event(&"skill_1", ttt_old_event)
+	await phys(1)
+	p.take_damage(999)
+	await phys(1)
+	check(ttt_bar.is_inside_tree() and ttt_bar.is_processing(), "TTT11 the scene-based skill bar remains alive and processing after the player dies")
+	await cleanup(main)
+
+	# ---------- UUU (13.4.7). Sword Spin and bow Multi-shot ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	var uuu_spin := load(SPIN_PATH) as SkillDefinition2D
+	var uuu_multi := load(MULTI_SHOT_PATH) as SkillDefinition2D
+	var uuu_power := load(POWER_SHOT_PATH) as SkillDefinition2D
+	var uuu_sword := load(SWORD_WEAPON_PATH) as WeaponDefinition2D
+	var uuu_bow := load(BOW_WEAPON_PATH) as WeaponDefinition2D
+	check(uuu_spin != null and uuu_spin.id == &"sword_spin" and uuu_spin.behavior == SkillDefinition2D.Behavior.AREA and uuu_spin.targeting == SkillDefinition2D.Targeting.SELF and uuu_spin.validate().is_empty(), "UUU1 Sword Spin loads as a valid self-targeted area skill")
+	check(uuu_multi != null and uuu_multi.id == &"multi_shot" and uuu_multi.behavior == SkillDefinition2D.Behavior.PROJECTILE and uuu_multi.projectile_count == 3 and is_equal_approx(uuu_multi.spread_degrees, 24.0) and uuu_multi.validate().is_empty(), "UUU2 Multi-shot loads as a valid three-projectile skill with a 24 degree fan")
+	check(uuu_sword.get_skill_in_slot(1) == uuu_spin and uuu_bow.get_skill_in_slot(1) == uuu_multi and uuu_sword.validate().is_empty() and uuu_bow.validate().is_empty(), "UUU3 the sword and bow equip Spin and Multi-shot in slot 1 and both weapon definitions validate")
+	check(uuu_power.projectile_count == 1 and is_zero_approx(uuu_power.spread_degrees), "UUU4 existing projectile skills keep the default single-shot, zero-spread behavior")
+	var uuu_bad_count := uuu_multi.duplicate() as SkillDefinition2D
+	uuu_bad_count.projectile_count = 0
+	var uuu_bad_spread := uuu_multi.duplicate() as SkillDefinition2D
+	uuu_bad_spread.spread_degrees = 181.0
+	var uuu_meaningless_spread := uuu_multi.duplicate() as SkillDefinition2D
+	uuu_meaningless_spread.projectile_count = 1
+	check(has_problem(uuu_bad_count.validate(), "projectile_count must be between 1 and 12") and has_problem(uuu_bad_spread.validate(), "spread_degrees must be between 0 and 180") and has_problem(uuu_meaningless_spread.validate(), "needs projectile_count above 1"), "UUU5 volley validation rejects an invalid count, out-of-range spread and spread on a single projectile")
+
+	var uuu_spawned: Array = []
+	var uuu_directions: Array[Vector2] = []
+	var uuu_hits: Array = []
+	main.get_node("Effects").child_entered_tree.connect(collect_projectile_direction.bind(uuu_spawned, uuu_directions))
+	p.skill_component.set_skills([uuu_multi])
+	p.mana_component.regen_per_second = 0.0
+	p.skill_component.skill_hit.connect(func(skill: SkillDefinition2D, target: Node, damage: int) -> void: uuu_hits.append([skill.id, target, damage]))
+	var uuu_angles: Array[float] = [-12.0, 0.0, 12.0]
+	var uuu_targets: Array[Character2D] = []
+	var uuu_hp_before: Array[int] = []
+	for uuu_angle in uuu_angles:
+		var uuu_target := parked_goblin(main, p.global_position + Vector2.RIGHT.rotated(deg_to_rad(uuu_angle)) * 100.0)
+		uuu_targets.append(uuu_target)
+		uuu_hp_before.append(hp_of(uuu_target))
+	await phys(3)
+	var uuu_mana_before: float = p.mana_component.mana
+	var uuu_multi_used: bool = p.skill_component.try_use_skill(uuu_multi.id, Vector2.RIGHT)
+	await phys(30)
+	var uuu_directions_ok := uuu_spawned.size() == 3 and uuu_directions.size() == 3
+	if uuu_directions.size() == 3:
+		for uuu_index in range(3):
+			var uuu_expected := Vector2.RIGHT.rotated(deg_to_rad(uuu_angles[uuu_index]))
+			uuu_directions_ok = uuu_directions_ok and uuu_directions[uuu_index].distance_to(uuu_expected) < 0.001
+	check(uuu_multi_used and uuu_directions_ok and p.mana_component.mana < uuu_mana_before - 24.0 and p.skill_component.get_cooldown_remaining(&"multi_shot") > 6.0, "UUU6 Multi-shot spawns exactly three arrows at -12, 0 and +12 degrees, pays its cost once and starts one cooldown")
+	var uuu_each_target_hit_once := true
+	for uuu_index in range(uuu_targets.size()):
+		var uuu_hit_count := 0
+		for uuu_hit in uuu_hits:
+			if uuu_hit[1] == uuu_targets[uuu_index]:
+				uuu_hit_count += 1
+		uuu_each_target_hit_once = uuu_each_target_hit_once and hp_of(uuu_targets[uuu_index]) < uuu_hp_before[uuu_index] and uuu_hit_count == 1
+	check(uuu_each_target_hit_once, "UUU7 each arrow hits its target once through the shared damage path")
+	await cleanup(main)
+
+	# ---------- PAS. Phase 14 passives (14.0 to 14.2) ----------
+	main = await fresh()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+
+	# 14.1 data
+	var pas_shipped := load(RISING_STRIKES_PATH) as PassiveDefinition2D
+	check(pas_shipped != null and pas_shipped.id == &"rising_strikes" and pas_shipped.required_count == 3 and is_equal_approx(pas_shipped.counter_window, 4.0) and pas_shipped.consumed_by_next_attack and pas_shipped.status_effect != null and pas_shipped.status_effect.id == &"rising_strikes" and is_equal_approx(pas_shipped.status_effect.duration, 8.0) and is_equal_approx(pas_shipped.status_effect.damage_multiplier, 1.5) and pas_shipped.validate().is_empty(), "PAS1 Rising Strikes loads (3 swings, 4 s window, status x1.5 for 8 s, consumed by the next attack) and validates")
+	var pas_no_id := make_passive(&"x")
+	pas_no_id.id = &""
+	var pas_zero := make_passive(&"x")
+	pas_zero.required_count = 0
+	var pas_no_status := make_passive(&"x")
+	pas_no_status.status_effect = null
+	var pas_no_duration := make_passive(&"x")
+	pas_no_duration.status_effect.duration = 0.0
+	check(has_problem(pas_no_id.validate(), "empty id") and has_problem(pas_zero.validate(), "required_count must be at least 1") and has_problem(pas_no_status.validate(), "needs a status_effect") and has_problem(pas_no_duration.validate(), "needs a duration above 0"), "PAS2 passive validation reports an empty id, a zero count, a missing status and a status with no duration")
+	var pas_valid := make_passive(&"pas_valid")
+	var pas_dup := make_passive(&"pas_valid")
+	var pas_bad := make_passive(&"pas_bad")
+	pas_bad.status_effect = null
+	var pas_messy: Array[PassiveDefinition2D] = [null, pas_valid, pas_dup, pas_bad]
+	var pas_clean: Array[PassiveDefinition2D] = [pas_valid]
+	var pas_weapon_messy := make_weapon(&"pas_weapon_messy", [definition_variant(p.attack_definition, &"pas_light")])
+	pas_weapon_messy.passive_skills = pas_messy
+	var pas_weapon_clean := make_weapon(&"pas_weapon_clean", [definition_variant(p.attack_definition, &"pas_light")])
+	pas_weapon_clean.passive_skills = pas_clean
+	var pas_weapon_problems: Array = pas_weapon_messy.validate()
+	check(has_problem(pas_weapon_problems, "passive_skills[0] is empty") and has_problem(pas_weapon_problems, "passive id 'pas_valid' is listed more than once") and has_problem(pas_weapon_problems, "needs a status_effect") and not has_problem(pas_weapon_clean.validate(), "passive") and pas_weapon_clean.get_passive(&"pas_valid") == pas_valid and pas_weapon_clean.get_passive(&"nope") == null, "PAS3 a weapon reports empty, duplicate and invalid passives; a clean one validates and get_passive() finds by id")
+
+	# 14.1 counter rules (bare rig: the checks emit the attack signals by hand)
+	var pas_rig := passive_rig(main, [make_passive(&"pas_a")])
+	var pas_ctl: PassiveController2D = pas_rig["passives"]
+	var pas_status: StatusController2D = pas_rig["statuses"]
+	var pas_triggered: Array = []
+	pas_ctl.passive_triggered.connect(func(id: StringName) -> void: pas_triggered.append(id))
+	passive_swing(pas_rig, 1)
+	passive_swing(pas_rig, 1)
+	var pas_two: bool = pas_ctl.get_count(&"pas_a") == 2
+	passive_swing(pas_rig, 0)
+	check(pas_two and pas_ctl.get_count(&"pas_a") == 2 and pas_ctl.get_required(&"pas_a") == 3 and not pas_ctl.is_active(&"pas_a"), "PAS4 each swing that hits counts once; a swing that hits nothing neither counts nor resets")
+	passive_swing(pas_rig, 3, false)
+	var pas_mid: bool = pas_ctl.get_count(&"pas_a") == 0 and pas_ctl.is_pending(&"pas_a") and not pas_ctl.is_active(&"pas_a") and not pas_status.has_status(&"pas_a_status")
+	pas_rig["attacks"].attack_finished.emit()
+	check(pas_mid and pas_ctl.is_active(&"pas_a") and pas_status.has_status(&"pas_a_status") and is_equal_approx(pas_status.get_damage_multiplier(), 1.5) and pas_triggered.size() == 1 and pas_ctl.get_count(&"pas_a") == 0, "PAS5 a swing that hits three targets counts once; the reward is earned mid-swing but granted only when that swing closes")
+	pas_rig["attacks"].attack_started.emit(Vector2.RIGHT)
+	pas_rig["attacks"].attack_hit.emit(null, 5)
+	var pas_during: bool = pas_status.has_status(&"pas_a_status") and is_equal_approx(pas_status.get_damage_multiplier(), 1.5) and pas_ctl.get_count(&"pas_a") == 0
+	pas_rig["attacks"].attack_finished.emit()
+	var pas_used_up: bool = not pas_status.has_status(&"pas_a_status") and not pas_ctl.is_active(&"pas_a") and is_equal_approx(pas_status.get_damage_multiplier(), 1.0) and pas_ctl.get_count(&"pas_a") == 0
+	passive_swing(pas_rig, 1)
+	check(pas_during and pas_used_up and pas_ctl.get_count(&"pas_a") == 1, "PAS6 the next attack uses the reward up when it closes, its hits do not count, and counting starts again from 0")
+
+	var pas_chain := passive_rig(main, [make_passive(&"pas_c")])
+	var pas_chain_ctl: PassiveController2D = pas_chain["passives"]
+	var pas_chain_status: StatusController2D = pas_chain["statuses"]
+	for pas_link in 3:
+		pas_chain["attacks"].attack_started.emit(Vector2.RIGHT)
+		pas_chain["attacks"].attack_hit.emit(null, 5)
+	var pas_chain_pending: bool = pas_chain_ctl.is_pending(&"pas_c") and not pas_chain_status.has_status(&"pas_c_status")
+	pas_chain["attacks"].attack_started.emit(Vector2.RIGHT)
+	var pas_chain_granted: bool = pas_chain_ctl.is_active(&"pas_c") and pas_chain_status.has_status(&"pas_c_status") and is_equal_approx(pas_chain_status.get_damage_multiplier(), 1.5)
+	pas_chain["attacks"].attack_hit.emit(null, 5)
+	pas_chain["attacks"].attack_started.emit(Vector2.RIGHT)
+	check(pas_chain_pending and pas_chain_granted and not pas_chain_status.has_status(&"pas_c_status") and not pas_chain_ctl.is_active(&"pas_c") and pas_chain_ctl.get_count(&"pas_c") == 0, "PAS7 in a combo chain the reward is granted when the next link starts, that link uses it, and the link after is normal")
+
+	var pas_win := passive_rig(main, [make_passive(&"pas_w", 3, 0.2)])
+	var pas_win_ctl: PassiveController2D = pas_win["passives"]
+	passive_swing(pas_win, 1)
+	await phys(6)
+	passive_swing(pas_win, 1)
+	var pas_kept: bool = pas_win_ctl.get_count(&"pas_w") == 2
+	await phys(20)
+	check(pas_kept and pas_win_ctl.get_count(&"pas_w") == 0, "PAS8 the counter survives a swing inside its window and goes back to 0 after the window passes with no swing")
+
+	var pas_d1 := passive_rig(main, [make_passive(&"pas_d")])
+	passive_swing(pas_d1, 1)
+	passive_swing(pas_d1, 1)
+	var pas_d1_before: bool = pas_d1["passives"].get_count(&"pas_d") == 2
+	pas_d1["health"].apply_hit(HitData.new(999))
+	check(pas_d1_before and pas_d1["passives"].get_count(&"pas_d") == 0, "PAS9 death resets the counter")
+	var pas_d2 := passive_rig(main, [make_passive(&"pas_d")])
+	for pas_i in 3:
+		passive_swing(pas_d2, 1)
+	var pas_d2_before: bool = pas_d2["passives"].is_active(&"pas_d") and pas_d2["statuses"].has_status(&"pas_d_status")
+	pas_d2["health"].apply_hit(HitData.new(999))
+	check(pas_d2_before and not pas_d2["passives"].is_active(&"pas_d") and not pas_d2["statuses"].has_status(&"pas_d_status"), "PAS10 death takes a granted reward away")
+
+	var pas_f := passive_rig(main, [make_passive(&"pas_f", 2, 0.0, false, 0.3)])
+	passive_swing(pas_f, 1)
+	passive_swing(pas_f, 1)
+	passive_swing(pas_f, 1)
+	var pas_blocked: bool = pas_f["passives"].is_active(&"pas_f") and pas_f["statuses"].has_status(&"pas_f_status") and pas_f["passives"].get_count(&"pas_f") == 0
+	await phys(30)
+	var pas_expired: bool = not pas_f["passives"].is_active(&"pas_f") and not pas_f["statuses"].has_status(&"pas_f_status")
+	passive_swing(pas_f, 1)
+	check(pas_blocked and pas_expired and pas_f["passives"].get_count(&"pas_f") == 1, "PAS11 a reward that is not consumed runs its own duration; swings do not count while it runs and counting resumes when it ends")
+
+	var pas_r := passive_rig(main, [make_passive(&"pas_r", 2)])
+	passive_swing(pas_r, 1)
+	passive_swing(pas_r, 1)
+	var pas_r_active: bool = pas_r["passives"].is_active(&"pas_r")
+	var pas_changed: Array = []
+	pas_r["passives"].passives_changed.connect(func() -> void: pas_changed.append(true))
+	pas_r["passives"].set_passives([])
+	check(pas_r_active and pas_r["passives"].get_passive_ids().is_empty() and not pas_r["statuses"].has_status(&"pas_r_status") and pas_changed.size() == 1, "PAS12 replacing the passives (an equip) removes a granted reward and announces the change")
+
+	var pas_ok := make_passive(&"pas_ok")
+	var pas_dup2 := make_passive(&"pas_ok")
+	var pas_inv := make_passive(&"pas_inv")
+	pas_inv.status_effect = null
+	var pas_skip := passive_rig(main, [])
+	pas_skip["passives"].set_passives([null, pas_ok, pas_dup2, pas_inv])
+	check(ids_equal(pas_skip["passives"].get_passive_ids(), [&"pas_ok"]), "PAS13 an empty, duplicate or invalid passive is skipped with an error and the valid one is kept")
+
+	var pas_x := passive_rig(main, [make_passive(&"pas_x", 2)])
+	passive_swing(pas_x, 1)
+	passive_swing(pas_x, 1)
+	pas_x["attacks"].context = p.context
+	p.context.is_attacking = true
+	pas_x["attacks"].attack_started.emit(Vector2.RIGHT)
+	p.context.is_attacking = false # the swing was cancelled: no attack_finished comes
+	pas_x["attacks"].attack_hit.emit(null, 5)
+	pas_x["attacks"].context = null
+	check(not pas_x["statuses"].has_status(&"pas_x_status") and not pas_x["passives"].is_active(&"pas_x") and pas_x["passives"].get_count(&"pas_x") == 1, "PAS14 a swing that was cancelled still uses the reward up; a late hit then counts for the new count")
+
+	# 14.2 on the real player
+	check(p.passive_controller != null and p.passive_controller is PassiveController2D and p.weapon_controller.passive_controller == p.passive_controller and p.passive_controller.get_passive_ids().is_empty() and (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).passive_skills.is_empty() and (load(BOW_WEAPON_PATH) as WeaponDefinition2D).passive_skills.is_empty(), "PAS15 the player has a PassiveController2D wired to its weapon controller, and the shipped sword and bow have no passives")
+	e.global_position = p.global_position + Vector2(28, 0)
+	e.health_component.max_health = 400
+	e.health_component.health = 400
+	var pas_sword := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	var pas_e2e_list: Array[PassiveDefinition2D] = [make_passive(&"pas_e2e", 3, 0.0, true, 6.0, 1.5)]
+	pas_sword.passive_skills = pas_e2e_list
+	var pas_equipped: bool = p.weapon_controller.equip(pas_sword)
+	var pas_e2e: PassiveController2D = p.passive_controller
+	var pas_player_triggered: Array = []
+	pas_e2e.passive_triggered.connect(func(id: StringName) -> void: pas_player_triggered.append(id))
+	check(pas_equipped and ids_equal(pas_e2e.get_passive_ids(), [&"pas_e2e"]) and pas_e2e.get_count(&"pas_e2e") == 0, "PAS16 equipping a weapon gives its passives to the player's controller")
+	var pas_dmg: int = p.attack_definition.damage
+	var pas_hp: int = e.health_component.health
+	var pas_started_1: bool = await real_swing(p)
+	check(pas_started_1 and pas_hp - e.health_component.health == pas_dmg and pas_e2e.get_count(&"pas_e2e") == 1, "PAS17 a real swing that lands counts once and deals normal damage")
+	pas_hp = e.health_component.health
+	var pas_started_2: bool = await real_swing(p)
+	pas_hp = e.health_component.health
+	var pas_started_3: bool = await real_swing(p)
+	check(pas_started_2 and pas_started_3 and pas_hp - e.health_component.health == pas_dmg and pas_e2e.is_active(&"pas_e2e") and p.status_controller.has_status(&"pas_e2e_status") and pas_e2e.get_count(&"pas_e2e") == 0 and pas_player_triggered.size() == 1, "PAS18 the third real swing earns the reward: it still deals normal damage, and the reward is active once the swing ends")
+	pas_hp = e.health_component.health
+	var pas_started_4: bool = await real_swing(p)
+	check(pas_started_4 and pas_hp - e.health_component.health == roundi(float(pas_dmg) * 1.5) and not pas_e2e.is_active(&"pas_e2e") and not p.status_controller.has_status(&"pas_e2e_status") and pas_e2e.get_count(&"pas_e2e") == 0, "PAS19 the next real swing deals the empowered damage, uses the reward up, and does not count")
+	pas_hp = e.health_component.health
+	var pas_started_5: bool = await real_swing(p)
+	check(pas_started_5 and pas_hp - e.health_component.health == pas_dmg and pas_e2e.get_count(&"pas_e2e") == 1, "PAS20 the swing after that is back to normal damage and counting from 0")
+	var pas_unequipped: bool = p.weapon_controller.equip(load(SWORD_WEAPON_PATH) as WeaponDefinition2D)
+	check(pas_unequipped and pas_e2e.get_passive_ids().is_empty() and pas_e2e.get_count(&"pas_e2e") == 0, "PAS21 equipping a weapon without that passive removes it and its counter")
+	await cleanup(main)
+
+	# ---------- EVT. Phase 14.3 event passives ----------
+	main = await fresh()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	var evt_bleed_def := load(BLEED_PATH) as StatusEffectDefinition2D
+
+	var evt_heal := load(VAMPIRIC_PATH) as PassiveDefinition2D
+	var evt_bleed := load(SERRATED_PATH) as PassiveDefinition2D
+	var evt_exec := load(EXECUTIONER_PATH) as PassiveDefinition2D
+	check(evt_heal != null and evt_heal.id == &"vampiric_strikes" and evt_heal.effect == PassiveDefinition2D.Effect.HEAL_SELF and evt_heal.heal_amount == 1 and evt_heal.validate().is_empty() and evt_bleed != null and evt_bleed.id == &"serrated_edge" and evt_bleed.effect == PassiveDefinition2D.Effect.STATUS_ON_TARGET and evt_bleed.status_effect != null and evt_bleed.status_effect.id == &"bleed" and evt_bleed.validate().is_empty() and evt_exec != null and evt_exec.id == &"executioner" and evt_exec.effect == PassiveDefinition2D.Effect.DAMAGE_BONUS_LOW_HEALTH and is_equal_approx(evt_exec.health_threshold, 0.3) and is_equal_approx(evt_exec.damage_multiplier, 1.5) and evt_exec.validate().is_empty(), "EVT1 the shipped Vampiric Strikes, Serrated Edge and Executioner load with their effects and validate")
+
+	var evt_no_heal := make_event_passive(&"evt_h", PassiveDefinition2D.Effect.HEAL_SELF, 0)
+	var evt_zero_threshold := make_event_passive(&"evt_t", PassiveDefinition2D.Effect.DAMAGE_BONUS_LOW_HEALTH, 0, 0.0)
+	var evt_big_threshold := make_event_passive(&"evt_t", PassiveDefinition2D.Effect.DAMAGE_BONUS_LOW_HEALTH, 0, 1.5)
+	var evt_no_bonus := make_event_passive(&"evt_m", PassiveDefinition2D.Effect.DAMAGE_BONUS_LOW_HEALTH, 0, 0.25, 1.0)
+	var evt_no_status := make_event_passive(&"evt_s", PassiveDefinition2D.Effect.STATUS_ON_TARGET)
+	var evt_heal_ok := make_event_passive(&"evt_h", PassiveDefinition2D.Effect.HEAL_SELF, 2)
+	check(has_problem(evt_no_heal.validate(), "heal_amount must be at least 1") and has_problem(evt_zero_threshold.validate(), "health_threshold must be above 0") and has_problem(evt_big_threshold.validate(), "health_threshold must be above 0") and has_problem(evt_no_bonus.validate(), "damage_multiplier must be above 1") and has_problem(evt_no_status.validate(), "needs a status_effect") and evt_heal_ok.validate().is_empty(), "EVT2 event passive validation reports a zero heal, a threshold outside 0 to 1, a multiplier of 1 and a missing status; a heal needs no status")
+
+	var evt_rig := passive_rig(main, [evt_heal_ok, make_passive(&"evt_cnt")])
+	evt_rig["health"].health = 10
+	passive_swing(evt_rig, 3)
+	check(evt_rig["health"].health == 16 and evt_rig["passives"].get_count(&"evt_cnt") == 1, "EVT3 heal on hit restores its amount for every target hit (3 x 2), while a counter passive in the same list still counts the swing once")
+	passive_swing(evt_rig, 0)
+	var evt_after_miss: int = evt_rig["health"].health
+	evt_rig["health"].health = 49
+	passive_swing(evt_rig, 1)
+	check(evt_after_miss == 16 and evt_rig["health"].health == 50, "EVT4 a swing that hits nothing heals nothing, and healing never goes above the maximum")
+
+	var evt_target := parked_goblin(main, Vector2(900, 900))
+	var evt_ctl := StatusController2D.new()
+	evt_target.add_child(evt_ctl)
+	evt_target.status_controller = evt_ctl
+	evt_ctl.initialize(evt_target.health_component)
+	var evt_bleed_rig := passive_rig(main, [make_event_passive(&"evt_bleed", PassiveDefinition2D.Effect.STATUS_ON_TARGET, 0, 0.25, 1.5, evt_bleed_def)])
+	passive_swing_at(evt_bleed_rig, [evt_target])
+	var evt_one: bool = evt_ctl.has_status(&"bleed") and evt_ctl.get_stacks(&"bleed") == 1
+	passive_swing_at(evt_bleed_rig, [evt_target])
+	check(evt_one and evt_ctl.get_stacks(&"bleed") == 2, "EVT5 bleed on hit puts the status on the target of every hit, and it stacks by the status's own rule")
+	var evt_plain := parked_goblin(main, Vector2(900, 1000))
+	passive_swing_at(evt_bleed_rig, [evt_plain, null, evt_target])
+	check(not (evt_plain.status_controller is StatusController2D) and evt_ctl.get_stacks(&"bleed") == 3, "EVT6 a target with no status controller, or no target at all, is ignored without a problem and the next target still gets the status")
+
+	var evt_pool := status_rig(main, 400)
+	var evt_pool_health: HealthComponent2D = evt_pool["health"]
+	var evt_execute := make_event_passive(&"evt_exec", PassiveDefinition2D.Effect.DAMAGE_BONUS_LOW_HEALTH, 0, 0.25, 1.5)
+	p.passive_controller.set_passives([evt_execute])
+	var evt_full: int = evt_pool_health.apply_hit(HitData.new(10, p))
+	evt_pool_health.health = 101
+	var evt_above: int = evt_pool_health.apply_hit(HitData.new(10, p))
+	evt_pool_health.health = 100
+	var evt_at: int = evt_pool_health.apply_hit(HitData.new(10, p))
+	check(evt_full == 10 and evt_above == 10 and evt_at == 15, "EVT7 the low-health bonus applies at or below the threshold (100 of 400 = 25%) and not above it (101), through the damage resolver")
+	var evt_buff := make_passive(&"evt_buff")
+	p.status_controller.apply_status(evt_buff.status_effect)
+	evt_pool_health.health = 100
+	var evt_stacked: int = evt_pool_health.apply_hit(HitData.new(20, p))
+	evt_pool_health.health = 100
+	var evt_no_source: int = evt_pool_health.apply_hit(HitData.new(20))
+	p.status_controller.remove_status(evt_buff.status_effect.id)
+	p.passive_controller.set_passives([])
+	evt_pool_health.health = 100
+	var evt_unequipped: int = evt_pool_health.apply_hit(HitData.new(20, p))
+	check(evt_stacked == 45 and evt_no_source == 20 and evt_unequipped == 20, "EVT8 the passive bonus multiplies with a buff status (20 x 1.5 x 1.5 = 45); a hit with no source, or after the passive is gone, gets none")
+
+	# 14.3 on the real player
+	e.global_position = p.global_position + Vector2(28, 0)
+	e.health_component.max_health = 400
+	e.health_component.health = 400
+	set_player_health(p, 50)
+	p.health_component.health = 20
+	var evt_sword := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	var evt_heal_list: Array[PassiveDefinition2D] = [make_event_passive(&"evt_e2e_heal", PassiveDefinition2D.Effect.HEAL_SELF, 3)]
+	evt_sword.passive_skills = evt_heal_list
+	var evt_equipped: bool = p.weapon_controller.equip(evt_sword)
+	var evt_started: bool = await real_swing(p)
+	check(evt_equipped and evt_started and p.health_component.health == 23 and e.health_component.health < 400, "EVT9 a real swing that lands heals the player by the passive's amount")
+
+	var evt_e_ctl := StatusController2D.new()
+	e.add_child(evt_e_ctl)
+	e.status_controller = evt_e_ctl
+	evt_e_ctl.initialize(e.health_component)
+	var evt_long_bleed := StatusEffectDefinition2D.new()
+	evt_long_bleed.id = &"evt_long_bleed"
+	evt_long_bleed.duration = 30.0
+	evt_long_bleed.tick_interval = 0.0
+	evt_long_bleed.tick_damage = 0
+	var evt_bleed_list: Array[PassiveDefinition2D] = [make_event_passive(&"evt_e2e_bleed", PassiveDefinition2D.Effect.STATUS_ON_TARGET, 0, 0.25, 1.5, evt_long_bleed)]
+	var evt_bleed_sword := evt_sword.duplicate() as WeaponDefinition2D
+	evt_bleed_sword.passive_skills = evt_bleed_list
+	var evt_bleed_equipped: bool = p.weapon_controller.equip(evt_bleed_sword)
+	var evt_bleed_started: bool = await real_swing(p)
+	check(evt_bleed_equipped and evt_bleed_started and evt_e_ctl.has_status(&"evt_long_bleed") and p.health_component.health == 23, "EVT10 a real swing puts the passive's status on the goblin it hits (and the replaced heal passive no longer heals)")
+
+	var evt_exec_list: Array[PassiveDefinition2D] = [make_event_passive(&"evt_e2e_exec", PassiveDefinition2D.Effect.DAMAGE_BONUS_LOW_HEALTH, 0, 0.5, 2.0)]
+	var evt_exec_sword := evt_sword.duplicate() as WeaponDefinition2D
+	evt_exec_sword.passive_skills = evt_exec_list
+	var evt_exec_equipped: bool = p.weapon_controller.equip(evt_exec_sword)
+	var evt_dmg: int = p.attack_definition.damage
+	e.health_component.health = 100 # 25% of 400: under the 50% threshold
+	var evt_hp_low: int = e.health_component.health
+	var evt_low_started: bool = await real_swing(p)
+	var evt_low_dealt: int = evt_hp_low - e.health_component.health
+	e.health_component.health = 300 # 75%: above it
+	var evt_hp_high: int = e.health_component.health
+	var evt_high_started: bool = await real_swing(p)
+	var evt_high_dealt: int = evt_hp_high - e.health_component.health
+	check(evt_exec_equipped and evt_low_started and evt_high_started and evt_low_dealt == evt_dmg * 2 and evt_high_dealt == evt_dmg, "EVT11 a real swing deals double damage to a goblin at 25% health and normal damage at 75%")
+
+	var evt_back: bool = p.weapon_controller.equip(load(SWORD_WEAPON_PATH) as WeaponDefinition2D)
+	check(evt_back and p.passive_controller.get_passive_ids().is_empty() and is_equal_approx(p.passive_controller.get_damage_multiplier_against(e.health_component), 1.0), "EVT12 equipping a weapon without passives removes the event passives and their damage bonus")
+	await cleanup(main)
+
+func real_swing(character: Node) -> bool:
+	var started: bool = character.attack_component.try_start(true, Vector2.RIGHT)
+	await phys(60)
+	var guard := 0
+	while (character.context.is_attacking or character.attack_component.is_on_cooldown()) and guard < 400:
+		await phys(1)
+		guard += 1
+	return started
+
+const VAMPIRIC_PATH := "res://Characters/Components/Passives/VampiricStrikesPassiveDefinition.tres"
+const SERRATED_PATH := "res://Characters/Components/Passives/SerratedEdgePassiveDefinition.tres"
+const EXECUTIONER_PATH := "res://Characters/Components/Passives/ExecutionerPassiveDefinition.tres"
+const RISING_STRIKES_PATH := "res://Characters/Components/Passives/RisingStrikesPassiveDefinition.tres"
+
+## A passive that grants a status named "<id>_status" (14.1). Pass a duration and a damage multiplier to tune it.
+func make_passive(id: StringName, required: int = 3, window: float = 0.0, consumed: bool = true, duration: float = 6.0, multiplier: float = 1.5) -> PassiveDefinition2D:
+	var passive := PassiveDefinition2D.new()
+	passive.id = id
+	passive.required_count = required
+	passive.counter_window = window
+	passive.consumed_by_next_attack = consumed
+	var status := StatusEffectDefinition2D.new()
+	status.id = StringName(str(id) + "_status")
+	status.duration = duration
+	status.tick_interval = 0.0
+	status.tick_damage = 0
+	status.damage_multiplier = multiplier
+	passive.status_effect = status
+	return passive
+
+## A PassiveController2D wired to a health component, a status controller and an unattached AttackComponent2D whose
+## signals the check emits by hand (14.1). The attack component has no context, so the controller trusts the signals.
+func passive_rig(main: Node, passives: Array, hp: int = 50) -> Dictionary:
+	var base := status_rig(main, hp)
+	var attacks := AttackComponent2D.new()
+	var controller := PassiveController2D.new()
+	main.add_child(controller)
+	controller.initialize(attacks, base["ctl"], base["health"])
+	controller.set_passives(passives)
+	return {"attacks": attacks, "passives": controller, "statuses": base["ctl"], "health": base["health"]}
+
+## One swing: attack_started, `hits` hits, then attack_finished unless `finish` is false.
+func passive_swing(rig: Dictionary, hits: int, finish: bool = true) -> void:
+	rig["attacks"].attack_started.emit(Vector2.RIGHT)
+	for i in hits:
+		rig["attacks"].attack_hit.emit(null, 5)
+	if finish:
+		rig["attacks"].attack_finished.emit()
+
+## An event passive (14.3) with the fields of its effect set; the others keep harmless values.
+func make_event_passive(id: StringName, effect: PassiveDefinition2D.Effect, heal: int = 0, threshold: float = 0.25, multiplier: float = 1.5, status: StatusEffectDefinition2D = null) -> PassiveDefinition2D:
+	var passive := PassiveDefinition2D.new()
+	passive.id = id
+	passive.effect = effect
+	passive.heal_amount = heal
+	passive.health_threshold = threshold
+	passive.damage_multiplier = multiplier
+	passive.status_effect = status
+	return passive
+
+## One swing that hits each of `targets` (null allowed): attack_started, one attack_hit per target, attack_finished.
+func passive_swing_at(rig: Dictionary, targets: Array) -> void:
+	rig["attacks"].attack_started.emit(Vector2.RIGHT)
+	for target in targets:
+		rig["attacks"].attack_hit.emit(target, 5)
+	rig["attacks"].attack_finished.emit()

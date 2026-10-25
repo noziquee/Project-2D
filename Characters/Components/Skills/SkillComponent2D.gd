@@ -16,7 +16,7 @@ class_name SkillComponent2D
 ## Behaviors (projectile, area, dash, buff) arrive in 13.3, one step each. PROJECTILE is built (13.3.1): executing the skill
 ## spawns the attack's effect scene (a ProjectileEffect2D) at the attack origin, aimed along the skill's direction. AREA is
 ## built (13.3.2): it spawns an AreaEffect2D at the attack origin, its circle placed by the attack's hitbox_offset along the
-## direction (or on the caster for SELF targeting), sized by area_radius. Either effect belongs to the world from then on:
+## direction (or centred on the caster for SELF targeting), sized by area_radius. Projectiles can also be emitted as a data-defined fan (13.4.7). Either effect belongs to the world from then on:
 ## cancelling a cast or killing the caster later does not remove it. DASH is built (13.3.3): the caster dashes max_range px at
 ## dash_speed through DashComponent2D.start_skill_dash(), and an optional attack makes an AreaEffect2D that travels with the
 ## caster for the length of the dash. BUFF is built (13.3.4): it puts the skill's status_effect on the caster through its
@@ -312,31 +312,39 @@ func _execute(skill: SkillDefinition2D, direction: Vector2) -> void:
 ## the skill's AttackDefinition2D, the same host node, the same impact effect at each hit. Returns the projectile, or null
 ## (with an error) when the attack or its scene is unusable; validate() already refuses such a skill, so this only guards
 ## a skill whose resource was changed after it was accepted.
-func _execute_projectile(skill: SkillDefinition2D, direction: Vector2) -> ProjectileEffect2D:
+func _execute_projectile(skill: SkillDefinition2D, direction: Vector2) -> Array[ProjectileEffect2D]:
+	var spawned: Array[ProjectileEffect2D] = []
 	var attack := skill.attack
 	if attack == null or attack.effect_scene == null:
 		push_error("SkillComponent2D: projectile skill '%s' has no attack effect_scene." % skill.id)
-		return null
-	var node := attack.effect_scene.instantiate()
-	var projectile := node as ProjectileEffect2D
-	if projectile == null:
-		push_error("SkillComponent2D: the effect scene of projectile skill '%s' must have a ProjectileEffect2D root." % skill.id)
-		node.free()
-		return null
-	projectile.configure(context.character, attack.damage, direction, attack.hitbox_size, attack.hitbox_offset, attack.hit_layers, attack.knockback, attack.hit_stun, attack.effect_animation, attack.max_targets, attack.pierce, attack.projectile_speed, attack.crit_chance, attack.crit_multiplier, attack.status_effects)
-	# max_range becomes a flight time. The speed is the attack's, or the scene's own when the attack sets none.
-	if skill.max_range > 0.0:
-		var flight_speed := attack.projectile_speed if attack.projectile_speed > 0.0 else projectile.speed
-		if flight_speed > 0.0:
-			projectile.lifetime = maxf(skill.max_range / flight_speed, MIN_PROJECTILE_LIFETIME)
-	_place_effect(projectile, skill)
-	return projectile
+		return spawned
+	var count := maxi(skill.projectile_count, 1)
+	for shot_index in range(count):
+		var offset_degrees := 0.0
+		if count > 1:
+			offset_degrees = -skill.spread_degrees * 0.5 + skill.spread_degrees * float(shot_index) / float(count - 1)
+		var shot_direction := direction.rotated(deg_to_rad(offset_degrees)).normalized()
+		var node := attack.effect_scene.instantiate()
+		var projectile := node as ProjectileEffect2D
+		if projectile == null:
+			push_error("SkillComponent2D: the effect scene of projectile skill '%s' must have a ProjectileEffect2D root." % skill.id)
+			node.free()
+			continue
+		projectile.configure(context.character, attack.damage, shot_direction, attack.hitbox_size, attack.hitbox_offset, attack.hit_layers, attack.knockback, attack.hit_stun, attack.effect_animation, attack.max_targets, attack.pierce, attack.projectile_speed, attack.crit_chance, attack.crit_multiplier, attack.status_effects)
+		# max_range becomes a flight time. The speed is the attack's, or the scene's own when the attack sets none.
+		if skill.max_range > 0.0:
+			var flight_speed := attack.projectile_speed if attack.projectile_speed > 0.0 else projectile.speed
+			if flight_speed > 0.0:
+				projectile.lifetime = maxf(skill.max_range / flight_speed, MIN_PROJECTILE_LIFETIME)
+		_place_effect(projectile, skill)
+		spawned.append(projectile)
+	return spawned
 
 ## Spawns the skill's area (13.3.2) the way AttackComponent2D spawns an attack effect: the same configure() call from the
 ## skill's AttackDefinition2D, the same host node, the same impact effect at each hit. The circle's diameter is
 ## 2 * area_radius (or the attack's hitbox_size when area_radius is 0) and it sits attack.hitbox_offset in front of the
-## attack origin along the direction; with SELF targeting the offset is dropped and it is centred on the caster. Returns
-## the area, or null (with an error) when the attack or its scene is unusable; validate() already refuses such a skill.
+## attack origin along the direction; with SELF targeting the offset is dropped and the effect is explicitly centred on the
+## character, even when an AttackSpawnPoint marker is configured. Returns the area, or null on invalid runtime data.
 func _execute_area(skill: SkillDefinition2D, direction: Vector2, follow_time: float = 0.0) -> AreaEffect2D:
 	var attack := skill.attack
 	if attack == null or attack.effect_scene == null:
@@ -348,7 +356,10 @@ func _execute_area(skill: SkillDefinition2D, direction: Vector2, follow_time: fl
 		push_error("SkillComponent2D: the effect scene of area skill '%s' must have an AreaEffect2D root." % skill.id)
 		node.free()
 		return null
-	var size := attack.hitbox_size
+	# AreaEffect2D is circular: hitbox_size.x is its diameter. Keep the attack's
+	# X dimension authoritative when area_radius is 0, regardless of the source
+	# attack's Y dimension; an explicit skill radius overrides both dimensions.
+	var size := Vector2(attack.hitbox_size.x, attack.hitbox_size.x)
 	if skill.area_radius > 0.0:
 		size = Vector2(skill.area_radius * 2.0, skill.area_radius * 2.0)
 	var offset := Vector2.ZERO if skill.targeting == SkillDefinition2D.Targeting.SELF else attack.hitbox_offset
@@ -357,7 +368,7 @@ func _execute_area(skill: SkillDefinition2D, direction: Vector2, follow_time: fl
 		# A dash strike (13.3.3): it lives as long as the dash and travels with the caster.
 		area.follow_source = true
 		area.active_time = follow_time
-	_place_effect(area, skill)
+	_place_effect(area, skill, skill.targeting == SkillDefinition2D.Targeting.SELF)
 	return area
 
 ## Puts the skill's status on the caster (13.3.4), by the status's own stack rule: a second use while it runs refreshes it,
@@ -393,14 +404,14 @@ func _execute_dash(skill: SkillDefinition2D, direction: Vector2) -> Vector2:
 
 ## Connects the skill's hit signals to an effect and adds it to the host node at the attack origin. Shared by the behaviors
 ## that spawn an AttackEffect2D (projectile, area).
-func _place_effect(effect: AttackEffect2D, skill: SkillDefinition2D) -> void:
+func _place_effect(effect: AttackEffect2D, skill: SkillDefinition2D, center_on_caster: bool = false) -> void:
 	effect.hit_confirmed.connect(_on_effect_hit.bind(skill))
 	effect.hit_contact.connect(_on_effect_contact.bind(skill.attack.hit_effect_scene))
 	var host: Node = Effects2D.get_host(context.character)
 	if host == null:
 		host = context.character
 	host.add_child(effect)
-	effect.global_position = context.get_attack_origin()
+	effect.global_position = context.character.global_position if center_on_caster else context.get_attack_origin()
 
 func _on_effect_hit(target: Node, dealt_damage: int, skill: SkillDefinition2D) -> void:
 	skill_hit.emit(skill, target, dealt_damage)

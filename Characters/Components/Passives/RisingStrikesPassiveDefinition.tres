@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PassiveDefinition2D" format=3]
+
+[ext_resource type="Script" path="res://Characters/Components/Passives/PassiveDefinition2D.gd" id="1_passive"]
+[ext_resource type="Resource" path="res://Characters/Components/Status/RisingStrikesStatusDefinition.tres" id="2_status"]
+
+[resource]
+script = ExtResource("1_passive")
+id = &"rising_strikes"
+display_name = "Rising Strikes"
+required_count = 3
+counter_window = 4.0
+status_effect = ExtResource("2_status")
+consumed_by_next_attack = true

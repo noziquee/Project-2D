@@ -31,8 +31,10 @@ class_name WeaponDefinition2D
 ## Optional. Equipping the weapon gives them to the character's SkillComponent2D, if it has one.
 @export var active_skills: Array[SkillDefinition2D] = []
 
-# Added in a later phase (guide section 10.5):
-# @export var passive_skills: Array[PassiveDefinition2D]
+@export_group("Passives")
+## The weapon's passives (14.1), for example "three hits grant an empowered state". Optional. Equipping the weapon gives
+## them to the character's PassiveController2D, if it has one; unequipping it takes them away and restarts their counters.
+@export var passive_skills: Array[PassiveDefinition2D] = []
 
 ## How many active skill slots a weapon has (decided in 13.0).
 const MAX_SKILL_SLOTS := 3
@@ -68,6 +70,15 @@ func get_extra_attacks() -> Array[AttackDefinition2D]:
 			continue
 		extras.append(attack)
 	return extras
+
+## The passive with this id, or null.
+func get_passive(passive_id: StringName) -> PassiveDefinition2D:
+	if passive_id == &"":
+		return null
+	for passive in passive_skills:
+		if passive != null and passive.id == passive_id:
+			return passive
+	return null
 
 ## The skill with this id, or null.
 func get_skill(skill_id: StringName) -> SkillDefinition2D:
@@ -144,6 +155,7 @@ func validate(animation_player: AnimationPlayer = null) -> Array[String]:
 				problems.append("%s: attack '%s' has combo_sequence entry '%s', which is not part of this weapon (add it to basic_combo)." % [label, attack.id, entry.id])
 	problems.append_array(_unreachable_combo_problems(label))
 	problems.append_array(_skill_problems(label))
+	problems.append_array(_passive_problems(label))
 
 	if animation_player != null:
 		problems.append_array(_clip_problems(label, animation_player))
@@ -235,6 +247,23 @@ func _skill_problems(label: String) -> Array[String]:
 			problems.append("%s: skills '%s' and '%s' both use slot %d." % [label, seen_slots[skill.slot], skill.id, skill.slot])
 		else:
 			seen_slots[skill.slot] = skill.id
+	return problems
+
+## Problems with the passives: empty entries, each passive's own data, duplicate ids.
+func _passive_problems(label: String) -> Array[String]:
+	var problems: Array[String] = []
+	var seen_ids: Dictionary = {}
+	for i in passive_skills.size():
+		var passive := passive_skills[i]
+		if passive == null:
+			problems.append("%s: passive_skills[%d] is empty." % [label, i])
+			continue
+		for message in passive.validate():
+			problems.append("%s: %s" % [label, message])
+		if passive.id != &"":
+			if seen_ids.has(passive.id):
+				problems.append("%s: passive id '%s' is listed more than once (passive_skills ids must be unique)." % [label, passive.id])
+			seen_ids[passive.id] = true
 	return problems
 
 func _clip_problems(label: String, animation_player: AnimationPlayer) -> Array[String]:

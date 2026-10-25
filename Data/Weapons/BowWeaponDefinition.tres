@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://bddw52d2igqtf" path="res://Characters/Components/Skills/SkillDefinition2D.gd" id="20_skill_script"]
 [ext_resource type="Resource" path="res://Characters/Components/Skills/PowerShotSkillDefinition.tres" id="21_power_shot"]
 [ext_resource type="Resource" path="res://Characters/Components/Skills/EmpowerSkillDefinition.tres" id="22_empower"]
+[ext_resource type="Resource" path="res://Characters/Components/Skills/MultiShotSkillDefinition.tres" id="23_multi_shot"]
 
 [resource]
 script = ExtResource("1_weapon")
@@ -16,4 +17,4 @@ display_name = "Bow"
 weapon_scene = ExtResource("5_scene")
 basic_combo = Array[ExtResource("2_attack_script")]([ExtResource("3_light")])
 heavy_attack = ExtResource("4_heavy")
-active_skills = Array[ExtResource("20_skill_script")]([ExtResource("21_power_shot"), ExtResource("22_empower")])
+active_skills = Array[ExtResource("20_skill_script")]([ExtResource("21_power_shot"), ExtResource("23_multi_shot"), ExtResource("22_empower")])

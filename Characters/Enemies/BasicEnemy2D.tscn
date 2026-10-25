@@ -6,7 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://chw6ty4o6y5gk" path="res://2D_RPG_Assets/enemies/goblin/goblin_knife.png" id="4_knife"]
 [ext_resource type="Resource" uid="uid://fxvdwr0kdi3j" path="res://Characters/Components/Combat/GoblinAttackDefinition.tres" id="5_attack"]
 [ext_resource type="Script" uid="uid://b3w2vrkqjc6t1" path="res://Characters/Controllers/EnemyAIController2D.gd" id="6_ai"]
-[ext_resource type="PackedScene" path="res://UI/HUD/EnemyHealthBar.tscn" id="7_health_bar"]
+[ext_resource type="PackedScene" uid="uid://buybil6cm750a" path="res://UI/HUD/EnemyHealthBar.tscn" id="7_health_bar"]
 [ext_resource type="Script" uid="uid://dfri21bj6615l" path="res://Characters/Components/Health/HealthComponent2D.gd" id="9_health"]
 [ext_resource type="Script" uid="uid://cr1cbya6q4dy8" path="res://Characters/Components/Movement/MovementComponent2D.gd" id="10_move"]
 [ext_resource type="Script" uid="uid://cpcuppj2voxr3" path="res://Characters/Components/Dash/DashComponent2D.gd" id="11_dash"]
@@ -401,11 +401,11 @@ monitorable = false
 shape = SubResource("CircleShape2D_detection")
 debug_color = Color(0.9, 0.35, 0.3, 0.12)
 
-[node name="EnemyHealthBar2D" parent="." unique_id=1448702036 instance=ExtResource("7_health_bar")]
-offset_left = -38.0
-offset_top = -30.0
-offset_right = 38.0
-offset_bottom = -12.0
+[node name="EnemyHealthBar" parent="." unique_id=1228234377 instance=ExtResource("7_health_bar")]
+offset_left = -13.0
+offset_top = -15.0
+offset_right = 15.0
+offset_bottom = -10.0
 health_source = NodePath("../HealthComponent2D")
 
 [node name="HealthComponent2D" type="Node" parent="." unique_id=1781921424]

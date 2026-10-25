@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="StatusEffectDefinition2D" format=3]
+
+[ext_resource type="Script" path="res://Characters/Components/Status/StatusEffectDefinition2D.gd" id="1_status"]
+
+[resource]
+script = ExtResource("1_status")
+id = &"rising_strikes"
+duration = 8.0
+tick_interval = 0.0
+tick_damage = 0
+damage_multiplier = 1.5

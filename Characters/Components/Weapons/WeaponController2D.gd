@@ -30,6 +30,8 @@ var context: CharacterContext2D
 var attack_component: AttackComponent2D
 ## Optional (13.2): given by Character2D when the character has a SkillComponent2D. Equipping a weapon sets its skills there.
 var skill_component: SkillComponent2D
+## Optional (14.1): given by Character2D when the character has a PassiveController2D. Equipping a weapon sets its passives there.
+var passive_controller: PassiveController2D
 var _initialized := false
 ## The weapon given to the last successful equip() (null until then).
 var _equipped_weapon: WeaponDefinition2D
@@ -91,6 +93,8 @@ func equip(weapon: WeaponDefinition2D) -> bool:
 	_equipped_weapon = weapon
 	if is_instance_valid(skill_component):
 		skill_component.set_skills(weapon.active_skills)
+	if is_instance_valid(passive_controller):
+		passive_controller.set_passives(weapon.passive_skills)
 	weapon_equipped.emit(weapon)
 	return true
 

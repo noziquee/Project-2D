@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="SkillDefinition2D" format=3 uid="uid://cpfnamn47n2bw"]
+
+[ext_resource type="Script" uid="uid://bddw52d2igqtf" path="res://Characters/Components/Skills/SkillDefinition2D.gd" id="1_skill"]
+[ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="2_attack"]
+[ext_resource type="PackedScene" uid="uid://cn4kci1dwd8gx" path="res://Characters/Components/Combat/Arrow.tscn" id="3_arrow"]
+[ext_resource type="Script" uid="uid://b6wfrpt7lkfob" path="res://Characters/Components/Status/StatusEffectDefinition2D.gd" id="4_0jmdj"]
+[ext_resource type="PackedScene" uid="uid://buuimquyuurcf" path="res://Characters/Effects/HitEffect.tscn" id="4_hit"]
+[ext_resource type="Texture2D" uid="uid://bsemymnihpce3" path="res://UI/HUD/Icons/MultiShotIcon.tres" id="5_icon"]
+
+[sub_resource type="Resource" id="Resource_multi_shot_attack"]
+script = ExtResource("2_attack")
+id = &"multi_shot_attack"
+damage = 4
+knockback = 120.0
+hit_stun = 0.1
+max_targets = 1
+pierce = false
+effect_scene = ExtResource("3_arrow")
+hit_effect_scene = ExtResource("4_hit")
+hitbox_size = Vector2(16, 8)
+hitbox_offset = Vector2(8, 0)
+projectile_speed = 520.0
+
+[resource]
+script = ExtResource("1_skill")
+id = &"multi_shot"
+display_name = "Multi-shot"
+icon = ExtResource("5_icon")
+slot = 1
+cost_resource = 1
+cost_amount = 25.0
+cooldown = 6.5
+max_range = 300.0
+attack = SubResource("Resource_multi_shot_attack")
+projectile_count = 3
+spread_degrees = 24.0

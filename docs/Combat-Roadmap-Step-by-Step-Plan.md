@@ -16,12 +16,12 @@ This continues `docs/phase9/PLAN.md`. Same rules as Phase 9: small steps, each l
 
 | Phase | What | Status |
 |---|---|---|
-| V | Verify and stabilize Phase 9 | V5 (Oct 25): Phase 12 run, 726 / 0, new baseline. V1 import and V2 smoke test done: **`SUMMARY passes=607 failures=0`** (baseline, `docs/phaseV/V2-baseline-notes.md`). V4 done. Open and only you can do them: opening and playing `Main.tscn` in the editor (rest of V1) and the V3 play-test |
+| V | Verify and stabilize Phase 9 | **V6 (Oct 25): simple enemy health bar; the smoke test stopped at R22 because the bar node was renamed; now `SUMMARY passes=887 failures=0` in headless Godot 4.7.2 (`docs/phaseV/V6-notes.md`).** V5 (Oct 25): Phase 12 run, 726 / 0, new baseline. V1 import and V2 smoke test done: **`SUMMARY passes=607 failures=0`** (baseline, `docs/phaseV/V2-baseline-notes.md`). V4 done. Open and only you can do them: opening and playing `Main.tscn` in the editor (rest of V1) and the V3 play-test |
 | 10 | Effect framework (base class, spawn point, hit policy, legacy cleanup) | 10.1 to 10.5 done and confirmed by the 607 / 0 run |
 | 11 | Projectiles and the bow | **Phase 11 done** (11.1 to 11.5), run in headless Godot 4.7.2: **`SUMMARY passes=680 failures=0`** (11.1 alone gave 623 / 0, 11.4 gave 669). Notes in `docs/phase11/` |
 | 12 | Combat resolver (defense, crits, status effects) | **Phase 12 done** (12.1 to 12.4, 46 new checks). Full run after V5 in headless Godot 4.7.2: **`SUMMARY passes=726 failures=0`**. Notes in `docs/phase12/`; the first run's failures were editor-tuned values, see `docs/phaseV/V5-notes.md` |
-| 13 | Active skills | 13.0 decisions, 13.1 `SkillDefinition2D` and 13.2 `SkillComponent2D` / `ManaComponent2D` done, run in headless Godot 4.7.2: **`SUMMARY passes=760 failures=0`** (726 + 34). **13.3.1 projectile skill done (Oct 25), run in headless Godot 4.7.2: `SUMMARY passes=776 failures=0`** (760 + 16, `docs/phase13/13.3.1-notes.md`). **13.3.2 area skill written (Oct 25), not yet run in Godot: expected `SUMMARY passes=791 failures=0`** (776 + 15, `docs/phase13/13.3.2-notes.md`). **13.3.3 dash skill written (Oct 25), not yet run: expected `SUMMARY passes=804 failures=0`** (791 + 13, `docs/phase13/13.3.3-notes.md`). **13.3.4 buff skill written (Oct 25), not yet run: expected `SUMMARY passes=815 failures=0`** (804 + 11, `docs/phase13/13.3.4-notes.md`). 13.3.5 channel (only if a weapon needs it) not started. **13.4 (input, HUD and the first playable skills; the old 13.4 and 13.5 are merged) is planned in 8 segments, 13.4.1 to 13.4.8 (`docs/phase13/13.4-plan.md`). 13.4.1 (skill signals and HUD read API) written (Oct 25), not yet run in Godot: expected `SUMMARY passes=825 failures=0`** (815 + 10, `docs/phase13/13.4.1-notes.md`)**; 13.4.2 (the player gets the skill components and the skill keys) written (Oct 25), not yet run: expected `SUMMARY passes=837 failures=0`** (825 + 12, `docs/phase13/13.4.2-notes.md`)**; 13.4.3 (the shipped skills on the sword and the bow) written (Oct 25), not yet run: expected `SUMMARY passes=846 failures=0`** (837 + 9, `docs/phase13/13.4.3-notes.md`)**; 13.4.4 to 13.4.8 not started.** Notes in `docs/phase13/` |
-| 14 | Passives | not started |
+| 13 | Active skills | 13.0 decisions, 13.1 `SkillDefinition2D` and 13.2 `SkillComponent2D` / `ManaComponent2D` done, run in headless Godot 4.7.2: **`SUMMARY passes=760 failures=0`** (726 + 34). **13.3.1 projectile skill done (Oct 25), run in headless Godot 4.7.2: `SUMMARY passes=776 failures=0`** (760 + 16, `docs/phase13/13.3.1-notes.md`). **13.3.2 area skill written (Oct 25), not yet run in Godot: expected `SUMMARY passes=791 failures=0`** (776 + 15, `docs/phase13/13.3.2-notes.md`). **13.3.3 dash skill written (Oct 25), not yet run: expected `SUMMARY passes=804 failures=0`** (791 + 13, `docs/phase13/13.3.3-notes.md`). **13.3.4 buff skill written (Oct 25), not yet run: expected `SUMMARY passes=815 failures=0`** (804 + 11, `docs/phase13/13.3.4-notes.md`). 13.3.5 channel (only if a weapon needs it) not started. **13.4 (input, HUD and the first playable skills; the old 13.4 and 13.5 are merged) is planned in 8 segments, 13.4.1 to 13.4.8 (`docs/phase13/13.4-plan.md`). 13.4.1 (skill signals and HUD read API) source present, runtime verification deferred to the final Phase 13.4 smoke test (`docs/phase13/13.4.1-notes.md`; no passing summary claimed); 13.4.2 (the player gets the skill components and the skill keys) source integration completed during 13.4.6, runtime verification deferred to the final Phase 13.4 smoke test (`docs/phase13/13.4.2-notes.md`; no passing summary claimed); 13.4.3 (the shipped skills on the sword and bow) source data present, with slot 1 upgraded to Spin and Multi-shot in 13.4.7; runtime verification deferred to the final Phase 13.4 smoke test (`docs/phase13/13.4.3-notes.md`; no passing summary claimed); 13.4.4 (scene-based mana bar) implemented, pending the single smoke test after Phase 13.4 is complete (`docs/phase13/13.4.4-notes.md`); **13.4.5 (reusable scene-based SkillSlot with cooldown wipe and feedback animations) implemented, pending that same final smoke test (`docs/phase13/13.4.5-notes.md`, checks SSS1–SSS11); 13.4.6 (three-slot SkillBar, weapon switching, Input Map labels, and missing player input/component integration) implemented, pending that same final smoke test (`docs/phase13/13.4.6-notes.md`, checks TTT1–TTT11); 13.4.7 (Spin, Multi-shot volley fields, weapon data and tests) implemented, pending that same final smoke test (`docs/phase13/13.4.7-notes.md`, checks UUU1–UUU7); 13.4.8 documentation/checklist prepared. The final Phase 13.4 smoke run was done headless in V6: 885 / 0, then 887 / 0 (see `docs/phaseV/V6-notes.md`); it still needs your own run and the play-test checklist.** Notes in `docs/phase13/` |
+| 14 | Passives | **14.0 rules, 14.1 `PassiveDefinition2D` / `PassiveController2D` and 14.2 first passive (Rising Strikes) written (Oct 25), not yet run in Godot: expected `SUMMARY passes=908 failures=0`** (887 + 21, `docs/phase14/`). **14.3 event passives written (Oct 25), not yet run: expected `SUMMARY passes=920 failures=0`** (908 + 12, `docs/phase14/14.3-notes.md`) |
 | P | Presentation and data cleanup (reactions, stagger, rig paths, hurtbox, team targeting) | not started |
 | 15 | More weapons, VFX, sound, polish | not started |
 
@@ -33,7 +33,7 @@ This continues `docs/phase9/PLAN.md`. Same rules as Phase 9: small steps, each l
 | Hit-once rule: per effect (today) or per swing | 10.4 | **Decided: per effect** (melee and, later, per projectile) |
 | Resource for skill costs: stamina, mana, or none | 13.0 | **Decided: optional per skill, NONE or MANA** (`ManaComponent2D`), see `docs/phase13/13.0-notes.md` |
 | Number of skill slots: fixed (3 or 4) or per weapon | 13.0 | **Decided: 3 slots per weapon**, skills live on `WeaponDefinition2D` |
-| Passive counter rules: do misses count, multi-target counts once per target or per attack, can stacks overlap | 14.0 | Write them down before coding (guide 10.8) |
+| Passive counter rules: do misses count, multi-target counts once per target or per attack, can stacks overlap | 14.0 | **Decided: misses do not count, once per attack, rewards do not overlap**; full table in `docs/phase14/14.0-notes.md` |
 | Threshold release values left on `DefaultAttackDefinition.tres` | V4 | **Decided: cleared** (inert, no check reads them) |
 | Skill keys, radial wipe approach, multi-shot fields, HUD signals | 13.4 | **Decided in `docs/phase13/13.4-plan.md`**: keys 1 to 3, a `TextureProgressBar` wipe, `projectile_count` and `spread_degrees`, new `SkillComponent2D` signals. Change them before the segment that needs them |
 
@@ -179,14 +179,14 @@ Why merged: a skill HUD with empty slots cannot be play-tested, so the first ski
 
 | Segment | What | Playable after it |
 |---|---|---|
-| 13.4.1 | **Written, awaiting your run (expected 825 / 0), `docs/phase13/13.4.1-notes.md`.** `SkillComponent2D` signals for the HUD (`cooldown_started`, `cooldown_finished`, `skill_refused`, `skills_changed`) and `get_cooldown_duration()`, `get_cast_progress()` | no visible change |
-| 13.4.2 | **Written, awaiting your run (expected 837 / 0), `docs/phase13/13.4.2-notes.md`.** Player gets `ManaComponent2D`, `SkillComponent2D`, `StatusController2D`; input actions `skill_1` to `skill_3` (keys 1 to 3) and the `player.gd` hook | keys do nothing yet (no skills equipped) |
-| 13.4.3 | **Written, awaiting your run (expected 846 / 0), `docs/phase13/13.4.3-notes.md`.** Existing skills on the weapons: sword Lunge, Ground Slam, Empowerment; bow Power Shot, Empowerment; placeholder icons | skills work by key, no HUD |
-| 13.4.4 | `ManaBar.tscn` in the HUD | mana visible |
-| 13.4.5 | `SkillSlot.tscn`: icon, radial wipe, seconds, hotkey, cost, ready / denied / started / unaffordable clips | one slot in a test scene |
-| 13.4.6 | `SkillBar.tscn` (3 slots) in `Main.tscn`, follows weapon switches | full HUD |
-| 13.4.7 | New skills: sword spin, bow multi-shot (`projectile_count`, `spread_degrees`) and, if needed, a dash-slash variant | full first skill set |
-| 13.4.8 | README, notes, roadmap status, play-test checklist | done |
+| 13.4.1 | **Source present; runtime verification deferred to the final Phase 13.4 smoke test.** `SkillComponent2D` signals for the HUD (`cooldown_started`, `cooldown_finished`, `skill_refused`, `skills_changed`) and `get_cooldown_duration()`, `get_cast_progress()` | no visible change |
+| 13.4.2 | **Prerequisite source integration completed during 13.4.6; runtime verification deferred to the final Phase 13.4 smoke test.** Player gets `ManaComponent2D`, `SkillComponent2D`, `StatusController2D`; input actions `skill_1` to `skill_3` (keys 1 to 3) and the `player.gd` hook | keys activate equipped skills |
+| 13.4.3 | **Source data present; runtime verification deferred to the final Phase 13.4 smoke test.** Current loadouts: sword Lunge, Spin, Empowerment; bow Power Shot, Multi-shot, Empowerment; placeholder icons | skills work by key, no HUD |
+| 13.4.4 | **Implemented, awaiting the Phase 13.4 final smoke test; see `docs/phase13/13.4.4-notes.md`.** Scene-based `ManaBar.tscn` and `ManaBar.gd`, blue `.tres` fill, intro/spend/restore clips, bound to the player mana component | mana visible (runtime not yet verified) |
+| 13.4.5 | **Implemented, awaiting the Phase 13.4 final smoke test; see `docs/phase13/13.4.5-notes.md`.** Reusable `SkillSlot.tscn`: icon, radial wipe, seconds, hotkey, cost, cast progress, and ready / denied / started / unaffordable clips | one slot in a test scene (runtime not yet verified) |
+| 13.4.6 | **Implemented, awaiting the Phase 13.4 final smoke test; see `docs/phase13/13.4.6-notes.md`.** Three-slot `SkillBar.tscn` in `Main.tscn`, follows weapon switches, Input Map hotkeys update on rebind; missing player component/input prerequisites were added | full HUD |
+| 13.4.7 | **Implemented, awaiting the Phase 13.4 final smoke test; see `docs/phase13/13.4.7-notes.md`.** Sword Spin, bow Multi-shot volley, data validation, centered SELF area placement and weapon loadouts; dash-slash variant deferred pending play-test feedback | full first skill set |
+| 13.4.8 | **Documentation and checklist prepared; actual smoke summary and manual play-test observations pending the user run.** README, implementation notes, roadmap status and play-test checklist updated | ready for final smoke test |
 
 - **Done when:** the sword and the bow each have three skills, the bar shows them with working cooldown wipes, the mana bar moves as you cast, and the final SUMMARY is in the README.
 
@@ -194,17 +194,17 @@ Why merged: a skill HUD with empty slots cannot be play-tested, so the first ski
 
 ## Phase 14: passives (guide phase 5)
 
-### 14.0. Write the counter rules
+### 14.0. Write the counter rules (done, see `docs/phase14/14.0-notes.md`)
 - Do misses count, how counters reset, once per target or once per attack, whether stacks overlap. Put the answers in the step notes before any code.
 
-### 14.1. `PassiveDefinition2D` and `PassiveController2D`
+### 14.1. `PassiveDefinition2D` and `PassiveController2D` (written, awaiting your run, see `docs/phase14/14.1-notes.md`)
 - **Do:** A resource describing trigger event, condition, counter and effect, and a runtime controller that connects to `attack_started`, `attack_hit`, `attack_finished`, `damaged`, `died` (all already emitted) and tracks stacks. Add the commented-out `passive_skills` array to `WeaponDefinition2D`.
 
-### 14.2. First passive as the test
+### 14.2. First passive as the test (written, awaiting your run, see `docs/phase14/14.2-notes.md`)
 - **Do:** The guide's example: three qualifying hits grant an empowered state that the next attack consumes for bonus damage.
 - **Tests:** counts only the hits your rules allow, resets as written, the empowered state is consumed once.
 
-### 14.3. Event passives
+### 14.3. Event passives (written, awaiting your run, see `docs/phase14/14.3-notes.md`)
 - Heal on hit, bonus damage below a health threshold, bleed on hit (uses 12.4). One test each.
 
 ---

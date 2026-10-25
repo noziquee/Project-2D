@@ -80,6 +80,12 @@ func _sample_attack_input(delta: float) -> void:
 	# controller refuses it during a swing or charge, so a press then is simply dropped.
 	if Input.is_action_just_pressed("weapon_next") and is_instance_valid(weapon_controller):
 		weapon_controller.equip_next()
+	# Active skill input (13.4): SkillComponent2D remains the authority for refusal, mana and cooldowns.
+	if is_instance_valid(skill_component):
+		for slot in range(WeaponDefinition2D.MAX_SKILL_SLOTS):
+			var action_name := "skill_%d" % (slot + 1)
+			if Input.is_action_just_pressed(action_name):
+				skill_component.try_use_slot(slot, _get_aim_direction())
 	var heavy_id := get_heavy_attack_id()
 	var has_heavy := is_instance_valid(attack_component) and heavy_id != &"" and attack_component.has_attack(heavy_id)
 	var light_id := get_light_attack_id()

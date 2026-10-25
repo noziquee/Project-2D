@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PassiveDefinition2D" format=3]
+
+[ext_resource type="Script" path="res://Characters/Components/Passives/PassiveDefinition2D.gd" id="1_passive"]
+
+[resource]
+script = ExtResource("1_passive")
+id = &"executioner"
+display_name = "Executioner"
+effect = 3
+health_threshold = 0.3
+damage_multiplier = 1.5

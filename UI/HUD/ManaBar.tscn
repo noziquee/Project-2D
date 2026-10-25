@@ -1,0 +1,225 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://UI/HUD/ManaBar.gd" id="1_script"]
+[ext_resource type="FontVariation" path="res://UI/HUD/Styles/hud_font.tres" id="2_font"]
+[ext_resource type="StyleBox" path="res://UI/HUD/Styles/panel.tres" id="3_panel"]
+[ext_resource type="StyleBox" path="res://UI/HUD/Styles/bar_background.tres" id="4_bar_bg"]
+[ext_resource type="StyleBox" path="res://UI/HUD/Styles/mana_bar_fill.tres" id="5_mana_fill"]
+
+[sub_resource type="Animation" id="Animation_intro"]
+resource_name = "intro"
+length = 0.32
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Card:modulate:a")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.32),
+"transitions": PackedFloat32Array(0.4, 1),
+"update": 0,
+"values": [0.0, 1.0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Card:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.32),
+"transitions": PackedFloat32Array(0.4, 1),
+"update": 0,
+"values": [Vector2(0.92, 0.92), Vector2(1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_spend"]
+resource_name = "spend"
+length = 0.24
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Card:self_modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.12, 0.24),
+"transitions": PackedFloat32Array(0.4, 0.4, 1),
+"update": 0,
+"values": [Color(0.72, 0.86, 1, 1), Color(1, 1, 1, 1), Color(1, 1, 1, 1)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Card:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.08, 0.24),
+"transitions": PackedFloat32Array(0.4, 0.4, 1),
+"update": 0,
+"values": [Vector2(1, 1), Vector2(0.99, 0.99), Vector2(1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_restore"]
+resource_name = "restore"
+length = 0.3
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Card:self_modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.15, 0.3),
+"transitions": PackedFloat32Array(0.4, 0.4, 1),
+"update": 0,
+"values": [Color(0.72, 1, 0.84, 1), Color(1, 1, 1, 1), Color(1, 1, 1, 1)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Card:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.3),
+"transitions": PackedFloat32Array(0.4, 0.4, 1),
+"update": 0,
+"values": [Vector2(1, 1), Vector2(1.015, 1.025), Vector2(1, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_manabar"]
+_data = {
+&"intro": SubResource("Animation_intro"),
+&"restore": SubResource("Animation_restore"),
+&"spend": SubResource("Animation_spend")
+}
+
+[node name="ManaBar" type="Control"]
+custom_minimum_size = Vector2(356, 64)
+layout_mode = 3
+offset_right = 356.0
+offset_bottom = 64.0
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="Card" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = ExtResource("3_panel")
+
+[node name="Padding" type="MarginContainer" parent="Card"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_top = 7
+theme_override_constants/margin_right = 13
+theme_override_constants/margin_bottom = 7
+
+[node name="Content" type="VBoxContainer" parent="Card/Padding"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="Header" type="HBoxContainer" parent="Card/Padding/Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="ManaIcon" type="Label" parent="Card/Padding/Content/Header"]
+custom_minimum_size = Vector2(25, 0)
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.258824, 0.631373, 0.984314, 1)
+theme_override_colors/font_outline_color = Color(0.141176, 0.109804, 0.109804, 1)
+theme_override_constants/outline_size = 3
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 21
+text = "◆"
+vertical_alignment = 1
+
+[node name="Title" type="Label" parent="Card/Padding/Content/Header"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.258824, 0.631373, 0.984314, 1)
+theme_override_colors/font_outline_color = Color(0.141176, 0.109804, 0.109804, 1)
+theme_override_constants/outline_size = 3
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+text = "MANA"
+vertical_alignment = 1
+
+[node name="Spacer" type="Control" parent="Card/Padding/Content/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="ManaLabel" type="Label" parent="Card/Padding/Content/Header"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.968627, 0.945098, 0.898039, 1)
+theme_override_colors/font_outline_color = Color(0.141176, 0.109804, 0.109804, 1)
+theme_override_constants/outline_size = 3
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 14
+text = "100 / 100"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="BarStack" type="Control" parent="Card/Padding/Content"]
+custom_minimum_size = Vector2(0, 17)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="ProgressBar" type="ProgressBar" parent="Card/Padding/Content/BarStack"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/background = ExtResource("4_bar_bg")
+theme_override_styles/fill = ExtResource("5_mana_fill")
+show_percentage = false
+
+[node name="BarLabel" type="Label" parent="Card/Padding/Content/BarStack"]
+visible = false
+z_index = 5
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -6.5
+offset_bottom = 6.5
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.968627, 0.945098, 0.898039, 1)
+theme_override_colors/font_outline_color = Color(0.141176, 0.109804, 0.109804, 1)
+theme_override_constants/outline_size = 2
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 9
+text = "100 / 100"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Accent" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 5.0
+offset_top = 11.0
+offset_right = 8.0
+offset_bottom = 53.0
+mouse_filter = 2
+color = Color(0.258824, 0.631373, 0.984314, 1)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries/ = SubResource("AnimationLibrary_manabar")

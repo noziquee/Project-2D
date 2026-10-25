@@ -24,6 +24,10 @@
 [ext_resource type="Resource" uid="uid://xrvcsh4tu5qs" path="res://Characters/Components/Combat/DefaultAttackDefinition.tres" id="23_default_attack"]
 [ext_resource type="Script" uid="uid://n1fmcxqhoh6t" path="res://Characters/Components/Weapons/WeaponDefinition2D.gd" id="24_weapon_script"]
 [ext_resource type="Resource" uid="uid://cgumw8d30ka8x" path="res://Data/Weapons/BowWeaponDefinition.tres" id="25_bow_def"]
+[ext_resource type="Script" path="res://Characters/Components/Resources/ManaComponent2D.gd" id="26_mana"]
+[ext_resource type="Script" path="res://Characters/Components/Skills/SkillComponent2D.gd" id="27_skills"]
+[ext_resource type="Script" path="res://Characters/Components/Status/StatusController2D.gd" id="28_status"]
+[ext_resource type="Script" path="res://Characters/Components/Passives/PassiveController2D.gd" id="29_passives"]
 
 [sub_resource type="Animation" id="Animation_n7ghd"]
 length = 0.001
@@ -479,7 +483,7 @@ _data = {
 radius = 6.0
 height = 18.0
 
-[node name="Player" type="CharacterBody2D" unique_id=176143687 node_paths=PackedStringArray("movement_component", "dash_component", "attack_component", "health_component", "state_machine") groups=["damageable", "player"]]
+[node name="Player" type="CharacterBody2D" unique_id=176143687 node_paths=PackedStringArray("movement_component", "dash_component", "attack_component", "health_component", "state_machine", "mana_component", "skill_component", "status_controller") groups=["damageable", "player"]]
 collision_mask = 7
 script = ExtResource("7_player_script")
 charge_start_time = 0.5
@@ -489,6 +493,9 @@ dash_component = NodePath("DashComponent2D")
 attack_component = NodePath("AttackComponent2D")
 health_component = NodePath("HealthComponent2D")
 state_machine = NodePath("CharacterStateMachine")
+mana_component = NodePath("ManaComponent2D")
+skill_component = NodePath("SkillComponent2D")
+status_controller = NodePath("StatusController2D")
 
 [node name="LayeredRig" type="Node2D" parent="." unique_id=72007712]
 
@@ -551,6 +558,18 @@ attacks = Array[ExtResource("12_pylmc")]([ExtResource("18_light2"), ExtResource(
 script = ExtResource("21_weapon_controller")
 starting_weapon = ExtResource("22_sword_def")
 loadout = Array[ExtResource("24_weapon_script")]([ExtResource("22_sword_def"), ExtResource("25_bow_def")])
+
+[node name="ManaComponent2D" type="Node" parent="."]
+script = ExtResource("26_mana")
+
+[node name="SkillComponent2D" type="Node" parent="."]
+script = ExtResource("27_skills")
+
+[node name="StatusController2D" type="Node" parent="."]
+script = ExtResource("28_status")
+
+[node name="PassiveController2D" type="Node" parent="."]
+script = ExtResource("29_passives")
 
 [node name="CharacterStateMachine" type="Node" parent="." unique_id=1322817306]
 script = ExtResource("13_machine")

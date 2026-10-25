@@ -1,6 +1,6 @@
 # Project-2D
 
-A top-down 2D action RPG in Godot 4.7. The player fights goblins (and a goblin archer) with a sword (light attacks that chain into a combo, and a charged heavy attack) or a bow (a shot, and a charged piercing shot). Characters are built from components and attacks, and weapons are data.
+A top-down 2D action RPG in Godot 4.7. The player fights goblins (and a goblin archer) with a sword or bow. Basic and heavy attacks use weapon data; active skills, mana costs, cooldowns and the HUD are component-driven, with the HUD layout and animations authored as reusable scenes.
 
 ## Controls
 
@@ -8,14 +8,18 @@ A top-down 2D action RPG in Godot 4.7. The player fights goblins (and a goblin a
 - **Left mouse button, tap:** light attack toward the cursor. Tap again inside the swing's window to chain the combo.
 - **Left mouse button, hold:** charge the heavy attack, release to swing
 - **Space:** dash
-- **Q:** switch weapon (sword, bow). Refused during a swing or charge. Bind other keys to `weapon_next` in the Input Map.
+- **Q:** switch weapon (sword, bow). Refused during a swing or charge. Bind other keys to `weapon_next` in the Input Map. Skill cooldowns continue while switching weapons.
+- **1 / 2 / 3:** use the active skill in the matching slot for the equipped weapon. The slot labels are read from the Input Map and update if bindings change.
+  - **Sword:** 1 Lunge, 2 Sword Spin, 3 Empowerment.
+  - **Bow:** 1 Power Shot, 2 Multi-shot, 3 Empowerment.
+- The HUD shows health, mana, skill icons, cooldown wipes and timers, hotkeys, and mana costs. Skills can be refused when their cost cannot be paid or the character is in a state that blocks skill use.
 - `attack_heavy` is a separate heavy-attack action with no default key; bind one in Project Settings > Input Map if you want it.
 
 ## Running and testing
 
 - Open the project in Godot 4.7 and run `Main.tscn`.
 - After adding new scripts, run `godot --headless --import --path .` once so new classes are registered.
-- Smoke test: `godot --headless --fixed-fps 60 --path . --script res://tests/smoke_checks.gd`. It prints `SUMMARY passes=N failures=M`. The current baseline is `SUMMARY passes=776 failures=0` (Godot 4.7.2, Oct 25 2026); a step's notes say how many checks it adds to that.
+- Smoke test: `godot --headless --fixed-fps 60 --path . --script res://tests/smoke_checks.gd`. It prints `SUMMARY passes=N failures=M`. The **last confirmed summary** is `SUMMARY passes=887 failures=0` (headless Godot 4.7.2 on Linux, Oct 25 2026, after V6; the first full Phase 13.4 run gave 885 / 0, see `docs/phaseV/V6-notes.md`). It still needs to be repeated on your machine: run the import and smoke-test commands above and replace this line with your own output; do not use an expected count as a result.
 
 ## How it is organised
 
@@ -23,8 +27,9 @@ A top-down 2D action RPG in Godot 4.7. The player fights goblins (and a goblin a
 - `Characters/Components/Combat/`: `AttackDefinition2D` (one resource per attack), the attack component, `AttackEffect2D` (base class of effect scenes), the slash effect, the projectile effect and arrow (11.1, 11.2) and the shipped attack `.tres` files.
 - `Characters/Components/Weapons/`: `WeaponDefinition2D` and `WeaponController2D`.
 - `Weapons/` and `Data/Weapons/`: weapon scenes (sprite plus clips) and weapon definitions.
-- `Characters/Components/Skills/` and `Characters/Components/Resources/`: `SkillDefinition2D`, `SkillComponent2D` and `ManaComponent2D` (Phase 13; skills are data on `WeaponDefinition2D.active_skills`; the projectile, area, dash and buff behaviors and the `PowerShotSkillDefinition.tres`, `GroundSlamSkillDefinition.tres`, `LungeSkillDefinition.tres` and `EmpowerSkillDefinition.tres` examples exist, input and HUD are still to come).
-- `UI/HUD/`: the health bar scenes and styles.
+- `Characters/Components/Skills/` and `Characters/Components/Resources/`: skill definitions and `SkillComponent2D` / `ManaComponent2D`. Skill definitions live in `WeaponDefinition2D.active_skills`; projectile, area, dash and buff behaviors are implemented. Current equipped skills are Lunge, Sword Spin and Empowerment on the sword, and Power Shot, Multi-shot and Empowerment on the bow. Ground Slam remains available as a resource example but is not in the default sword loadout.
+- `Characters/Components/Passives/`: `PassiveDefinition2D` and `PassiveController2D` (14.1). A weapon lists passives in `WeaponDefinition2D.passive_skills`; Rising Strikes (a counter passive), Vampiric Strikes, Serrated Edge and Executioner exist as data and are not on a weapon yet.
+- `UI/HUD/`: scene-based health and mana bars, reusable skill slots and the three-slot skill bar, plus shared styles and placeholder skill icons. GDScript updates visuals; the scene tree defines layout and animations.
 - `docs/`: the combat architecture guide, the roadmap for what is not built yet (`Combat-Roadmap-Step-by-Step-Plan.md`) and the Phase 9 step notes. `IMPLEMENTATION_NOTES.md` describes every system.
 
 ## Add an attack
