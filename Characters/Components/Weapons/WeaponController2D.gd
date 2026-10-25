@@ -28,6 +28,8 @@ signal equip_failed(weapon: WeaponDefinition2D, problems: Array)
 
 var context: CharacterContext2D
 var attack_component: AttackComponent2D
+## Optional (13.2): given by Character2D when the character has a SkillComponent2D. Equipping a weapon sets its skills there.
+var skill_component: SkillComponent2D
 var _initialized := false
 ## The weapon given to the last successful equip() (null until then).
 var _equipped_weapon: WeaponDefinition2D
@@ -87,6 +89,8 @@ func equip(weapon: WeaponDefinition2D) -> bool:
 	if old_mount != null:
 		old_mount.free()
 	_equipped_weapon = weapon
+	if is_instance_valid(skill_component):
+		skill_component.set_skills(weapon.active_skills)
 	weapon_equipped.emit(weapon)
 	return true
 
@@ -134,6 +138,8 @@ func validate_equip(weapon: WeaponDefinition2D) -> Array[String]:
 		_add(problems, "%s: this character has no WeaponFacingPivot, so its weapon cannot be swapped (only the layered player rig supports equipping)." % label)
 	if context.is_attacking:
 		_add(problems, "%s: cannot be equipped during a swing or charge." % label)
+	if context.is_casting:
+		_add(problems, "%s: cannot be equipped during a skill cast." % label)
 
 	for message in weapon.validate():
 		_add(problems, message)

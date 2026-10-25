@@ -28,6 +28,14 @@ signal died
 ## Optional (9.7c-4): a child named "WeaponController2D". Only characters that can swap weapons (the
 ## player) have one; the goblin does not. Its starting_weapon is equipped when it is initialized.
 @export var weapon_controller: WeaponController2D
+## Optional (12.4): a child named "StatusController2D". Only characters that can carry statuses (bleed, burn)
+## have one. A hit that carries statuses still damages a character without one; the statuses are ignored.
+@export var status_controller: StatusController2D
+## Optional (13.2): a child named "ManaComponent2D", the pool that skill mana costs are paid from.
+@export var mana_component: ManaComponent2D
+## Optional (13.2): a child named "SkillComponent2D". Only characters that use active skills have one; a weapon's
+## active_skills are given to it when the weapon is equipped.
+@export var skill_component: SkillComponent2D
 ## Optional (10.5): a Marker2D (default name "AttackSpawnPoint") where attack effects appear, such as a
 ## hand or a staff tip. Leave it empty and add no such child to spawn effects at the character's origin,
 ## as before. The marker moves with whatever node it is a child of, so put it under the weapon pivot if it
@@ -64,6 +72,9 @@ func _ready() -> void:
 	attack_component = _resolve_component(attack_component, "AttackComponent2D") as AttackComponent2D
 	state_machine = _resolve_component(state_machine, "CharacterStateMachine") as CharacterStateMachine
 	weapon_controller = _resolve_component(weapon_controller, "WeaponController2D") as WeaponController2D
+	status_controller = _resolve_component(status_controller, "StatusController2D") as StatusController2D
+	mana_component = _resolve_component(mana_component, "ManaComponent2D") as ManaComponent2D
+	skill_component = _resolve_component(skill_component, "SkillComponent2D") as SkillComponent2D
 	attack_spawn_point = _resolve_spawn_point(attack_spawn_point)
 	context.attack_spawn_point = attack_spawn_point
 	var missing: Array[String] = []
@@ -84,8 +95,14 @@ func _ready() -> void:
 	movement_component.initialize(context)
 	dash_component.initialize(context)
 	attack_component.initialize(context)
+	if is_instance_valid(skill_component):
+		skill_component.initialize(context, mana_component)
 	if is_instance_valid(weapon_controller):
+		weapon_controller.skill_component = skill_component
 		weapon_controller.initialize(context, attack_component)
+
+	if is_instance_valid(status_controller):
+		status_controller.initialize(health_component)
 
 	state_machine.initialize(context)
 
@@ -211,9 +228,9 @@ func _on_health_component_damaged(hit: HitData) -> void:
 	_on_damaged(hit)
 
 ## Knockback, hit stun and swing interruption for a hit that did damage. A killing hit
-## skips this: the death handler clears everything.
+## skips this: the death handler clears everything. A periodic hit (a status tick) skips it too.
 func _apply_hit_reaction(hit: HitData) -> void:
-	if not is_alive():
+	if not is_alive() or hit.is_periodic:
 		return
 	if hit.knockback > 0.0 and hit.direction.length_squared() > 0.0001:
 		context.knockback_velocity = hit.direction.normalized() * hit.knockback
@@ -221,6 +238,8 @@ func _apply_hit_reaction(hit: HitData) -> void:
 		context.hit_stun_remaining = maxf(context.hit_stun_remaining, hit.hit_stun)
 	if is_instance_valid(attack_component):
 		attack_component.interrupt()
+	if is_instance_valid(skill_component):
+		skill_component.interrupt()
 
 func is_stunned() -> bool:
 	return context != null and context.hit_stun_remaining > 0.0
@@ -234,6 +253,8 @@ func _on_health_component_died() -> void:
 		attack_component.cancel()
 	if is_instance_valid(dash_component):
 		dash_component.cancel()
+	if is_instance_valid(skill_component):
+		skill_component.cancel()
 	_update_weapon_aim()
 	_on_death()
 

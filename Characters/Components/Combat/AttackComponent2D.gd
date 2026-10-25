@@ -257,7 +257,7 @@ func _warn_combo_links() -> void:
 ## unknown or a swing, charge, dash, stun or cooldown prevents it.
 func begin_charge(attack_id: StringName, direction: Vector2 = Vector2.ZERO) -> bool:
 	var chosen := get_attack(attack_id)
-	if not _initialized or chosen == null or context.is_attacking or context.is_dashing or context.hit_stun_remaining > 0.0 or _cooldown_remaining > 0.0:
+	if not _initialized or chosen == null or context.is_attacking or context.is_dashing or context.is_casting or context.hit_stun_remaining > 0.0 or _cooldown_remaining > 0.0:
 		return false
 	_charging_definition = chosen
 	_charge_elapsed = 0.0
@@ -300,7 +300,7 @@ func get_charge_ratio() -> float:
 	return clampf(_charge_elapsed / _charging_definition.charge_threshold, 0.0, 1.0)
 
 func _begin_attack(chosen: AttackDefinition2D, direction: Vector2) -> bool:
-	if not _initialized or chosen == null or context.is_attacking or context.is_dashing or context.hit_stun_remaining > 0.0 or _cooldown_remaining > 0.0:
+	if not _initialized or chosen == null or context.is_attacking or context.is_dashing or context.is_casting or context.hit_stun_remaining > 0.0 or _cooldown_remaining > 0.0:
 		return false
 	_begin_combo(chosen)
 	_start_swing(chosen, _resolve_attack_direction(direction))
@@ -462,7 +462,7 @@ func _spawn_effect() -> void:
 		push_error("AttackComponent2D: effect scene for attack '%s' must have an AttackEffect2D script (such as AttackSlash2D.gd) on its root." % active.id)
 		node.queue_free()
 		return
-	slash.configure(context.character, active.damage, context.attack_direction, active.hitbox_size, active.hitbox_offset, active.hit_layers, active.knockback, active.hit_stun, active.effect_animation, active.max_targets, active.pierce, active.projectile_speed)
+	slash.configure(context.character, active.damage, context.attack_direction, active.hitbox_size, active.hitbox_offset, active.hit_layers, active.knockback, active.hit_stun, active.effect_animation, active.max_targets, active.pierce, active.projectile_speed, active.crit_chance, active.crit_multiplier, active.status_effects)
 	slash.hit_confirmed.connect(_on_slash_hit)
 	# The impact effect belongs to the attack that spawned the slash, which may outlive the swing.
 	slash.hit_contact.connect(_on_slash_contact.bind(active.hit_effect_scene))

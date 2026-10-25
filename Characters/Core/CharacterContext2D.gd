@@ -40,6 +40,8 @@ var aim_direction: Vector2 = Vector2.RIGHT
 var attack_direction: Vector2 = Vector2.RIGHT
 var is_attacking: bool = false
 var is_dashing: bool = false
+## True while a skill with a cast time is being cast (13.2). Attacks and dashes cannot start meanwhile.
+var is_casting: bool = false
 var dash_velocity: Vector2 = Vector2.ZERO
 ## Scales normal (non-dash) movement. AttackComponent2D sets it from the active attack
 ## definition and restores 1.0 when the attack finishes or is cancelled.

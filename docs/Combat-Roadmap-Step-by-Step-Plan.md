@@ -16,11 +16,11 @@ This continues `docs/phase9/PLAN.md`. Same rules as Phase 9: small steps, each l
 
 | Phase | What | Status |
 |---|---|---|
-| V | Verify and stabilize Phase 9 | V1 import and V2 smoke test done: **`SUMMARY passes=607 failures=0`** (baseline, `docs/phaseV/V2-baseline-notes.md`). V4 done. Open and only you can do them: opening and playing `Main.tscn` in the editor (rest of V1) and the V3 play-test |
+| V | Verify and stabilize Phase 9 | V5 (Oct 25): Phase 12 run, 726 / 0, new baseline. V1 import and V2 smoke test done: **`SUMMARY passes=607 failures=0`** (baseline, `docs/phaseV/V2-baseline-notes.md`). V4 done. Open and only you can do them: opening and playing `Main.tscn` in the editor (rest of V1) and the V3 play-test |
 | 10 | Effect framework (base class, spawn point, hit policy, legacy cleanup) | 10.1 to 10.5 done and confirmed by the 607 / 0 run |
 | 11 | Projectiles and the bow | **Phase 11 done** (11.1 to 11.5), run in headless Godot 4.7.2: **`SUMMARY passes=680 failures=0`** (11.1 alone gave 623 / 0, 11.4 gave 669). Notes in `docs/phase11/` |
-| 12 | Combat resolver (defense, crits, status effects) | not started |
-| 13 | Active skills | not started |
+| 12 | Combat resolver (defense, crits, status effects) | **Phase 12 done** (12.1 to 12.4, 46 new checks). Full run after V5 in headless Godot 4.7.2: **`SUMMARY passes=726 failures=0`**. Notes in `docs/phase12/`; the first run's failures were editor-tuned values, see `docs/phaseV/V5-notes.md` |
+| 13 | Active skills | 13.0 decisions, 13.1 `SkillDefinition2D` and 13.2 `SkillComponent2D` / `ManaComponent2D` done, run in headless Godot 4.7.2: **`SUMMARY passes=760 failures=0`** (726 + 34). **13.3.1 projectile skill done (Oct 25), run in headless Godot 4.7.2: `SUMMARY passes=776 failures=0`** (760 + 16, `docs/phase13/13.3.1-notes.md`). **13.3.2 area skill written (Oct 25), not yet run in Godot: expected `SUMMARY passes=791 failures=0`** (776 + 15, `docs/phase13/13.3.2-notes.md`). **13.3.3 dash skill written (Oct 25), not yet run: expected `SUMMARY passes=804 failures=0`** (791 + 13, `docs/phase13/13.3.3-notes.md`). **13.3.4 buff skill written (Oct 25), not yet run: expected `SUMMARY passes=815 failures=0`** (804 + 11, `docs/phase13/13.3.4-notes.md`). 13.3.5 channel (only if a weapon needs it) not started. **13.4 (input, HUD and the first playable skills; the old 13.4 and 13.5 are merged) is planned in 8 segments, 13.4.1 to 13.4.8 (`docs/phase13/13.4-plan.md`). 13.4.1 (skill signals and HUD read API) written (Oct 25), not yet run in Godot: expected `SUMMARY passes=825 failures=0`** (815 + 10, `docs/phase13/13.4.1-notes.md`)**; 13.4.2 (the player gets the skill components and the skill keys) written (Oct 25), not yet run: expected `SUMMARY passes=837 failures=0`** (825 + 12, `docs/phase13/13.4.2-notes.md`)**; 13.4.3 (the shipped skills on the sword and the bow) written (Oct 25), not yet run: expected `SUMMARY passes=846 failures=0`** (837 + 9, `docs/phase13/13.4.3-notes.md`)**; 13.4.4 to 13.4.8 not started.** Notes in `docs/phase13/` |
 | 14 | Passives | not started |
 | P | Presentation and data cleanup (reactions, stagger, rig paths, hurtbox, team targeting) | not started |
 | 15 | More weapons, VFX, sound, polish | not started |
@@ -31,10 +31,11 @@ This continues `docs/phase9/PLAN.md`. Same rules as Phase 9: small steps, each l
 |---|---|---|
 | Characters with no `attack_definition`: refuse attacks with an error, or keep one marked default | 10.1 | **Decided: refuse with a clear error.** `player.tscn` now sets its own definition. |
 | Hit-once rule: per effect (today) or per swing | 10.4 | **Decided: per effect** (melee and, later, per projectile) |
-| Resource for skill costs: stamina, mana, or none | 13.0 | Decide per game design; start with cooldown only |
-| Number of skill slots: fixed (3 or 4) or per weapon | 13.0 | Per weapon (costs nothing extra if skills live on `WeaponDefinition2D`) |
+| Resource for skill costs: stamina, mana, or none | 13.0 | **Decided: optional per skill, NONE or MANA** (`ManaComponent2D`), see `docs/phase13/13.0-notes.md` |
+| Number of skill slots: fixed (3 or 4) or per weapon | 13.0 | **Decided: 3 slots per weapon**, skills live on `WeaponDefinition2D` |
 | Passive counter rules: do misses count, multi-target counts once per target or per attack, can stacks overlap | 14.0 | Write them down before coding (guide 10.8) |
 | Threshold release values left on `DefaultAttackDefinition.tres` | V4 | **Decided: cleared** (inert, no check reads them) |
+| Skill keys, radial wipe approach, multi-shot fields, HUD signals | 13.4 | **Decided in `docs/phase13/13.4-plan.md`**: keys 1 to 3, a `TextureProgressBar` wipe, `projectile_count` and `spread_degrees`, new `SkillComponent2D` signals. Change them before the segment that needs them |
 
 ---
 
@@ -131,20 +132,20 @@ Build the bow only after Phase 10. Its job is to prove that a different weapon t
 
 Goal: one place calculates final damage for melee, projectiles, skills and passives. `HitData` and `HealthComponent2D.apply_hit()` stay the foundation.
 
-### 12.1. Route all damage through one function
+### 12.1. Route all damage through one function (done, see `docs/phase12/12.1-notes.md`)
 - **Do:** Add `CombatResolver2D` (a static helper or a small node) with `resolve(hit: HitData, target) -> HitData`, doing nothing yet. `apply_hit` calls it first.
 - **Tests:** results are identical to today; all damage sources (melee, projectile) pass through it.
 - **Done when:** there is a single place to extend and no behavior change.
 
-### 12.2. Defense
+### 12.2. Defense (done, see `docs/phase12/12.2-notes.md`)
 - **Do:** A `defense` value on the target (on `HealthComponent2D` or a small stats resource) and a damage-reduction formula in the resolver. Write the formula in the notes.
 - **Tests:** zero defense changes nothing; defense lowers damage; damage never drops below a minimum.
 
-### 12.3. Critical hits
+### 12.3. Critical hits (done, see `docs/phase12/12.3-notes.md`)
 - **Do:** `crit_chance` and `crit_multiplier` (on the attacker's stats or the definition). Use a seedable random source so tests are deterministic.
 - **Tests:** chance 0 never crits, chance 1 always crits, the multiplier is applied once.
 
-### 12.4. Status effect framework
+### 12.4. Status effect framework (done, see `docs/phase12/12.4-notes.md`)
 - **Do:** `StatusEffectDefinition2D` (resource: id, duration, tick interval, stack rule, tick damage or modifier) and `StatusController2D` (runtime node: apply, refresh, stack, expire, remove). Runtime state lives in the controller, never in the `.tres`.
 - **Tests:** a bleed ticks damage on schedule, expires, refreshes on reapply, stacks per its rule, and clears on death.
 - **Done when:** a definition can apply a status on hit with no new script.
@@ -153,29 +154,41 @@ Goal: one place calculates final damage for melee, projectiles, skills and passi
 
 ## Phase 13: active skills (guide phase 4)
 
-### 13.0. Decisions
+### 13.0. Decisions (done, see `docs/phase13/13.0-notes.md`)
 - Settle the slot count and cost resource from the decisions table. Write them in the notes.
 
-### 13.1. `SkillDefinition2D`
+### 13.1. `SkillDefinition2D` (done, see `docs/phase13/13.1-notes.md`)
 - **Do:** A resource with id, name, icon, slot, cooldown, cost, cast or channel time, targeting, range, area shape, animation and effect references, and a behavior type. Add the commented-out `active_skills` array on `WeaponDefinition2D` and validate it like attacks (clips, ids, duplicates).
 
-### 13.2. `SkillComponent2D` executor
+### 13.2. `SkillComponent2D` executor (done, see `docs/phase13/13.2-notes.md`)
 - **Do:** Validate (cooldown, cost, not dashing, not stunned), start the cast, run the behavior, start the cooldown. Reuse `AttackComponent2D` gating rules instead of writing new ones. Cooldowns live in the component.
 - **Tests:** cooldown blocks a second use; a failed cost refuses cleanly; an interrupt cancels a cast.
 
 ### 13.3. Reusable behaviors, one at a time
-1. Projectile skill (uses `ProjectileEffect2D`).
-2. Area skill (an area effect scene, a new `AttackEffect2D` subclass).
-3. Dash skill (reuse `DashComponent2D` for movement).
-4. Buff skill (uses the status framework from 12.4).
+1. Projectile skill (uses `ProjectileEffect2D`). **13.3.1 done, see `docs/phase13/13.3.1-notes.md`.**
+2. Area skill (an area effect scene, a new `AttackEffect2D` subclass). **13.3.2 written, awaiting your run (expected 791 / 0), see `docs/phase13/13.3.2-notes.md`.**
+3. Dash skill (reuse `DashComponent2D` for movement). **13.3.3 written, awaiting your run (expected 804 / 0), see `docs/phase13/13.3.3-notes.md`.**
+4. Buff skill (uses the status framework from 12.4). **13.3.4 written, awaiting your run (expected 815 / 0), see `docs/phase13/13.3.4-notes.md`.** It adds `damage_multiplier` to statuses and applies it in `CombatResolver2D`.
 5. Channel skill (last, only if a weapon needs it).
 - **Done when:** each behavior has one shipped skill and one test.
 
-### 13.4. Input and HUD
-- **Do:** Skill input actions per slot and HUD slots showing icon and cooldown. Keep the HUD as scenes with an `AnimationPlayer`, as the health bar is.
+### 13.4. Input, HUD and the first playable skills (planned in 8 segments; the old 13.5 is merged in)
+Why merged: a skill HUD with empty slots cannot be play-tested, so the first skills go on the sword and the bow inside this phase. The full plan, with the decisions, tests and risks, is in `docs/phase13/13.4-plan.md`. The addon `game-components-addon` (cooldown and ability systems) is used as a visual and behavior reference only; the HUD is built as scenes with an `AnimationPlayer`, as the health bar is, and `SkillComponent2D` stays the only owner of cooldowns and costs.
 
-### 13.5. First real skills
-- Sword: dash slash and a spin. Bow: multi-shot. Each is one clip, one effect scene, one `.tres` and one entry in the weapon's skill list.
+**Gate:** run the smoke test for 13.3.2 to 13.3.4 first (expected 815 / 0).
+
+| Segment | What | Playable after it |
+|---|---|---|
+| 13.4.1 | **Written, awaiting your run (expected 825 / 0), `docs/phase13/13.4.1-notes.md`.** `SkillComponent2D` signals for the HUD (`cooldown_started`, `cooldown_finished`, `skill_refused`, `skills_changed`) and `get_cooldown_duration()`, `get_cast_progress()` | no visible change |
+| 13.4.2 | **Written, awaiting your run (expected 837 / 0), `docs/phase13/13.4.2-notes.md`.** Player gets `ManaComponent2D`, `SkillComponent2D`, `StatusController2D`; input actions `skill_1` to `skill_3` (keys 1 to 3) and the `player.gd` hook | keys do nothing yet (no skills equipped) |
+| 13.4.3 | **Written, awaiting your run (expected 846 / 0), `docs/phase13/13.4.3-notes.md`.** Existing skills on the weapons: sword Lunge, Ground Slam, Empowerment; bow Power Shot, Empowerment; placeholder icons | skills work by key, no HUD |
+| 13.4.4 | `ManaBar.tscn` in the HUD | mana visible |
+| 13.4.5 | `SkillSlot.tscn`: icon, radial wipe, seconds, hotkey, cost, ready / denied / started / unaffordable clips | one slot in a test scene |
+| 13.4.6 | `SkillBar.tscn` (3 slots) in `Main.tscn`, follows weapon switches | full HUD |
+| 13.4.7 | New skills: sword spin, bow multi-shot (`projectile_count`, `spread_degrees`) and, if needed, a dash-slash variant | full first skill set |
+| 13.4.8 | README, notes, roadmap status, play-test checklist | done |
+
+- **Done when:** the sword and the bow each have three skills, the bar shows them with working cooldown wipes, the mana bar moves as you cast, and the final SUMMARY is in the README.
 
 ---
 

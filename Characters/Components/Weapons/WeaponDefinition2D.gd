@@ -26,9 +26,16 @@ class_name WeaponDefinition2D
 ## The charged or heavy attack. Optional.
 @export var heavy_attack: AttackDefinition2D
 
-# Added in later phases (guide section 10.5):
-# @export var active_skills: Array[SkillDefinition2D]
+@export_group("Skills")
+## The weapon's active skills (13.1), at most MAX_SKILL_SLOTS, each in its own slot (SkillDefinition2D.slot).
+## Optional. Equipping the weapon gives them to the character's SkillComponent2D, if it has one.
+@export var active_skills: Array[SkillDefinition2D] = []
+
+# Added in a later phase (guide section 10.5):
 # @export var passive_skills: Array[PassiveDefinition2D]
+
+## How many active skill slots a weapon has (decided in 13.0).
+const MAX_SKILL_SLOTS := 3
 
 ## The attack a character starts with when this weapon is equipped: the first non-empty entry of
 ## basic_combo. Null when the combo has none.
@@ -61,6 +68,29 @@ func get_extra_attacks() -> Array[AttackDefinition2D]:
 			continue
 		extras.append(attack)
 	return extras
+
+## The skill with this id, or null.
+func get_skill(skill_id: StringName) -> SkillDefinition2D:
+	if skill_id == &"":
+		return null
+	for skill in active_skills:
+		if skill != null and skill.id == skill_id:
+			return skill
+	return null
+
+## The skill in this 0-based slot, or null.
+func get_skill_in_slot(slot: int) -> SkillDefinition2D:
+	for skill in active_skills:
+		if skill != null and skill.slot == slot:
+			return skill
+	return null
+
+func get_skill_ids() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for skill in active_skills:
+		if skill != null:
+			ids.append(skill.id)
+	return ids
 
 ## The attack with this id, or null. An empty id finds nothing.
 func get_attack(attack_id: StringName) -> AttackDefinition2D:
@@ -113,6 +143,7 @@ func validate(animation_player: AnimationPlayer = null) -> Array[String]:
 			if entry != null and get_attack(entry.id) == null:
 				problems.append("%s: attack '%s' has combo_sequence entry '%s', which is not part of this weapon (add it to basic_combo)." % [label, attack.id, entry.id])
 	problems.append_array(_unreachable_combo_problems(label))
+	problems.append_array(_skill_problems(label))
 
 	if animation_player != null:
 		problems.append_array(_clip_problems(label, animation_player))
@@ -182,8 +213,35 @@ func _unreachable_combo_problems(label: String) -> Array[String]:
 			problems.append("%s: basic_combo entry '%s' cannot be reached from '%s' (no next_attack or combo_sequence leads to it)." % [label, entry.id, first.id])
 	return problems
 
+## Problems with the active skills: too many, empty entries, each skill's own data, duplicate ids and duplicate slots.
+func _skill_problems(label: String) -> Array[String]:
+	var problems: Array[String] = []
+	if active_skills.size() > MAX_SKILL_SLOTS:
+		problems.append("%s: has %d active skills but only %d slots." % [label, active_skills.size(), MAX_SKILL_SLOTS])
+	var seen_ids: Dictionary = {}
+	var seen_slots: Dictionary = {}
+	for i in active_skills.size():
+		var skill := active_skills[i]
+		if skill == null:
+			problems.append("%s: active_skills[%d] is empty." % [label, i])
+			continue
+		for message in skill.validate(null, MAX_SKILL_SLOTS):
+			problems.append("%s: %s" % [label, message])
+		if skill.id != &"":
+			if seen_ids.has(skill.id):
+				problems.append("%s: skill id '%s' is listed more than once (active_skills ids must be unique)." % [label, skill.id])
+			seen_ids[skill.id] = true
+		if seen_slots.has(skill.slot):
+			problems.append("%s: skills '%s' and '%s' both use slot %d." % [label, seen_slots[skill.slot], skill.id, skill.slot])
+		else:
+			seen_slots[skill.slot] = skill.id
+	return problems
+
 func _clip_problems(label: String, animation_player: AnimationPlayer) -> Array[String]:
 	var problems: Array[String] = []
+	for skill in active_skills:
+		if skill != null and skill.weapon_animation != &"" and not animation_player.has_animation(skill.weapon_animation):
+			problems.append("%s: skill '%s' needs clip '%s' (weapon_animation) on the weapon AnimationPlayer." % [label, skill.id, skill.weapon_animation])
 	for attack in get_all_attacks():
 		if not animation_player.has_animation(attack.weapon_animation):
 			problems.append("%s: attack '%s' needs clip '%s' (weapon_animation) on the weapon AnimationPlayer." % [label, attack.id, attack.weapon_animation])

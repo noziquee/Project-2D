@@ -18,6 +18,17 @@ enum ReleaseMode {
 @export_group("Damage")
 @export_range(0, 10000, 1) var damage: int = 1
 
+@export_group("Critical")
+## Chance (0 to 1) that a hit of this attack is a critical hit (12.3). 0 = never.
+@export_range(0.0, 1.0, 0.01) var crit_chance: float = 0.0
+## What a critical hit multiplies the damage by, before the target's defense is subtracted. Rounded to a whole number.
+@export_range(1.0, 10.0, 0.05) var crit_multiplier: float = 2.0
+
+@export_group("Status")
+## Statuses (bleed, burn...) this attack puts on every target it damages (12.4). They only take hold on a character
+## that has a StatusController2D; others take the damage and ignore them.
+@export var status_effects: Array[StatusEffectDefinition2D] = []
+
 @export_group("Timing")
 ## Seconds the attacker must wait AFTER a swing finishes before it can swing again.
 ## Total time between swing starts = weapon animation cycle + this value.

@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="SkillDefinition2D" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://Characters/Components/Skills/SkillDefinition2D.gd" id="1_skill"]
+[ext_resource type="Script" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="2_attack"]
+[ext_resource type="PackedScene" path="res://Characters/Components/Combat/AreaEffect2D.tscn" id="3_area"]
+[ext_resource type="PackedScene" path="res://Characters/Effects/HitEffect.tscn" id="4_hit"]
+[ext_resource type="Texture2D" path="res://UI/HUD/Icons/LungeIcon.tres" id="5_icon"]
+
+[sub_resource type="Resource" id="Resource_lunge_attack"]
+script = ExtResource("2_attack")
+id = &"lunge"
+damage = 5
+knockback = 200.0
+hit_stun = 0.15
+effect_scene = ExtResource("3_area")
+hit_effect_scene = ExtResource("4_hit")
+hitbox_size = Vector2(56, 56)
+hitbox_offset = Vector2(8, 0)
+
+[resource]
+script = ExtResource("1_skill")
+id = &"lunge"
+display_name = "Lunge"
+icon = ExtResource("5_icon")
+behavior = 2
+cooldown = 4.0
+max_range = 120.0
+dash_speed = 600.0
+attack = SubResource("Resource_lunge_attack")

@@ -15,7 +15,7 @@ A top-down 2D action RPG in Godot 4.7. The player fights goblins (and a goblin a
 
 - Open the project in Godot 4.7 and run `Main.tscn`.
 - After adding new scripts, run `godot --headless --import --path .` once so new classes are registered.
-- Smoke test: `godot --headless --fixed-fps 60 --path . --script res://tests/smoke_checks.gd`. It prints `SUMMARY passes=N failures=M`. The current baseline is `SUMMARY passes=680 failures=0` (Godot 4.7.2, Oct 24 2026); a step's notes say how many checks it adds to that.
+- Smoke test: `godot --headless --fixed-fps 60 --path . --script res://tests/smoke_checks.gd`. It prints `SUMMARY passes=N failures=M`. The current baseline is `SUMMARY passes=776 failures=0` (Godot 4.7.2, Oct 25 2026); a step's notes say how many checks it adds to that.
 
 ## How it is organised
 
@@ -23,6 +23,7 @@ A top-down 2D action RPG in Godot 4.7. The player fights goblins (and a goblin a
 - `Characters/Components/Combat/`: `AttackDefinition2D` (one resource per attack), the attack component, `AttackEffect2D` (base class of effect scenes), the slash effect, the projectile effect and arrow (11.1, 11.2) and the shipped attack `.tres` files.
 - `Characters/Components/Weapons/`: `WeaponDefinition2D` and `WeaponController2D`.
 - `Weapons/` and `Data/Weapons/`: weapon scenes (sprite plus clips) and weapon definitions.
+- `Characters/Components/Skills/` and `Characters/Components/Resources/`: `SkillDefinition2D`, `SkillComponent2D` and `ManaComponent2D` (Phase 13; skills are data on `WeaponDefinition2D.active_skills`; the projectile, area, dash and buff behaviors and the `PowerShotSkillDefinition.tres`, `GroundSlamSkillDefinition.tres`, `LungeSkillDefinition.tres` and `EmpowerSkillDefinition.tres` examples exist, input and HUD are still to come).
 - `UI/HUD/`: the health bar scenes and styles.
 - `docs/`: the combat architecture guide, the roadmap for what is not built yet (`Combat-Roadmap-Step-by-Step-Plan.md`) and the Phase 9 step notes. `IMPLEMENTATION_NOTES.md` describes every system.
 

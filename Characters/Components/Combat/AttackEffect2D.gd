@@ -33,6 +33,10 @@ var max_targets: int = 0
 var pierce: bool = true
 ## Flight speed in px/s for effects that move (11.2). 0 = the effect keeps its own default. Melee ignores it.
 var projectile_speed: float = 0.0
+## Critical hit numbers and statuses of the attack (12.3, 12.4), copied onto every HitData this effect makes.
+var crit_chance: float = 0.0
+var crit_multiplier: float = 2.0
+var status_effects: Array = []
 
 ## Targets this effect has already hit. One effect hits each target once.
 var _hit_targets: Dictionary = {}
@@ -43,7 +47,7 @@ func is_spent() -> bool:
 	return _spent
 
 ## Call before adding the effect to the tree. Every subclass takes the same arguments.
-func configure(attacker: Node2D, damage_amount: int, aim_direction: Vector2, shape_size: Vector2, origin_offset: Vector2, layers: int = -1, knockback_strength: float = 0.0, stun_seconds: float = 0.0, animation: StringName = DEFAULT_ANIMATION, max_target_count: int = 0, pierces: bool = true, flight_speed: float = 0.0) -> void:
+func configure(attacker: Node2D, damage_amount: int, aim_direction: Vector2, shape_size: Vector2, origin_offset: Vector2, layers: int = -1, knockback_strength: float = 0.0, stun_seconds: float = 0.0, animation: StringName = DEFAULT_ANIMATION, max_target_count: int = 0, pierces: bool = true, flight_speed: float = 0.0, critical_chance: float = 0.0, critical_multiplier: float = 2.0, statuses: Array = []) -> void:
 	source = attacker
 	damage = maxi(damage_amount, 0)
 	direction = aim_direction.normalized() if aim_direction.length_squared() > 0.0001 else Vector2.RIGHT
@@ -56,6 +60,9 @@ func configure(attacker: Node2D, damage_amount: int, aim_direction: Vector2, sha
 	max_targets = maxi(max_target_count, 0)
 	pierce = pierces
 	projectile_speed = maxf(flight_speed, 0.0)
+	crit_chance = clampf(critical_chance, 0.0, 1.0)
+	crit_multiplier = maxf(critical_multiplier, 1.0)
+	status_effects = statuses
 
 ## Override: true while the effect is allowed to hit (for the slash, its hit window is open).
 func _can_hit() -> bool:
@@ -90,7 +97,11 @@ func _try_hit(target: Node) -> void:
 	# Read the contact point first: the hit may kill and free the target.
 	var point := _contact_point(target)
 	if target.has_method("apply_hit"):
-		var dealt := int(target.call("apply_hit", HitData.new(damage, source, direction, knockback, hit_stun)))
+		var hit := HitData.new(damage, source, direction, knockback, hit_stun)
+		hit.crit_chance = crit_chance
+		hit.crit_multiplier = crit_multiplier
+		hit.statuses = status_effects
+		var dealt := int(target.call("apply_hit", hit))
 		if dealt > 0:
 			hit_contact.emit(target, dealt, point)
 			hit_confirmed.emit(target, dealt)

@@ -23,7 +23,7 @@
 [ext_resource type="Resource" uid="uid://bhehk7x0ebkd7" path="res://Data/Weapons/SwordWeaponDefinition.tres" id="22_sword_def"]
 [ext_resource type="Resource" uid="uid://xrvcsh4tu5qs" path="res://Characters/Components/Combat/DefaultAttackDefinition.tres" id="23_default_attack"]
 [ext_resource type="Script" uid="uid://n1fmcxqhoh6t" path="res://Characters/Components/Weapons/WeaponDefinition2D.gd" id="24_weapon_script"]
-[ext_resource type="Resource" path="res://Data/Weapons/BowWeaponDefinition.tres" id="25_bow_def"]
+[ext_resource type="Resource" uid="uid://cgumw8d30ka8x" path="res://Data/Weapons/BowWeaponDefinition.tres" id="25_bow_def"]
 
 [sub_resource type="Animation" id="Animation_n7ghd"]
 length = 0.001
@@ -523,7 +523,7 @@ shape = SubResource("CapsuleShape2D_2nri0")
 
 [node name="WeaponFacingPivot" type="Node2D" parent="." unique_id=1465069529]
 
-[node name="Sword" parent="WeaponFacingPivot" unique_id=667962075 instance=ExtResource("20_sword")]
+[node name="MainHand" parent="WeaponFacingPivot" unique_id=667962075 instance=ExtResource("20_sword")]
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=558928301]
 visible = false

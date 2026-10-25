@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="1_definition"]
 [ext_resource type="PackedScene" uid="uid://mdxa2cxspq0g" path="res://Characters/Components/Combat/AttackSlash2D.tscn" id="2_effect"]
 [ext_resource type="PackedScene" uid="uid://buuimquyuurcf" path="res://Characters/Effects/HitEffect.tscn" id="3_hit"]
+[ext_resource type="Script" uid="uid://b6wfrpt7lkfob" path="res://Characters/Components/Status/StatusEffectDefinition2D.gd" id="4_k8ux6"]
 
 [resource]
 script = ExtResource("1_definition")

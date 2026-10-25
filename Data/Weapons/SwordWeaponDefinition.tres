@@ -6,6 +6,10 @@
 [ext_resource type="Resource" uid="uid://d2pkc8vgmu0kt" path="res://Characters/Components/Combat/PlayerLight2AttackDefinition.tres" id="4_light2"]
 [ext_resource type="Resource" uid="uid://bkk8cvsetk4lk" path="res://Characters/Components/Combat/PlayerHeavyAttackDefinition.tres" id="5_heavy"]
 [ext_resource type="PackedScene" uid="uid://bfesegeunf2io" path="res://Weapons/Sword.tscn" id="6_scene"]
+[ext_resource type="Script" uid="uid://bddw52d2igqtf" path="res://Characters/Components/Skills/SkillDefinition2D.gd" id="20_skill_script"]
+[ext_resource type="Resource" path="res://Characters/Components/Skills/LungeSkillDefinition.tres" id="21_lunge"]
+[ext_resource type="Resource" path="res://Characters/Components/Skills/GroundSlamSkillDefinition.tres" id="22_slam"]
+[ext_resource type="Resource" path="res://Characters/Components/Skills/EmpowerSkillDefinition.tres" id="23_empower"]
 
 [resource]
 script = ExtResource("1_weapon")
@@ -14,3 +18,4 @@ display_name = "Sword"
 weapon_scene = ExtResource("6_scene")
 basic_combo = Array[ExtResource("2_attack_script")]([ExtResource("3_light"), ExtResource("4_light2")])
 heavy_attack = ExtResource("5_heavy")
+active_skills = Array[ExtResource("20_skill_script")]([ExtResource("21_lunge"), ExtResource("22_slam"), ExtResource("23_empower")])

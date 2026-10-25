@@ -21,8 +21,31 @@ func initialize(shared_context: CharacterContext2D) -> void:
 		push_error("DashComponent2D requires a valid CharacterContext2D.")
 
 func try_start(requested: bool, direction: Vector2 = Vector2.ZERO) -> bool:
-	if not _initialized or not requested or context.is_dashing or context.is_attacking or context.hit_stun_remaining > 0.0 or _cooldown_remaining > 0.0:
+	if not _initialized or not requested or context.is_dashing or context.is_attacking or context.is_casting or context.hit_stun_remaining > 0.0 or _cooldown_remaining > 0.0:
 		return false
+	var dash_direction := _resolve_direction(direction)
+	context.is_dashing = true
+	context.dash_velocity = dash_direction * maxf(dash_speed, 0.0)
+	_remaining_duration = maxf(dash_duration, 0.01)
+	_cooldown_remaining = maxf(dash_cooldown, 0.0)
+	dash_started.emit(dash_direction)
+	return true
+
+## Starts a dash for an active skill (13.3.3) with the skill's own speed and duration. The skill owns its cooldown, so this
+## neither checks nor starts this component's dash cooldown. It is refused (Vector2.ZERO) while dashing, attacking,
+## casting or stunned; otherwise it returns the direction the dash goes in (the given one, else the movement input, else
+## the facing, else right). Movement is still applied by MovementComponent2D through context.dash_velocity.
+func start_skill_dash(direction: Vector2, speed: float, duration: float) -> Vector2:
+	if not _initialized or context.is_dashing or context.is_attacking or context.is_casting or context.hit_stun_remaining > 0.0:
+		return Vector2.ZERO
+	var dash_direction := _resolve_direction(direction)
+	context.is_dashing = true
+	context.dash_velocity = dash_direction * maxf(speed, 0.0)
+	_remaining_duration = maxf(duration, 0.01)
+	dash_started.emit(dash_direction)
+	return dash_direction
+
+func _resolve_direction(direction: Vector2) -> Vector2:
 	var dash_direction := direction.normalized()
 	if dash_direction.length_squared() < 0.0001:
 		dash_direction = context.movement_input.normalized()
@@ -30,12 +53,7 @@ func try_start(requested: bool, direction: Vector2 = Vector2.ZERO) -> bool:
 		dash_direction = context.facing_direction.normalized()
 	if dash_direction.length_squared() < 0.0001:
 		dash_direction = Vector2.RIGHT
-	context.is_dashing = true
-	context.dash_velocity = dash_direction * maxf(dash_speed, 0.0)
-	_remaining_duration = maxf(dash_duration, 0.01)
-	_cooldown_remaining = maxf(dash_cooldown, 0.0)
-	dash_started.emit(dash_direction)
-	return true
+	return dash_direction
 
 func physics_update(delta: float) -> void:
 	if not _initialized:

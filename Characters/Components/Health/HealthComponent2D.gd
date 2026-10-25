@@ -17,6 +17,9 @@ signal died
 		if health >= 0: # already initialised (not just loaded from a scene)
 			health = mini(health, max_health)
 			health_changed.emit(health, max_health)
+## Flat damage taken off every attack that hits (12.2): damage - defense, never below 1 (CombatResolver2D).
+## 0 = none. Status ticks ignore it.
+@export_range(0, 1000, 1) var defense: int = 0
 ## After a hit that does not kill, further hits are ignored for this many seconds.
 ## 0 disables the window.
 @export_range(0.0, 5.0, 0.01) var invulnerability_duration: float = 0.0
@@ -51,8 +54,12 @@ func grant_invulnerability(seconds: float) -> void:
 
 ## Applies a hit and returns the damage actually dealt (0 when the hit was ignored:
 ## null, no damage, already dead, or invulnerable). Damage is capped at the health left.
+## A hit that can land goes through CombatResolver2D first (Phase 12); ignored hits never reach it.
 func apply_hit(hit: HitData) -> int:
 	if hit == null or hit.damage <= 0 or _dead or health <= 0 or is_invulnerable():
+		return 0
+	hit = CombatResolver2D.resolve(hit, self)
+	if hit == null or hit.damage <= 0:
 		return 0
 	var dealt := mini(hit.damage, health)
 	health -= dealt

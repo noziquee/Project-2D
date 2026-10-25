@@ -33,6 +33,11 @@ func load_main() -> Node:
 	for child in main.get_children():
 		if child is BasicEnemy2D and child.name != &"BasicEnemy2D":
 			child.free()
+	# V5: the hold time that starts a charge is a play-feel value tuned in player.tscn (0.5 s at the time of writing).
+	# The checks are timed for the 0.1 s the code defaults to, so every test arena pins it; the scene keeps its value.
+	var tuned_player := main.get_node_or_null("Player")
+	if tuned_player != null and "charge_start_time" in tuned_player:
+		tuned_player.charge_start_time = 0.1
 	return main
 
 func fresh() -> Node:
@@ -330,7 +335,7 @@ const BOW_SCENE_PATH := "res://Weapons/Bow.tscn"
 ## container and positioned after it is in the tree.
 func fire_arrow(main: Node, shooter: Node2D, origin: Vector2, def: AttackDefinition2D, dir: Vector2 = Vector2.RIGHT) -> ProjectileEffect2D:
 	var arrow := (def.effect_scene as PackedScene).instantiate() as ProjectileEffect2D
-	arrow.configure(shooter, def.damage, dir, def.hitbox_size, def.hitbox_offset, def.hit_layers, def.knockback, def.hit_stun, def.effect_animation, def.max_targets, def.pierce, def.projectile_speed)
+	arrow.configure(shooter, def.damage, dir, def.hitbox_size, def.hitbox_offset, def.hit_layers, def.knockback, def.hit_stun, def.effect_animation, def.max_targets, def.pierce, def.projectile_speed, def.crit_chance, def.crit_multiplier, def.status_effects)
 	main.get_node("Effects").add_child(arrow)
 	arrow.global_position = origin
 	return arrow
@@ -338,6 +343,77 @@ func fire_arrow(main: Node, shooter: Node2D, origin: Vector2, def: AttackDefinit
 ## A goblin and its health, as a pair of numbers, to compare before and after a shot.
 func hp_of(character: Character2D) -> int:
 	return character.health_component.health
+
+const BLEED_PATH := "res://Characters/Components/Status/BleedStatusDefinition.tres"
+
+## A status definition made in code (12.4); the shipped ones are .tres files.
+func make_status(id: StringName, duration: float, interval: float, tick_damage: int, rule: StatusEffectDefinition2D.StackRule = StatusEffectDefinition2D.StackRule.REFRESH, max_stacks: int = 1) -> StatusEffectDefinition2D:
+	var status := StatusEffectDefinition2D.new()
+	status.id = id
+	status.duration = duration
+	status.tick_interval = interval
+	status.tick_damage = tick_damage
+	status.stack_rule = rule
+	status.max_stacks = max_stacks
+	return status
+
+## A health component and a status controller on their own, for checks of the status rules (12.4).
+func status_rig(main: Node, hp: int = 50) -> Dictionary:
+	var health := HealthComponent2D.new()
+	health.max_health = hp
+	main.add_child(health)
+	var controller := StatusController2D.new()
+	main.add_child(controller)
+	controller.initialize(health)
+	return {"health": health, "ctl": controller}
+
+const POWER_SHOT_PATH := "res://Characters/Components/Skills/PowerShotSkillDefinition.tres"
+
+## Appends `node` to `into` when it is a projectile. Connected to the Effects container's child_entered_tree so a check
+## can count exactly the projectiles that were spawned, whatever has expired since (13.3.1).
+func collect_projectile(node: Node, into: Array) -> void:
+	if node is ProjectileEffect2D:
+		into.append(node)
+
+const GROUND_SLAM_PATH := "res://Characters/Components/Skills/GroundSlamSkillDefinition.tres"
+const EMPOWER_PATH := "res://Characters/Components/Skills/EmpowerSkillDefinition.tres"
+const LUNGE_PATH := "res://Characters/Components/Skills/LungeSkillDefinition.tres"
+const AREA_SCENE_PATH := "res://Characters/Components/Combat/AreaEffect2D.tscn"
+
+## Appends `node` to `into` when it is an area effect. Connected to the Effects container's child_entered_tree so a check
+## can count exactly the areas that were spawned, whatever has expired since (13.3.2).
+func collect_area(node: Node, into: Array) -> void:
+	if node is AreaEffect2D:
+		into.append(node)
+
+## A skill made in code (13.1); the shipped ones are .tres files. mana_cost > 0 makes it cost mana. Its behavior is NONE
+## (13.3.1): the checks of 13.2 are about cost, cooldown, casting and gating, so these skills must not fire anything.
+func make_skill(id: StringName, slot: int = 0, cooldown: float = 1.0, cast_time: float = 0.0, mana_cost: float = 0.0) -> SkillDefinition2D:
+	var skill := SkillDefinition2D.new()
+	skill.id = id
+	skill.slot = slot
+	skill.cooldown = cooldown
+	skill.cast_time = cast_time
+	skill.behavior = SkillDefinition2D.Behavior.NONE
+	if mana_cost > 0.0:
+		skill.cost_resource = SkillDefinition2D.CostResource.MANA
+		skill.cost_amount = mana_cost
+	return skill
+
+## Gives a character a mana pool (no regeneration, so checks are exact) and a skill component, the way the editor would (13.2).
+func skill_rig(character: Character2D, mana_value: float = 100.0) -> Dictionary:
+	var pool := ManaComponent2D.new()
+	pool.regen_per_second = 0.0
+	character.add_child(pool)
+	pool.mana = mana_value
+	var skills := SkillComponent2D.new()
+	character.add_child(skills)
+	skills.initialize(character.context, pool)
+	character.mana_component = pool
+	character.skill_component = skills
+	if is_instance_valid(character.weapon_controller):
+		character.weapon_controller.skill_component = skills # Character2D._ready does this when the node is in the scene
+	return {"mana": pool, "skills": skills}
 
 func _initialize() -> void:
 	await _run()
@@ -1475,7 +1551,7 @@ func _run() -> void:
 			u_has_mouse = true
 	check(u_has_mouse and not InputMap.has_action(&"attack"), "U1 attack_light is the left mouse button and the old 'attack' action is gone")
 	check(InputMap.has_action(&"attack_heavy") and InputMap.action_get_events(&"attack_heavy").is_empty(), "U2 attack_heavy exists with no default binding")
-	check(p.heavy_attack_id == &"" and p.get_heavy_attack_id() == &"player_heavy" and is_equal_approx(p.charge_start_time, 0.1) and p.light_attack_id == &"", "U3 default exports (changed in 9.7d-1): both id overrides empty, the heavy id comes from the equipped sword (player_heavy), charge starts after 0.1 s")
+	check(p.heavy_attack_id == &"" and p.get_heavy_attack_id() == &"player_heavy" and is_equal_approx(p.charge_start_time, 0.1) and p.light_attack_id == &"", "U3 default exports (changed in 9.7d-1): both id overrides empty, the heavy id comes from the equipped sword (player_heavy), charge starts after 0.1 s (pinned by load_main since V5)")
 	# U4: no heavy attack registered yet -> light fires on press, attack_heavy is dropped.
 	Input.action_press("attack_heavy")
 	await phys(3)
@@ -2441,7 +2517,7 @@ func _run() -> void:
 	var jj_root := jj_scene.instantiate() as Node2D
 	check(jj_root != null and jj_root.name == &"MainHand", "JJ1b the weapon root is a Node2D called MainHand (it takes over the node the player rig used to hold)")
 	var jj_sprite := jj_root.get_node_or_null("weapon") as Sprite2D
-	check(jj_sprite != null and jj_sprite.texture != null and jj_sprite.texture.resource_path.ends_with("Weapon/Sword.png") and jj_sprite.offset == Vector2(8, -8), "JJ1c the weapon sprite keeps the sword texture and its (8, -8) offset")
+	check(jj_sprite != null and jj_sprite.texture != null and jj_sprite.texture.resource_path.ends_with("Weapon/Sword.png") and jj_sprite.offset == Vector2(5, -5), "JJ1c the weapon sprite keeps the sword texture and its (5, -5) offset (was (8, -8) until it was tuned in the editor, V5)")
 	var jj_ap := jj_root.get_node_or_null("HandAnim") as AnimationPlayer
 	check(jj_ap != null, "JJ1d the weapon scene has a HandAnim AnimationPlayer")
 	check(jj_root.z_index == 1 and jj_root.position == Vector2(-4, 5) and absf(jj_root.rotation - 0.87266463) < 0.0001, "JJ1e the weapon root keeps the pose the player's MainHand had (z_index 1, position (-4, 5), rotation 0.8727)")
@@ -3696,4 +3772,1302 @@ func _run() -> void:
 	var zz_hp := hp_of(zz_a)
 	zz_a.apply_hit(HitData.new(4, p, Vector2.LEFT))
 	check(hp_of(zz_a) == zz_hp - 4, "ZZ11 the archer takes damage through apply_hit like any character")
+	await cleanup(main)
+
+	# ---------- AAA. 12.1 combat resolver ----------
+	# The resolver is a pass-through for now: every check proves a damage source reaches it and nothing changes.
+	var aaa_hit := HitData.new(3, null, Vector2.LEFT, 40.0, 0.2)
+	var aaa_out := CombatResolver2D.resolve(aaa_hit, null)
+	check(aaa_out == aaa_hit and aaa_out.damage == 3 and aaa_out.direction == Vector2.LEFT and aaa_out.knockback == 40.0 and aaa_out.hit_stun == 0.2 and aaa_out.source == null, "AAA1 resolve() returns the same hit with every field unchanged")
+	check(CombatResolver2D.resolve(null, null) == null, "AAA2 resolve() of a null hit stays null")
+
+	main = await fresh()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(0, 150)
+
+	# A health component on its own: one resolver call, the damaged signal carries the very same hit.
+	var aaa_comp := HealthComponent2D.new()
+	aaa_comp.max_health = 10
+	main.add_child(aaa_comp)
+	var aaa_seen: Array = []
+	aaa_comp.damaged.connect(func(h): aaa_seen.append(h))
+	var aaa_calls := CombatResolver2D.resolve_calls
+	var aaa_dealt := aaa_comp.apply_hit(aaa_hit)
+	check(CombatResolver2D.resolve_calls == aaa_calls + 1 and aaa_dealt == 3 and aaa_comp.health == 7 and aaa_seen.size() == 1 and aaa_seen[0] == aaa_hit, "AAA3 HealthComponent2D.apply_hit() resolves once, deals the same damage and passes the same hit to damaged")
+
+	# Character2D.apply_hit() and the take_damage() shim both end in the health component: one call each.
+	var aaa_g1 := parked_goblin(main, p.global_position + Vector2(0, -200))
+	var aaa_g2 := parked_goblin(main, p.global_position + Vector2(0, -300))
+	await phys(2)
+	aaa_calls = CombatResolver2D.resolve_calls
+	var aaa_hp := hp_of(aaa_g1)
+	aaa_g1.apply_hit(HitData.new(4, p, Vector2.DOWN))
+	check(CombatResolver2D.resolve_calls == aaa_calls + 1 and hp_of(aaa_g1) == aaa_hp - 4, "AAA4 Character2D.apply_hit() goes through the resolver exactly once")
+	aaa_calls = CombatResolver2D.resolve_calls
+	aaa_hp = hp_of(aaa_g2)
+	aaa_g2.take_damage(2)
+	check(CombatResolver2D.resolve_calls == aaa_calls + 1 and hp_of(aaa_g2) == aaa_hp - 2, "AAA5 the take_damage() shim goes through the resolver exactly once")
+
+	# Melee: the player's swing hits a goblin standing in reach.
+	var aaa_melee := parked_goblin(main, p.global_position + Vector2(28, 0))
+	await phys(2)
+	var aaa_dmg: int = p.attack_component.definition.damage
+	aaa_hp = hp_of(aaa_melee)
+	aaa_calls = CombatResolver2D.resolve_calls
+	p.attack_component.try_start(true, Vector2.RIGHT)
+	await phys(30)
+	check(CombatResolver2D.resolve_calls == aaa_calls + 1 and hp_of(aaa_melee) == aaa_hp - mini(aaa_dmg, aaa_hp), "AAA6 a melee slash goes through the resolver once and deals its definition's damage (%d)" % aaa_dmg)
+
+	# Projectile: an arrow that stops at its first target.
+	var aaa_target := parked_goblin(main, p.global_position + Vector2(-90, 0))
+	await phys(2)
+	aaa_hp = hp_of(aaa_target)
+	aaa_calls = CombatResolver2D.resolve_calls
+	fire_projectile(main, p, p.global_position + Vector2(-20, 0), Vector2.LEFT, {"damage": 3, "pierce": false})
+	await phys(40)
+	check(CombatResolver2D.resolve_calls == aaa_calls + 1 and hp_of(aaa_target) == aaa_hp - 3, "AAA7 a projectile goes through the resolver once and deals its damage")
+
+	# Hits the health component ignores never reach the resolver.
+	var aaa_inv := HealthComponent2D.new()
+	aaa_inv.max_health = 10
+	main.add_child(aaa_inv)
+	aaa_inv.grant_invulnerability(5.0)
+	aaa_calls = CombatResolver2D.resolve_calls
+	var aaa_ignored := aaa_inv.apply_hit(HitData.new(3, p))
+	check(aaa_ignored == 0 and aaa_inv.health == 10 and CombatResolver2D.resolve_calls == aaa_calls, "AAA8 a hit on an invulnerable target is ignored and never resolved")
+	aaa_comp.apply_hit(HitData.new(9999, p))
+	aaa_calls = CombatResolver2D.resolve_calls
+	check(aaa_comp.apply_hit(HitData.new(3, p)) == 0 and CombatResolver2D.resolve_calls == aaa_calls, "AAA9 a hit on a dead target is ignored and never resolved")
+	await cleanup(main)
+
+	# ---------- BBB. 12.2 defense ----------
+	main = await fresh()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(0, 150)
+	check(p.health_component.defense == 0 and e.health_component.defense == 0, "BBB1 the shipped characters have no defense")
+	var bbb_hit := HitData.new(5)
+	var bbb_comp := HealthComponent2D.new()
+	bbb_comp.max_health = 50
+	main.add_child(bbb_comp)
+	check(CombatResolver2D.resolve(bbb_hit, bbb_comp) == bbb_hit, "BBB2 with no defense the resolver returns the very same hit")
+	bbb_comp.defense = 2
+	var bbb_seen: Array = []
+	bbb_comp.damaged.connect(func(h): bbb_seen.append(h))
+	var bbb_dealt := bbb_comp.apply_hit(bbb_hit)
+	check(bbb_dealt == 3 and bbb_comp.health == 47 and bbb_seen.size() == 1 and bbb_seen[0].damage == 3 and bbb_seen[0] != bbb_hit and bbb_hit.damage == 5, "BBB3 defense 2 lowers a 5 hit to 3: the returned hit is applied and the original is left alone")
+	bbb_comp.defense = 10
+	check(bbb_comp.apply_hit(HitData.new(3)) == 1 and bbb_comp.health == 46, "BBB4 damage never drops below the minimum of 1, however high the defense")
+	bbb_comp.defense = 3
+	check(bbb_comp.apply_hit(HitData.new(3)) == 1 and bbb_comp.apply_hit(HitData.new(4)) == 1 and bbb_comp.apply_hit(HitData.new(6)) == 3, "BBB5 defense equal to the damage still deals 1; 4 gives 1 and 6 gives 3 with defense 3")
+	var bbb_before := bbb_comp.health
+	check(bbb_comp.apply_hit(HitData.new(0)) == 0 and bbb_comp.health == bbb_before, "BBB6 a hit with no damage is still ignored (defense never makes it hurt)")
+	var bbb_melee := parked_goblin(main, p.global_position + Vector2(28, 0))
+	bbb_melee.health_component.defense = 2
+	var bbb_target := parked_goblin(main, p.global_position + Vector2(-90, 0))
+	bbb_target.health_component.defense = 2
+	await phys(2)
+	var bbb_dmg: int = p.attack_component.definition.damage
+	var bbb_hp := hp_of(bbb_melee)
+	p.attack_component.try_start(true, Vector2.RIGHT)
+	await phys(30)
+	check(hp_of(bbb_melee) == bbb_hp - (bbb_dmg - 2), "BBB7 a melee slash of %d on a target with defense 2 deals %d" % [bbb_dmg, bbb_dmg - 2])
+	bbb_hp = hp_of(bbb_target)
+	fire_projectile(main, p, p.global_position + Vector2(-20, 0), Vector2.LEFT, {"damage": 3, "pierce": false})
+	await phys(40)
+	check(hp_of(bbb_target) == bbb_hp - 1, "BBB8 a projectile of 3 on a target with defense 2 deals 1")
+	await cleanup(main)
+
+	# ---------- CCC. 12.3 critical hits ----------
+	main = await fresh()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(0, 150)
+	var ccc_comp := HealthComponent2D.new()
+	ccc_comp.max_health = 500
+	main.add_child(ccc_comp)
+	var ccc_hit := HitData.new(3)
+	var ccc_never := true
+	for ccc_i in 100:
+		var ccc_r := CombatResolver2D.resolve(ccc_hit, ccc_comp)
+		ccc_never = ccc_never and ccc_r == ccc_hit and not ccc_r.is_crit and ccc_r.damage == 3
+	check(ccc_never, "CCC1 chance 0 never crits (100 hits: same hit back, damage 3)")
+	ccc_hit.crit_chance = 1.0
+	var ccc_always := true
+	for ccc_i in 20:
+		var ccc_r2 := CombatResolver2D.resolve(ccc_hit, ccc_comp)
+		ccc_always = ccc_always and ccc_r2.is_crit and ccc_r2.damage == 6
+	check(ccc_always and ccc_hit.damage == 3 and not ccc_hit.is_crit, "CCC2 chance 1 always crits for damage x multiplier (3 x 2 = 6) and leaves the original hit alone")
+	var ccc_dealt := ccc_comp.apply_hit(ccc_hit)
+	check(ccc_dealt == 6 and ccc_comp.health == 494, "CCC3 the multiplier is applied once through apply_hit (dealt %d)" % ccc_dealt)
+	var ccc_half := HitData.new(4)
+	ccc_half.crit_chance = 1.0
+	ccc_half.crit_multiplier = 1.5
+	var ccc_low := HitData.new(3)
+	ccc_low.crit_chance = 1.0
+	ccc_low.crit_multiplier = 0.5
+	var ccc_low_r := CombatResolver2D.resolve(ccc_low, ccc_comp)
+	check(CombatResolver2D.resolve(ccc_half, ccc_comp).damage == 6 and ccc_low_r.damage == 3 and ccc_low_r.is_crit, "CCC4 the result is a whole number (4 x 1.5 = 6) and a multiplier below 1 never lowers damage")
+	var ccc_roll_hit := HitData.new(1)
+	ccc_roll_hit.crit_chance = 0.5
+	CombatResolver2D.seed_rng(1234)
+	var ccc_run_a: Array = []
+	for ccc_i in 40:
+		ccc_run_a.append(CombatResolver2D.resolve(ccc_roll_hit, ccc_comp).is_crit)
+	CombatResolver2D.seed_rng(1234)
+	var ccc_run_b: Array = []
+	for ccc_i in 40:
+		ccc_run_b.append(CombatResolver2D.resolve(ccc_roll_hit, ccc_comp).is_crit)
+	var ccc_crits := ccc_run_a.count(true)
+	check(ccc_run_a == ccc_run_b and ccc_crits > 5 and ccc_crits < 35, "CCC5 a seeded generator repeats its rolls, and chance 0.5 gives a mix (%d crits in 40)" % ccc_crits)
+	ccc_comp.defense = 3
+	var ccc_both := HitData.new(5)
+	ccc_both.crit_chance = 1.0
+	check(CombatResolver2D.resolve(ccc_both, ccc_comp).damage == 7, "CCC6 the crit comes first, then defense (5 x 2 - 3 = 7)")
+	ccc_comp.defense = 0
+	var ccc_melee := parked_goblin(main, p.global_position + Vector2(28, 0))
+	var ccc_shot := parked_goblin(main, p.global_position + Vector2(-90, 0))
+	await phys(2)
+	var ccc_def := p.attack_component.definition.duplicate() as AttackDefinition2D
+	ccc_def.crit_chance = 1.0
+	p.attack_definition = ccc_def
+	var ccc_hp := hp_of(ccc_melee)
+	p.attack_component.try_start(true, Vector2.RIGHT)
+	await phys(30)
+	check(p.attack_component.definition == ccc_def and hp_of(ccc_melee) == ccc_hp - mini(ccc_def.damage * 2, ccc_hp), "CCC7 a melee attack whose definition has crit_chance 1 deals double damage (%d)" % (ccc_def.damage * 2))
+	var ccc_arrow_def := (load(ARROW_LIGHT_PATH) as AttackDefinition2D).duplicate() as AttackDefinition2D
+	ccc_arrow_def.crit_chance = 1.0
+	ccc_hp = hp_of(ccc_shot)
+	fire_arrow(main, p, p.global_position + Vector2(-20, 0), ccc_arrow_def, Vector2.LEFT)
+	await phys(40)
+	check(hp_of(ccc_shot) == ccc_hp - ccc_arrow_def.damage * 2, "CCC8 an arrow attack whose definition has crit_chance 1 deals double damage (%d)" % (ccc_arrow_def.damage * 2))
+	check((load(ARROW_LIGHT_PATH) as AttackDefinition2D).crit_chance == 0.0 and (load(ARROW_HEAVY_PATH) as AttackDefinition2D).crit_chance == 0.0 and (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).heavy_attack.crit_chance == 0.0 and e.attack_component.definition.crit_chance == 0.0, "CCC9 the shipped attacks have no crit chance")
+	await cleanup(main)
+
+	# ---------- DDD. 12.4 status effects ----------
+	main = await fresh()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(0, 150)
+	var ddd_bleed := make_status(&"bleed", 1.0, 0.5, 2)
+	var ddd := status_rig(main)
+	var ddd_h: HealthComponent2D = ddd["health"]
+	var ddd_c: StatusController2D = ddd["ctl"]
+	check(ddd_c.apply_status(ddd_bleed) and ddd_c.has_status(&"bleed") and ddd_c.get_stacks(&"bleed") == 1 and ddd_h.health == 50, "DDD1 a status can be applied and starts without an immediate tick")
+	await phys(15)
+	check(ddd_h.health == 50 and ddd_c.has_status(&"bleed"), "DDD2 nothing ticks before the first interval (0.25 s)")
+	await phys(18)
+	check(ddd_h.health == 48, "DDD3 the first tick of 2 lands at 0.5 s (health %d)" % ddd_h.health)
+	await phys(33)
+	check(ddd_h.health == 46 and not ddd_c.has_status(&"bleed") and not ddd_c.is_physics_processing(), "DDD4 a 1 s status with 0.5 s ticks ticks twice, then expires and the controller stops processing (health %d)" % ddd_h.health)
+
+	# REFRESH: applying again restarts the time, the stack count stays 1.
+	ddd = status_rig(main)
+	ddd_h = ddd["health"]
+	ddd_c = ddd["ctl"]
+	ddd_c.apply_status(ddd_bleed)
+	await phys(45)
+	check(ddd_c.apply_status(ddd_bleed) and ddd_c.get_remaining(&"bleed") > 0.9 and ddd_c.get_stacks(&"bleed") == 1, "DDD5 the REFRESH rule restarts the time and keeps one stack")
+	await phys(45)
+	var ddd_still := ddd_c.has_status(&"bleed")
+	await phys(30)
+	check(ddd_still and not ddd_c.has_status(&"bleed") and ddd_h.health <= 44, "DDD6 a refreshed status outlives its original end, then expires (health %d)" % ddd_h.health)
+
+	# STACK: up to max_stacks, each tick does tick_damage x stacks.
+	ddd = status_rig(main)
+	ddd_h = ddd["health"]
+	ddd_c = ddd["ctl"]
+	var ddd_stack := make_status(&"burn", 5.0, 1.0, 1, StatusEffectDefinition2D.StackRule.STACK, 2)
+	ddd_c.apply_status(ddd_stack)
+	ddd_c.apply_status(ddd_stack)
+	ddd_c.apply_status(ddd_stack)
+	check(ddd_c.get_stacks(&"burn") == 2, "DDD7 the STACK rule stops at max_stacks (2 after three applications)")
+	await phys(62)
+	check(ddd_h.health == 48, "DDD8 a tick does tick_damage x stacks (1 x 2, health %d)" % ddd_h.health)
+
+	# IGNORE: the running status is left alone.
+	ddd = status_rig(main)
+	ddd_c = ddd["ctl"]
+	var ddd_ignore := make_status(&"mark", 2.0, 0.0, 0, StatusEffectDefinition2D.StackRule.IGNORE)
+	var ddd_first := ddd_c.apply_status(ddd_ignore)
+	await phys(30)
+	check(ddd_first and not ddd_c.apply_status(ddd_ignore) and ddd_c.get_remaining(&"mark") < 1.6, "DDD9 the IGNORE rule refuses a second application and keeps the time running")
+
+	# Death clears the statuses and the ticks stop.
+	ddd = status_rig(main, 3)
+	ddd_h = ddd["health"]
+	ddd_c = ddd["ctl"]
+	var ddd_ended: Array = []
+	ddd_c.status_ended.connect(func(id): ddd_ended.append(id))
+	ddd_c.apply_status(make_status(&"bleed", 5.0, 0.5, 2))
+	await phys(70)
+	check(not ddd_h.is_alive() and not ddd_c.has_status(&"bleed") and ddd_ended == [&"bleed"] and not ddd_c.is_physics_processing(), "DDD10 a status that kills the target is cleared by the death, once")
+	await phys(40)
+	check(ddd_h.health == 0 and not ddd_c.apply_status(ddd_bleed), "DDD11 a dead target takes no further ticks and takes no new status")
+
+	# Periodic hits skip crit and defense; they cause no knockback or stun.
+	ddd = status_rig(main)
+	ddd_h = ddd["health"]
+	ddd_c = ddd["ctl"]
+	ddd_h.defense = 5
+	ddd_c.apply_status(ddd_bleed)
+	await phys(33)
+	var ddd_tick := HitData.new(2)
+	ddd_tick.is_periodic = true
+	ddd_tick.crit_chance = 1.0
+	check(ddd_h.health == 48 and CombatResolver2D.resolve(ddd_tick, ddd_h) == ddd_tick, "DDD12 a tick ignores defense and crit (defense 5, tick 2, health %d)" % ddd_h.health)
+	var ddd_g1 := parked_goblin(main, p.global_position + Vector2(0, -200))
+	var ddd_g2 := parked_goblin(main, p.global_position + Vector2(0, -300))
+	await phys(2)
+	var ddd_push := HitData.new(1, null, Vector2.RIGHT, 500.0, 1.0)
+	ddd_push.is_periodic = true
+	ddd_g1.apply_hit(ddd_push)
+	ddd_g2.apply_hit(HitData.new(1, null, Vector2.RIGHT, 500.0, 1.0))
+	check(not ddd_g1.is_stunned() and ddd_g1.context.knockback_velocity == Vector2.ZERO and ddd_g2.is_stunned() and ddd_g2.context.knockback_velocity != Vector2.ZERO, "DDD13 a periodic hit causes no knockback or hit stun, an ordinary hit with the same numbers does")
+
+	# A definition applies a status on hit with no new script. The character has a StatusController2D child.
+	var ddd_bleed_def := load(BLEED_PATH) as StatusEffectDefinition2D
+	check(ddd_bleed_def != null and ddd_bleed_def.id == &"bleed" and ddd_bleed_def.stack_rule == StatusEffectDefinition2D.StackRule.STACK and ddd_bleed_def.max_stacks == 3 and ddd_bleed_def.tick_damage == 1, "DDD14 the shipped BleedStatusDefinition.tres loads: id bleed, stacks up to 3, 1 damage a second")
+	check(p.status_controller != null and p.status_controller.get_active_ids().is_empty() and e.status_controller == null, "DDD15 the shipped player has a StatusController2D with nothing running (added in 13.4.2); the goblin has none")
+	var ddd_target := (load("res://Characters/Enemies/BasicEnemy2D.tscn") as PackedScene).instantiate() as Character2D
+	var ddd_ctl := StatusController2D.new()
+	ddd_ctl.name = "StatusController2D"
+	ddd_target.add_child(ddd_ctl)
+	main.add_child(ddd_target)
+	ddd_target.global_position = p.global_position + Vector2(-90, 0)
+	ddd_target.set_physics_process(false)
+	await phys(2)
+	check(ddd_target.status_controller == ddd_ctl, "DDD16 Character2D finds a child named StatusController2D and initializes it")
+	var ddd_def := (load(ARROW_LIGHT_PATH) as AttackDefinition2D).duplicate() as AttackDefinition2D
+	var ddd_list: Array[StatusEffectDefinition2D] = [ddd_bleed_def]
+	ddd_def.status_effects = ddd_list
+	var ddd_hp := hp_of(ddd_target)
+	fire_arrow(main, p, p.global_position + Vector2(-20, 0), ddd_def, Vector2.LEFT)
+	await phys(40)
+	var ddd_after_hit := hp_of(ddd_target)
+	check(ddd_after_hit == ddd_hp - ddd_def.damage and ddd_ctl.has_status(&"bleed"), "DDD17 an arrow whose definition lists bleed damages the target and starts the status")
+	await phys(130)
+	check(hp_of(ddd_target) <= ddd_after_hit - 2, "DDD18 the bleed ticks on the target after the hit (health %d -> %d)" % [ddd_after_hit, hp_of(ddd_target)])
+
+	# A hit that deals no damage applies no status; a character with no controller just takes the damage.
+	var ddd_inv := status_rig(main)
+	var ddd_inv_h: HealthComponent2D = ddd_inv["health"]
+	var ddd_inv_c: StatusController2D = ddd_inv["ctl"]
+	ddd_inv_h.grant_invulnerability(5.0)
+	var ddd_carry := HitData.new(3)
+	ddd_carry.statuses = [ddd_bleed_def]
+	check(ddd_inv_h.apply_hit(ddd_carry) == 0 and not ddd_inv_c.has_status(&"bleed"), "DDD19 a hit that is ignored applies no status")
+	var ddd_plain := parked_goblin(main, p.global_position + Vector2(0, -400))
+	await phys(2)
+	var ddd_plain_hp := hp_of(ddd_plain)
+	check(ddd_plain.status_controller == null and ddd_plain.apply_hit(ddd_carry) == 3 and hp_of(ddd_plain) == ddd_plain_hp - 3, "DDD20 a character with no StatusController2D takes the damage and ignores the status")
+	await cleanup(main)
+
+	# ---------- EEE. 13.1 / 13.2 active skills ----------
+	main = await fresh()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(0, 300)
+	var eee_sword := load(SWORD_WEAPON_PATH) as WeaponDefinition2D
+	var eee_bow := load("res://Data/Weapons/BowWeaponDefinition.tres") as WeaponDefinition2D
+	check(p.skill_component != null and p.mana_component != null and e.skill_component == null and e.mana_component == null and p.skill_component.get_skills().size() == 3 and WeaponDefinition2D.MAX_SKILL_SLOTS == 3 and eee_sword.active_skills.size() == 3 and eee_bow.active_skills.size() == 2 and eee_sword.validate().is_empty() and eee_bow.validate().is_empty(), "EEE1 the shipped player has the skill components and, since 13.4.3, the sword's three skills; the sword has 3 skills and the bow 2, both still validate, the goblin has neither component, 3 slots per weapon")
+
+	# SkillDefinition2D.validate()
+	var eee_fire := make_skill(&"fireball", 0, 0.5, 0.0, 25.0)
+	check(eee_fire.validate().is_empty() and eee_fire.validate(p.context.weapon_animation_player).is_empty(), "EEE2 a valid skill has no problems")
+	var eee_bad := make_skill(&"", 3, 1.0)
+	eee_bad.cost_amount = 5.0
+	eee_bad.channel_time = 1.0
+	eee_bad.weapon_animation = &"no_such_clip"
+	var eee_msgs := eee_bad.validate(p.context.weapon_animation_player)
+	check(has_problem(eee_msgs, "id is empty") and has_problem(eee_msgs, "slot 3") and has_problem(eee_msgs, "cost_resource is NONE") and has_problem(eee_msgs, "channel_time") and has_problem(eee_msgs, "needs clip 'no_such_clip'"), "EEE3 an empty id, a slot outside the weapon, an amount with no resource, a channel time and a missing clip are each reported (%d messages)" % eee_msgs.size())
+	var eee_free := make_skill(&"free_cost", 0)
+	eee_free.cost_resource = SkillDefinition2D.CostResource.MANA
+	check(has_problem(eee_free.validate(), "cost_amount is 0"), "EEE4 a mana skill with no amount is reported")
+
+	# WeaponDefinition2D.active_skills
+	var eee_w := eee_sword.duplicate() as WeaponDefinition2D
+	eee_w.weapon_id = &"sword_skilled"
+	var eee_three: Array[SkillDefinition2D] = [make_skill(&"a", 0), make_skill(&"b", 1), make_skill(&"c", 2)]
+	eee_w.active_skills = eee_three
+	check(eee_w.validate().is_empty() and eee_w.get_skill(&"b").slot == 1 and eee_w.get_skill_in_slot(2).id == &"c" and eee_w.get_skill_in_slot(0).id == &"a" and eee_w.get_skill(&"zz") == null and ids_equal(eee_w.get_skill_ids(), [&"a", &"b", &"c"]), "EEE5 a weapon with three skills validates and finds them by id and by slot")
+	var eee_w2 := eee_sword.duplicate() as WeaponDefinition2D
+	var eee_four: Array[SkillDefinition2D] = [make_skill(&"a", 0), make_skill(&"b", 1), make_skill(&"c", 2), make_skill(&"d", 2)]
+	eee_w2.active_skills = eee_four
+	check(has_problem(eee_w2.validate(), "only 3 slots") and has_problem(eee_w2.validate(), "both use slot 2"), "EEE6 more skills than slots and two skills in one slot are reported")
+	var eee_dup: Array[SkillDefinition2D] = [make_skill(&"a", 0), make_skill(&"a", 1), null]
+	eee_w2.active_skills = eee_dup
+	check(has_problem(eee_w2.validate(), "listed more than once") and has_problem(eee_w2.validate(), "active_skills[2] is empty"), "EEE7 a duplicate skill id and an empty entry are reported")
+	var eee_clip := make_skill(&"cliped", 0)
+	eee_clip.weapon_animation = &"no_such_clip"
+	var eee_clip_list: Array[SkillDefinition2D] = [eee_clip]
+	eee_w2.active_skills = eee_clip_list
+	check(has_problem(eee_w2.validate(p.context.weapon_animation_player), "needs clip 'no_such_clip'") and not p.weapon_controller.can_equip(eee_w2), "EEE8 a skill whose clip is missing is reported by the weapon and refuses the equip")
+
+	# ManaComponent2D
+	var eee_pool := ManaComponent2D.new()
+	eee_pool.regen_per_second = 10.0
+	main.add_child(eee_pool)
+	check(is_equal_approx(eee_pool.mana, 100.0) and eee_pool.spend(30.0) and is_equal_approx(eee_pool.mana, 70.0) and not eee_pool.spend(80.0) and is_equal_approx(eee_pool.mana, 70.0) and is_equal_approx(eee_pool.restore(50.0), 30.0) and is_equal_approx(eee_pool.mana, 100.0), "EEE9 mana starts full, spending needs enough, a refused spend changes nothing, restore stops at the maximum")
+	eee_pool.spend(50.0)
+	await phys(30)
+	check(eee_pool.mana > 52.0 and eee_pool.mana < 56.0, "EEE10 mana regenerates by itself (50 -> %.1f after 0.5 s at 10 a second)" % eee_pool.mana)
+
+	# SkillComponent2D: set_skills
+	var eee_rig := skill_rig(p, 100.0)
+	var eee_mana: ManaComponent2D = eee_rig["mana"]
+	var eee_sk: SkillComponent2D = eee_rig["skills"]
+	var eee_heal := make_skill(&"heal", 1, 1.0, 0.5, 40.0)
+	var eee_accepted := eee_sk.set_skills([eee_fire, eee_heal, make_skill(&"fireball", 2), make_skill(&"other", 0), make_skill(&"", 2), null])
+	check(eee_accepted == 2 and eee_sk.has_skill(&"fireball") and eee_sk.has_skill(&"heal") and not eee_sk.has_skill(&"other") and eee_sk.get_skill_in_slot(1) == eee_heal and eee_sk.get_skill_in_slot(2) == null, "EEE11 set_skills keeps the valid skills and skips a duplicate id, a taken slot, an invalid skill and an empty entry")
+	var eee_done: Array = []
+	var eee_started: Array = []
+	var eee_cancelled: Array = []
+	eee_sk.skill_executed.connect(func(skill: SkillDefinition2D, _dir: Vector2) -> void: eee_done.append(skill.id))
+	eee_sk.skill_started.connect(func(skill: SkillDefinition2D) -> void: eee_started.append(skill.id))
+	eee_sk.skill_cancelled.connect(func(skill: SkillDefinition2D) -> void: eee_cancelled.append(skill.id))
+
+	# Instant skill, cooldown, cost.
+	check(eee_sk.can_use(&"fireball") == "" and eee_sk.try_use_skill(&"fireball", Vector2.RIGHT) and ids_equal(eee_done, [&"fireball"]) and ids_equal(eee_started, [&"fireball"]) and is_equal_approx(eee_mana.mana, 75.0) and eee_sk.get_cooldown_remaining(&"fireball") > 0.4 and not p.context.is_casting and not eee_sk.is_casting(), "EEE12 an instant skill pays its cost, starts its cooldown and executes at once")
+	check(not eee_sk.try_use_skill(&"fireball") and eee_done.size() == 1 and is_equal_approx(eee_mana.mana, 75.0) and has_problem([eee_sk.can_use(&"fireball")], "on cooldown"), "EEE13 a skill on cooldown refuses a second use and spends nothing")
+	await phys(33)
+	check(eee_sk.is_ready(&"fireball") and eee_sk.try_use_skill(&"fireball") and eee_done.size() == 2 and is_equal_approx(eee_mana.mana, 50.0), "EEE14 the skill works again when the cooldown is over")
+	await phys(33)
+
+	# Not enough mana.
+	eee_mana.mana = 10.0
+	check(has_problem([eee_sk.can_use(&"fireball")], "not enough mana") and not eee_sk.try_use_skill(&"fireball") and is_equal_approx(eee_mana.mana, 10.0) and eee_sk.get_cooldown_remaining(&"fireball") == 0.0 and eee_done.size() == 2, "EEE15 a skill that cannot be paid fails cleanly: no mana spent, no cooldown, no execution")
+	var eee_nopool := SkillComponent2D.new()
+	main.add_child(eee_nopool)
+	eee_nopool.initialize(p.context, null)
+	eee_nopool.set_skills([eee_fire, make_skill(&"free", 1, 0.1)])
+	check(has_problem([eee_nopool.can_use(&"fireball")], "no mana pool") and not eee_nopool.try_use_skill(&"fireball") and eee_nopool.get_cooldown_remaining(&"fireball") == 0.0 and eee_nopool.try_use_skill(&"free"), "EEE16 a character with no mana pool refuses mana skills and still uses free ones")
+	eee_mana.mana = 100.0
+	await phys(10)
+
+	# Combat state gates.
+	var eee_blocked := true
+	p.context.is_dashing = true
+	eee_blocked = eee_blocked and not eee_sk.try_use_skill(&"fireball") and has_problem([eee_sk.can_use(&"fireball")], "dashing")
+	p.context.is_dashing = false
+	p.context.is_attacking = true
+	eee_blocked = eee_blocked and not eee_sk.try_use_skill(&"fireball") and has_problem([eee_sk.can_use(&"fireball")], "attacking")
+	p.context.is_attacking = false
+	p.context.hit_stun_remaining = 1.0
+	eee_blocked = eee_blocked and not eee_sk.try_use_skill(&"fireball") and has_problem([eee_sk.can_use(&"fireball")], "stunned")
+	p.context.hit_stun_remaining = 0.0
+	check(eee_blocked and is_equal_approx(eee_mana.mana, 100.0) and eee_sk.get_cooldown_remaining(&"fireball") == 0.0, "EEE17 dashing, attacking and stunned each prevent a skill and cost nothing")
+	check(not eee_sk.try_use_skill(&"no_such_skill") and not eee_sk.try_use_slot(2) and eee_sk.try_use_slot(0) and eee_done.size() == 3, "EEE18 an unknown id and an empty slot are refused; a slot number starts the skill in it")
+	await phys(33)
+
+	# A skill with a cast time.
+	var eee_heal_hp_before: float = eee_mana.mana
+	check(eee_sk.try_use_skill(&"heal") and eee_sk.is_casting() and p.context.is_casting and eee_sk.get_casting_skill() == eee_heal and is_equal_approx(eee_mana.mana, eee_heal_hp_before - 40.0) and eee_sk.get_cooldown_remaining(&"heal") > 0.9 and eee_done.size() == 3, "EEE19 a cast skill pays and starts its cooldown when the cast starts, and has not executed yet")
+	await phys(10)
+	var eee_light_id: StringName = p.get_default_attack_id()
+	check(not p.attack_component.try_start_attack(eee_light_id, Vector2.RIGHT) and not p.attack_component.begin_charge(eee_light_id, Vector2.RIGHT) and not p.dash_component.try_start(true, Vector2.RIGHT) and has_problem([eee_sk.can_use(&"fireball")], "already casting") and not eee_sk.try_use_skill(&"fireball") and not p.weapon_controller.can_equip(eee_sword), "EEE20 while casting, no attack, charge, dash, second skill or weapon switch can start")
+	await phys(25)
+	check(not eee_sk.is_casting() and not p.context.is_casting and eee_done.size() == 4 and eee_done[3] == &"heal" and eee_cancelled.is_empty(), "EEE21 the cast ends after its cast time and the skill executes once")
+	check(p.attack_component.try_start_attack(eee_light_id, Vector2.RIGHT), "EEE22 attacking works again after the cast")
+	await phys(60)
+
+	# Interruption: cancelled cast gives the cost back and clears the cooldown.
+	eee_mana.mana = 100.0
+	eee_sk.try_use_skill(&"heal")
+	await phys(10)
+	var eee_hit_dealt: int = p.apply_hit(HitData.new(1, null, Vector2.RIGHT))
+	check(eee_hit_dealt == 1 and not eee_sk.is_casting() and not p.context.is_casting and ids_equal(eee_cancelled, [&"heal"]) and is_equal_approx(eee_mana.mana, 100.0) and eee_sk.get_cooldown_remaining(&"heal") == 0.0, "EEE23 a damaging hit cancels an interruptible cast: the whole cost is back and the cooldown is cleared")
+	var eee_before_done := eee_done.size()
+	await phys(40)
+	check(eee_done.size() == eee_before_done and eee_sk.try_use_skill(&"heal"), "EEE24 a cancelled cast never executes, and the skill can be started again at once")
+	await phys(5)
+	var eee_periodic := HitData.new(1)
+	eee_periodic.is_periodic = true
+	p.apply_hit(eee_periodic)
+	check(eee_sk.is_casting() and eee_cancelled.size() == 1, "EEE25 a periodic hit (a status tick) does not interrupt a cast")
+	await phys(30)
+	check(eee_done.size() == eee_before_done + 1 and eee_done[eee_done.size() - 1] == &"heal", "EEE26 the cast that was left alone executes")
+
+	# A skill that is not interruptible.
+	await phys(1)
+	eee_mana.mana = 100.0
+	var eee_stubborn := make_skill(&"stubborn", 2, 0.5, 0.3, 10.0)
+	eee_stubborn.interruptible = false
+	eee_sk.set_skills([eee_fire, eee_heal, eee_stubborn])
+	eee_sk.try_use_skill(&"stubborn")
+	p.apply_hit(HitData.new(1, null, Vector2.RIGHT))
+	check(eee_sk.is_casting() and not eee_sk.interrupt(), "EEE27 a skill with interruptible off keeps casting through a hit")
+	await phys(25)
+	check(not eee_sk.is_casting() and eee_done[eee_done.size() - 1] == &"stubborn", "EEE28 and executes")
+
+	# Weapons give skills, and cooldowns survive a weapon switch.
+	eee_sk.set_skills([])
+	await phys(40)
+	check(p.weapon_controller.equip(eee_w) and eee_sk.has_skill(&"a") and eee_sk.has_skill(&"c") and eee_sk.get_skill_in_slot(1).id == &"b", "EEE29 equipping a weapon gives its active skills to the skill component")
+	eee_sk.try_use_skill(&"b")
+	check(p.weapon_controller.equip(eee_sword) and not eee_sk.has_skill(&"b") and eee_sk.get_cooldown_remaining(&"b") > 0.9, "EEE30 switching weapons swaps the skills, and a running cooldown keeps running")
+	check(p.weapon_controller.equip(eee_w) and not eee_sk.is_ready(&"b"), "EEE31 switching back does not reset the cooldown")
+	await cleanup(main)
+
+	# Death cancels a cast.
+	main = await fresh()
+	p = main.get_node("Player")
+	var eee_g := parked_goblin(main, p.global_position + Vector2(0, -250))
+	await phys(2)
+	var eee_g_rig := skill_rig(eee_g, 100.0)
+	var eee_g_sk: SkillComponent2D = eee_g_rig["skills"]
+	var eee_g_mana: ManaComponent2D = eee_g_rig["mana"]
+	eee_g_sk.set_skills([make_skill(&"slow", 0, 5.0, 1.0, 30.0)])
+	eee_g_sk.try_use_skill(&"slow")
+	check(eee_g_sk.is_casting() and eee_g.context.is_casting, "EEE32 a goblin can be given a skill component and starts a cast")
+	eee_g.apply_hit(HitData.new(1000))
+	check(not eee_g_sk.is_casting() and not eee_g.context.is_casting and is_equal_approx(eee_g_mana.mana, 100.0) and eee_g_sk.get_cooldown_remaining(&"slow") == 0.0, "EEE33 death cancels the cast and gives the cost back")
+	# Character2D finds the nodes by name, like the status controller.
+	var eee_named := (load("res://Characters/Enemies/BasicEnemy2D.tscn") as PackedScene).instantiate() as Character2D
+	var eee_named_mana := ManaComponent2D.new()
+	eee_named_mana.name = "ManaComponent2D"
+	var eee_named_skills := SkillComponent2D.new()
+	eee_named_skills.name = "SkillComponent2D"
+	eee_named.add_child(eee_named_mana)
+	eee_named.add_child(eee_named_skills)
+	main.add_child(eee_named)
+	eee_named.set_physics_process(false)
+	await phys(2)
+	eee_named_skills.set_skills([make_skill(&"nova", 0, 1.0, 0.0, 20.0)])
+	check(eee_named.mana_component == eee_named_mana and eee_named.skill_component == eee_named_skills and eee_named_skills.is_initialized() and eee_named_skills.try_use_skill(&"nova") and is_equal_approx(eee_named_mana.mana, 80.0), "EEE34 Character2D finds child nodes named ManaComponent2D and SkillComponent2D and initializes them")
+	await cleanup(main)
+
+	# ---------- EEE (13.3.1). Projectile skill ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(150, 0)
+	await phys(2)
+	var eee3_spawned: Array = []
+	main.get_node("Effects").child_entered_tree.connect(collect_projectile.bind(eee3_spawned))
+	var eee3_power := load(POWER_SHOT_PATH) as SkillDefinition2D
+	var eee3_attack: AttackDefinition2D = eee3_power.attack if eee3_power != null else null
+	check(eee3_power != null and eee3_attack != null and eee3_power.id == &"power_shot" and eee3_power.behavior == SkillDefinition2D.Behavior.PROJECTILE and eee3_power.cost_resource == SkillDefinition2D.CostResource.MANA and is_equal_approx(eee3_power.cost_amount, 20.0) and eee3_power.validate().is_empty() and eee3_power.validate(p.context.weapon_animation_player).is_empty() and eee3_attack.effect_scene.resource_path == ARROW_SCENE_PATH, "EEE35 the shipped Power Shot skill loads: a mana projectile skill that uses Arrow.tscn and has no validation problems")
+
+	# validate(): what a projectile skill needs.
+	var eee3_no_attack := make_skill(&"no_attack")
+	eee3_no_attack.behavior = SkillDefinition2D.Behavior.PROJECTILE
+	var eee3_no_scene := eee3_power.duplicate() as SkillDefinition2D
+	eee3_no_scene.attack = AttackDefinition2D.new()
+	var eee3_melee_attack := eee3_attack.duplicate() as AttackDefinition2D
+	eee3_melee_attack.effect_scene = load("res://Characters/Components/Combat/AttackSlash2D.tscn")
+	var eee3_melee := eee3_power.duplicate() as SkillDefinition2D
+	eee3_melee.attack = eee3_melee_attack
+	var eee3_self := eee3_power.duplicate() as SkillDefinition2D
+	eee3_self.targeting = SkillDefinition2D.Targeting.SELF
+	check(has_problem(eee3_no_attack.validate(), "needs an attack") and has_problem(eee3_no_scene.validate(), "no effect_scene") and has_problem(eee3_melee.validate(), "ProjectileEffect2D") and has_problem(eee3_self.validate(), "AIM_DIRECTION"), "EEE36 a projectile skill with no attack, an attack with no effect scene, a melee effect scene or SELF targeting is reported")
+
+	var eee3_rig := skill_rig(p, 100.0)
+	var eee3_sk: SkillComponent2D = eee3_rig["skills"]
+	var eee3_mana: ManaComponent2D = eee3_rig["mana"]
+	check(eee3_sk.set_skills([eee3_no_attack, eee3_melee, eee3_self]) == 0 and eee3_sk.set_skills([eee3_power]) == 1 and eee3_sk.has_skill(&"power_shot"), "EEE37 SkillComponent2D refuses the three invalid projectile skills and accepts the shipped one")
+
+	var eee3_done: Array = []
+	var eee3_hits: Array = []
+	eee3_sk.skill_executed.connect(func(skill: SkillDefinition2D, _dir: Vector2) -> void: eee3_done.append(skill.id))
+	eee3_sk.skill_hit.connect(func(skill: SkillDefinition2D, target: Node, dealt: int) -> void: eee3_hits.append([skill.id, target, dealt]))
+
+	# Using the skill spawns one projectile at the attack origin, aimed along the direction.
+	var eee3_hp_before := hp_of(e)
+	var eee3_origin: Vector2 = p.context.get_attack_origin()
+	var eee3_used := eee3_sk.try_use_skill(&"power_shot", Vector2.RIGHT)
+	var eee3_arrow: ProjectileEffect2D = eee3_spawned[0] if eee3_spawned.size() == 1 else null
+	check(eee3_used and eee3_arrow != null and eee3_arrow.source == p and eee3_arrow.direction.is_equal_approx(Vector2.RIGHT) and eee3_arrow.global_position.distance_to(eee3_origin) < 0.01 and is_equal_approx(eee3_mana.mana, 80.0) and eee3_sk.get_cooldown_remaining(&"power_shot") > 3.9 and eee3_done.size() == 1, "EEE38 using the skill spawns exactly one projectile at the attack origin, owned by the caster and aimed along the direction; it pays 20 mana, starts the 4 s cooldown and executes once")
+	check(eee3_arrow != null and eee3_arrow.damage == eee3_attack.damage and is_equal_approx(eee3_arrow.speed, eee3_attack.projectile_speed) and eee3_arrow.max_targets == eee3_attack.max_targets and eee3_arrow.pierce == eee3_attack.pierce and is_equal_approx(eee3_arrow.knockback, eee3_attack.knockback) and is_equal_approx(eee3_arrow.hit_stun, eee3_attack.hit_stun) and eee3_arrow.hit_layers == eee3_attack.hit_layers, "EEE39 the projectile is configured from the skill's attack: damage, speed, hit policy, knockback, stun and hit layers")
+	check(eee3_arrow != null and is_equal_approx(eee3_arrow.lifetime, eee3_power.max_range / eee3_attack.projectile_speed), "EEE40 max_range turns into a flight time: 300 px at 520 px/s is %.3f s" % (eee3_arrow.lifetime if eee3_arrow != null else -1.0))
+
+	# The projectile flies to the goblin and hurts it through the normal damage path.
+	for eee3_i in 40:
+		if not eee3_hits.is_empty():
+			break
+		await phys(1)
+	var eee3_impacts := effects_from(main, "res://Characters/Effects/HitEffect.tscn").size()
+	check(not eee3_hits.is_empty() and eee3_hits[0][0] == &"power_shot" and eee3_hits[0][1] == e and eee3_hits[0][2] > 0 and hp_of(e) < eee3_hp_before, "EEE41 the projectile reaches the goblin and damages it; skill_hit names the skill, the target and the damage")
+	check(eee3_impacts >= 1, "EEE42 the attack's hit_effect_scene spawns an impact effect at the hit")
+
+	# A refused use fires nothing and spends nothing.
+	var eee3_n := eee3_spawned.size()
+	check(not eee3_sk.try_use_skill(&"power_shot", Vector2.RIGHT) and eee3_spawned.size() == eee3_n and eee3_done.size() == 1 and is_equal_approx(eee3_mana.mana, 80.0), "EEE43 a skill on cooldown fires nothing and spends nothing")
+	var eee3_b := eee3_power.duplicate() as SkillDefinition2D
+	eee3_b.id = &"power_shot_b"
+	eee3_b.slot = 1
+	eee3_b.cooldown = 0.0
+	eee3_b.max_range = 0.0
+	eee3_sk.set_skills([eee3_power, eee3_b])
+	eee3_mana.mana = 5.0
+	check(not eee3_sk.try_use_skill(&"power_shot_b", Vector2.RIGHT) and eee3_spawned.size() == eee3_n and is_equal_approx(eee3_mana.mana, 5.0) and has_problem([eee3_sk.can_use(&"power_shot_b")], "not enough mana"), "EEE44 a skill the caster cannot pay for fires nothing and spends nothing")
+
+	# Direction: the aim when none is given, the given one otherwise; max_range 0 keeps the scene's lifetime.
+	eee3_mana.mana = 100.0
+	p.context.aim_direction = Vector2(0, 1)
+	eee3_sk.try_use_skill(&"power_shot_b", Vector2.ZERO)
+	var eee3_down: ProjectileEffect2D = eee3_spawned[eee3_n] if eee3_spawned.size() == eee3_n + 1 else null
+	eee3_sk.try_use_skill(&"power_shot_b", Vector2(1, 1))
+	var eee3_diag: ProjectileEffect2D = eee3_spawned[eee3_n + 1] if eee3_spawned.size() == eee3_n + 2 else null
+	check(eee3_down != null and eee3_diag != null and eee3_down.direction.is_equal_approx(Vector2(0, 1)) and eee3_diag.direction.is_equal_approx(Vector2(1, 1).normalized()), "EEE45 with no direction the skill fires along the aim; a given direction is normalized and used")
+	var eee3_probe := (eee3_attack.effect_scene as PackedScene).instantiate() as ProjectileEffect2D
+	var eee3_scene_lifetime: float = eee3_probe.lifetime
+	eee3_probe.free()
+	check(eee3_diag != null and is_equal_approx(eee3_diag.lifetime, eee3_scene_lifetime), "EEE46 a skill with max_range 0 leaves the scene's own lifetime (%.2f s)" % eee3_scene_lifetime)
+	await phys(2)
+
+	# A cast skill fires when the cast ends, not when it starts, and an interrupted cast fires nothing.
+	var eee3_cast := eee3_power.duplicate() as SkillDefinition2D
+	eee3_cast.id = &"cast_shot"
+	eee3_cast.slot = 2
+	eee3_cast.cooldown = 0.0
+	eee3_cast.cast_time = 0.3
+	eee3_cast.max_range = 0.0
+	eee3_sk.set_skills([eee3_power, eee3_b, eee3_cast])
+	eee3_mana.mana = 100.0
+	var eee3_before_cast := eee3_spawned.size()
+	eee3_sk.try_use_skill(&"cast_shot", Vector2.RIGHT)
+	await phys(8)
+	var eee3_during := eee3_spawned.size()
+	await phys(20)
+	check(eee3_during == eee3_before_cast and eee3_spawned.size() == eee3_before_cast + 1 and not eee3_sk.is_casting(), "EEE47 a cast projectile skill spawns nothing while it casts and exactly one projectile when the cast ends")
+	eee3_mana.mana = 100.0
+	var eee3_before_hit := eee3_spawned.size()
+	eee3_sk.try_use_skill(&"cast_shot", Vector2.RIGHT)
+	p.apply_hit(HitData.new(1, null, Vector2.RIGHT))
+	await phys(30)
+	check(eee3_spawned.size() == eee3_before_hit and not eee3_sk.is_casting() and is_equal_approx(eee3_mana.mana, 100.0), "EEE48 a cast cancelled by a hit fires nothing and gives the mana back")
+
+	# Any character can use it: a goblin's shot hurts the player, not the goblin.
+	var eee3_g := parked_goblin(main, p.global_position + Vector2(-150, 0))
+	await phys(2)
+	var eee3_g_rig := skill_rig(eee3_g, 100.0)
+	var eee3_g_sk: SkillComponent2D = eee3_g_rig["skills"]
+	eee3_g_sk.set_skills([eee3_power])
+	var eee3_p_hp := hp_of(p)
+	var eee3_g_hp := hp_of(eee3_g)
+	eee3_g_sk.try_use_skill(&"power_shot", Vector2.RIGHT)
+	await phys(40)
+	check(hp_of(p) < eee3_p_hp and hp_of(eee3_g) == eee3_g_hp, "EEE49 a goblin with a skill component fires the same skill: the arrow hurts the player (team filter) and never the shooter")
+
+	# A weapon with an invalid projectile skill refuses to equip.
+	var eee3_w := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	eee3_w.weapon_id = &"sword_bad_skill"
+	var eee3_bad_list: Array[SkillDefinition2D] = [eee3_melee]
+	eee3_w.active_skills = eee3_bad_list
+	check(has_problem(eee3_w.validate(), "ProjectileEffect2D") and not p.weapon_controller.can_equip(eee3_w), "EEE50 a weapon whose projectile skill has a melee effect scene is reported and refuses the equip")
+	await cleanup(main)
+
+	# ---------- EEE (13.3.2). Area skill ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(0, 500)
+	await phys(2)
+	var eee4_spawned: Array = []
+	main.get_node("Effects").child_entered_tree.connect(collect_area.bind(eee4_spawned))
+	var eee4_slam := load(GROUND_SLAM_PATH) as SkillDefinition2D
+	var eee4_attack: AttackDefinition2D = eee4_slam.attack if eee4_slam != null else null
+	check(eee4_slam != null and eee4_attack != null and eee4_slam.id == &"ground_slam" and eee4_slam.behavior == SkillDefinition2D.Behavior.AREA and eee4_slam.cost_resource == SkillDefinition2D.CostResource.MANA and is_equal_approx(eee4_slam.cost_amount, 15.0) and eee4_slam.validate().is_empty() and eee4_slam.validate(p.context.weapon_animation_player).is_empty() and eee4_attack.effect_scene.resource_path == AREA_SCENE_PATH, "EEE51 the shipped Ground Slam skill loads: a mana area skill that uses AreaEffect2D.tscn and has no validation problems")
+
+	# validate(): what an area skill needs.
+	var eee4_no_attack := make_skill(&"area_no_attack")
+	eee4_no_attack.behavior = SkillDefinition2D.Behavior.AREA
+	var eee4_no_scene := eee4_slam.duplicate() as SkillDefinition2D
+	eee4_no_scene.attack = AttackDefinition2D.new()
+	var eee4_arrow_attack := eee4_attack.duplicate() as AttackDefinition2D
+	eee4_arrow_attack.effect_scene = load(ARROW_SCENE_PATH)
+	var eee4_arrow := eee4_slam.duplicate() as SkillDefinition2D
+	eee4_arrow.attack = eee4_arrow_attack
+	var eee4_slash_attack := eee4_attack.duplicate() as AttackDefinition2D
+	eee4_slash_attack.effect_scene = load("res://Characters/Components/Combat/AttackSlash2D.tscn")
+	var eee4_slash := eee4_slam.duplicate() as SkillDefinition2D
+	eee4_slash.attack = eee4_slash_attack
+	var eee4_ranged := eee4_slam.duplicate() as SkillDefinition2D
+	eee4_ranged.max_range = 100.0
+	check(has_problem(eee4_no_attack.validate(), "needs an attack") and has_problem(eee4_no_scene.validate(), "no effect_scene") and has_problem(eee4_arrow.validate(), "AreaEffect2D") and has_problem(eee4_slash.validate(), "AreaEffect2D") and has_problem(eee4_ranged.validate(), "max_range"), "EEE52 an area skill with no attack, no effect scene, a projectile or melee scene, or a max_range is reported")
+
+	var eee4_rig := skill_rig(p, 100.0)
+	var eee4_sk: SkillComponent2D = eee4_rig["skills"]
+	var eee4_mana: ManaComponent2D = eee4_rig["mana"]
+	check(eee4_sk.set_skills([eee4_no_attack, eee4_arrow, eee4_slash]) == 0 and eee4_sk.set_skills([eee4_slam]) == 1 and eee4_sk.has_skill(&"ground_slam"), "EEE53 SkillComponent2D refuses the three invalid area skills and accepts the shipped one")
+
+	var eee4_done: Array = []
+	var eee4_hits: Array = []
+	eee4_sk.skill_executed.connect(func(skill: SkillDefinition2D, _dir: Vector2) -> void: eee4_done.append(skill.id))
+	eee4_sk.skill_hit.connect(func(skill: SkillDefinition2D, target: Node, dealt: int) -> void: eee4_hits.append([skill.id, target, dealt]))
+
+	# Goblins: two inside the circle (centre = origin + 32 px to the right, radius 40), one outside.
+	var eee4_origin: Vector2 = p.context.get_attack_origin()
+	var eee4_centre := eee4_origin + Vector2(32, 0)
+	var eee4_in_a := parked_goblin(main, eee4_centre + Vector2(10, 0))
+	var eee4_in_b := parked_goblin(main, eee4_centre + Vector2(0, 20))
+	var eee4_out := parked_goblin(main, eee4_centre + Vector2(150, 0))
+	await phys(3)
+	var eee4_hp_a := hp_of(eee4_in_a)
+	var eee4_hp_b := hp_of(eee4_in_b)
+	var eee4_hp_out := hp_of(eee4_out)
+	var eee4_p_hp := hp_of(p)
+
+	# Using the skill spawns one area at the attack origin, owned by the caster and aimed along the direction.
+	var eee4_used := eee4_sk.try_use_skill(&"ground_slam", Vector2.RIGHT)
+	var eee4_area: AreaEffect2D = eee4_spawned[0] if eee4_spawned.size() == 1 else null
+	check(eee4_used and eee4_area != null and eee4_area.source == p and eee4_area.direction.is_equal_approx(Vector2.RIGHT) and eee4_area.global_position.distance_to(eee4_origin) < 0.01 and is_equal_approx(eee4_mana.mana, 85.0) and eee4_sk.get_cooldown_remaining(&"ground_slam") > 5.9 and eee4_done.size() == 1, "EEE54 using the skill spawns exactly one area at the attack origin, owned by the caster and aimed along the direction; it pays 15 mana, starts the 6 s cooldown and executes once")
+	check(eee4_area != null and eee4_area.damage == eee4_attack.damage and is_equal_approx(eee4_area.knockback, eee4_attack.knockback) and is_equal_approx(eee4_area.hit_stun, eee4_attack.hit_stun) and eee4_area.hit_layers == eee4_attack.hit_layers and eee4_area.max_targets == eee4_attack.max_targets and eee4_area.hitbox_offset.is_equal_approx(eee4_attack.hitbox_offset), "EEE55 the area is configured from the skill's attack: damage, knockback, stun, hit layers, hit policy and offset")
+	var eee4_circle: CircleShape2D = eee4_area.get_node("Hitbox/CollisionShape2D").shape as CircleShape2D if eee4_area != null else null
+	check(eee4_area != null and eee4_circle != null and is_equal_approx(eee4_area.get_radius(), 40.0) and is_equal_approx(eee4_circle.radius, 40.0) and eee4_area.get_node("Hitbox").position.is_equal_approx(Vector2(32, 0)), "EEE56 area_radius 40 gives a circle of radius 40 centred 32 px in front of the caster")
+
+	# It hurts every target inside once, spares the one outside and the caster, and reports each hit.
+	await phys(25)
+	var eee4_hit_a := eee4_hits.filter(func(h): return h[1] == eee4_in_a).size()
+	var eee4_hit_b := eee4_hits.filter(func(h): return h[1] == eee4_in_b).size()
+	check(eee4_hit_a == 1 and eee4_hit_b == 1 and eee4_hits.size() == 2 and eee4_hits[0][0] == &"ground_slam" and hp_of(eee4_in_a) < eee4_hp_a and hp_of(eee4_in_b) < eee4_hp_b, "EEE57 both goblins inside the area are damaged exactly once and skill_hit names the skill for each")
+	check(hp_of(eee4_out) == eee4_hp_out and hp_of(p) == eee4_p_hp, "EEE58 a goblin outside the circle and the caster itself are not hurt")
+	check(effects_from(main, "res://Characters/Effects/HitEffect.tscn").size() >= 2, "EEE59 the attack's hit_effect_scene spawns an impact effect at each hit")
+	check(not is_alive_node(eee4_area), "EEE60 the area removes itself once its active time is over")
+
+	# Refused uses fire nothing and spend nothing.
+	var eee4_n := eee4_spawned.size()
+	var eee4_refused_cd := not eee4_sk.try_use_skill(&"ground_slam", Vector2.RIGHT)
+	var eee4_poor := eee4_slam.duplicate() as SkillDefinition2D
+	eee4_poor.id = &"slam_b"
+	eee4_poor.slot = 2
+	eee4_poor.cooldown = 0.0
+	eee4_sk.set_skills([eee4_slam, eee4_poor])
+	eee4_mana.mana = 5.0
+	check(eee4_refused_cd and not eee4_sk.try_use_skill(&"slam_b", Vector2.RIGHT) and eee4_spawned.size() == eee4_n and is_equal_approx(eee4_mana.mana, 5.0), "EEE61 an area skill on cooldown, or one the caster cannot pay for, fires nothing and spends nothing")
+
+	# SELF targeting centres the area on the caster (the offset is dropped); area_radius 0 takes the attack's hitbox_size.
+	eee4_mana.mana = 100.0
+	var eee4_nova := eee4_slam.duplicate() as SkillDefinition2D
+	eee4_nova.id = &"nova"
+	eee4_nova.slot = 2
+	eee4_nova.cooldown = 0.0
+	eee4_nova.targeting = SkillDefinition2D.Targeting.SELF
+	eee4_nova.area_radius = 0.0
+	eee4_sk.set_skills([eee4_slam, eee4_nova])
+	var eee4_near := parked_goblin(main, p.global_position + Vector2(0, 30))
+	await phys(3)
+	var eee4_near_hp := hp_of(eee4_near)
+	eee4_sk.try_use_skill(&"nova")
+	var eee4_nova_area: AreaEffect2D = eee4_spawned[eee4_n] if eee4_spawned.size() == eee4_n + 1 else null
+	await phys(25)
+	check(eee4_nova_area != null and eee4_nova_area.get_node("Hitbox").position.is_equal_approx(Vector2.ZERO) and is_equal_approx(eee4_nova_area.get_radius(), eee4_attack.hitbox_size.x * 0.5) and hp_of(eee4_near) < eee4_near_hp and hp_of(p) == eee4_p_hp, "EEE62 a SELF area is centred on the caster, takes its size from the attack when area_radius is 0, hurts a goblin beside the caster and never the caster")
+
+	# The hit policy applies: max_targets 1 ends the area after its first target.
+	var eee4_one_attack := eee4_attack.duplicate() as AttackDefinition2D
+	eee4_one_attack.max_targets = 1
+	var eee4_one := eee4_slam.duplicate() as SkillDefinition2D
+	eee4_one.id = &"slam_one"
+	eee4_one.slot = 2
+	eee4_one.cooldown = 0.0
+	eee4_one.attack = eee4_one_attack
+	eee4_sk.set_skills([eee4_slam, eee4_one])
+	eee4_hits.clear()
+	parked_goblin(main, eee4_centre + Vector2(5, 0))
+	parked_goblin(main, eee4_centre + Vector2(-5, 10))
+	await phys(3)
+	eee4_sk.try_use_skill(&"slam_one", Vector2.RIGHT)
+	await phys(25)
+	check(eee4_hits.size() == 1, "EEE63 an area skill whose attack has max_targets 1 hurts only one of the four goblins in the circle")
+
+	# A cast area fires when the cast ends, and a cast cancelled by a hit fires nothing and refunds.
+	var eee4_cast := eee4_slam.duplicate() as SkillDefinition2D
+	eee4_cast.id = &"slam_cast"
+	eee4_cast.slot = 2
+	eee4_cast.cooldown = 0.0
+	eee4_cast.cast_time = 0.3
+	eee4_sk.set_skills([eee4_slam, eee4_cast])
+	eee4_mana.mana = 100.0
+	var eee4_before := eee4_spawned.size()
+	eee4_sk.try_use_skill(&"slam_cast", Vector2.RIGHT)
+	await phys(8)
+	var eee4_during := eee4_spawned.size()
+	await phys(20)
+	var eee4_after := eee4_spawned.size()
+	eee4_mana.mana = 100.0
+	eee4_sk.try_use_skill(&"slam_cast", Vector2.RIGHT)
+	p.apply_hit(HitData.new(1, null, Vector2.RIGHT))
+	await phys(30)
+	check(eee4_during == eee4_before and eee4_after == eee4_before + 1 and eee4_spawned.size() == eee4_after and not eee4_sk.is_casting() and is_equal_approx(eee4_mana.mana, 100.0), "EEE64 a cast area spawns nothing while casting and one area at the end of the cast; a cast cancelled by a hit spawns nothing and gives the mana back")
+
+	# A weapon with an invalid area skill refuses to equip.
+	var eee4_w := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	eee4_w.weapon_id = &"sword_bad_area"
+	var eee4_bad_list: Array[SkillDefinition2D] = [eee4_arrow]
+	eee4_w.active_skills = eee4_bad_list
+	check(has_problem(eee4_w.validate(), "AreaEffect2D") and not p.weapon_controller.can_equip(eee4_w), "EEE65 a weapon whose area skill has a projectile effect scene is reported and refuses the equip")
+	await cleanup(main)
+
+	# ---------- EEE (13.3.3). Dash skill ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(0, 600)
+	await phys(2)
+	var eee5_start: Vector2 = p.global_position
+	var eee5_spawned: Array = []
+	main.get_node("Effects").child_entered_tree.connect(collect_area.bind(eee5_spawned))
+	var eee5_lunge := load(LUNGE_PATH) as SkillDefinition2D
+	var eee5_attack: AttackDefinition2D = eee5_lunge.attack if eee5_lunge != null else null
+	check(eee5_lunge != null and eee5_attack != null and eee5_lunge.id == &"lunge" and eee5_lunge.behavior == SkillDefinition2D.Behavior.DASH and eee5_lunge.cost_resource == SkillDefinition2D.CostResource.NONE and is_equal_approx(eee5_lunge.max_range, 120.0) and is_equal_approx(eee5_lunge.dash_speed, 600.0) and eee5_lunge.validate().is_empty() and eee5_lunge.validate(p.context.weapon_animation_player).is_empty() and eee5_attack.effect_scene.resource_path == AREA_SCENE_PATH, "EEE66 the shipped Lunge skill loads: a free dash skill of 120 px at 600 px/s with an AreaEffect2D strike and no validation problems")
+
+	# validate(): what a dash skill needs.
+	var eee5_no_range := eee5_lunge.duplicate() as SkillDefinition2D
+	eee5_no_range.max_range = 0.0
+	var eee5_no_speed := eee5_lunge.duplicate() as SkillDefinition2D
+	eee5_no_speed.dash_speed = 0.0
+	var eee5_no_scene := eee5_lunge.duplicate() as SkillDefinition2D
+	eee5_no_scene.attack = AttackDefinition2D.new()
+	var eee5_arrow_attack := eee5_attack.duplicate() as AttackDefinition2D
+	eee5_arrow_attack.effect_scene = load(ARROW_SCENE_PATH)
+	var eee5_arrow := eee5_lunge.duplicate() as SkillDefinition2D
+	eee5_arrow.attack = eee5_arrow_attack
+	var eee5_plain := eee5_lunge.duplicate() as SkillDefinition2D
+	eee5_plain.id = &"plain_dash"
+	eee5_plain.attack = null
+	check(has_problem(eee5_no_range.validate(), "max_range") and has_problem(eee5_no_speed.validate(), "dash_speed") and has_problem(eee5_no_scene.validate(), "no effect_scene") and has_problem(eee5_arrow.validate(), "AreaEffect2D") and eee5_plain.validate().is_empty(), "EEE67 a dash skill with no distance, no speed, a strike with no scene or a projectile scene is reported; one with no attack at all is a valid plain dash")
+
+	var eee5_rig := skill_rig(p, 100.0)
+	var eee5_sk: SkillComponent2D = eee5_rig["skills"]
+	check(eee5_sk.set_skills([eee5_no_range, eee5_arrow]) == 0 and eee5_sk.set_skills([eee5_lunge]) == 1 and eee5_sk.set_skills([eee5_plain]) == 1, "EEE68 SkillComponent2D refuses the invalid dash skills and accepts the shipped one and the plain dash")
+
+	# DashComponent2D.start_skill_dash: its own speed and duration, refused in the shared gating states, normal cooldown untouched.
+	var eee5_dash: DashComponent2D = p.dash_component
+	var eee5_diag := Vector2(1, 1).normalized()
+	var eee5_got := eee5_dash.start_skill_dash(Vector2(1, 1), 500.0, 0.1)
+	var eee5_started: bool = eee5_got.is_equal_approx(eee5_diag) and p.context.is_dashing and p.context.dash_velocity.is_equal_approx(eee5_diag * 500.0) and not eee5_dash.is_on_cooldown()
+	var eee5_twice := eee5_dash.start_skill_dash(Vector2.RIGHT, 500.0, 0.1) == Vector2.ZERO
+	eee5_dash.cancel()
+	p.context.is_casting = true
+	var eee5_cast_refused := eee5_dash.start_skill_dash(Vector2.RIGHT, 500.0, 0.1) == Vector2.ZERO
+	p.context.is_casting = false
+	p.context.is_attacking = true
+	var eee5_attack_refused := eee5_dash.start_skill_dash(Vector2.RIGHT, 500.0, 0.1) == Vector2.ZERO
+	p.context.is_attacking = false
+	p.context.hit_stun_remaining = 0.5
+	var eee5_stun_refused := eee5_dash.start_skill_dash(Vector2.RIGHT, 500.0, 0.1) == Vector2.ZERO
+	p.context.hit_stun_remaining = 0.0
+	check(eee5_started and eee5_twice and eee5_cast_refused and eee5_attack_refused and eee5_stun_refused and not p.context.is_dashing, "EEE69 start_skill_dash starts a dash at the given speed without touching the normal dash cooldown, and is refused while dashing, casting, attacking or stunned")
+	await phys(20)
+	p.global_position = eee5_start
+	await phys(2)
+
+	# Using the skill dashes the caster and spawns a strike that follows it.
+	var eee5_done: Array = []
+	var eee5_hits: Array = []
+	eee5_sk.skill_executed.connect(func(skill: SkillDefinition2D, _dir: Vector2) -> void: eee5_done.append(skill.id))
+	eee5_sk.skill_hit.connect(func(skill: SkillDefinition2D, target: Node, dealt: int) -> void: eee5_hits.append([skill.id, target, dealt]))
+	eee5_sk.set_skills([eee5_lunge, eee5_plain])
+	var eee5_used := eee5_sk.try_use_skill(&"lunge", Vector2.RIGHT)
+	var eee5_area: AreaEffect2D = eee5_spawned[0] if eee5_spawned.size() == 1 else null
+	check(eee5_used and p.context.is_dashing and p.context.dash_velocity.is_equal_approx(Vector2(600, 0)) and eee5_sk.get_cooldown_remaining(&"lunge") > 3.9 and eee5_done.size() == 1 and eee5_area != null and eee5_area.follow_source and is_equal_approx(eee5_area.active_time, 0.2) and eee5_area.source == p, "EEE70 using the skill starts a dash along the direction at 600 px/s, starts its 4 s cooldown, executes once and spawns a strike that follows the caster for the dash's 0.2 s")
+	var eee5_area_start: Vector2 = eee5_area.global_position if eee5_area != null else Vector2.ZERO
+	await phys(6)
+	var eee5_area_mid: Vector2 = eee5_area.global_position if is_alive_node(eee5_area) else eee5_area_start
+	check(is_alive_node(eee5_area) and eee5_area_mid.x > eee5_area_start.x + 20.0 and (eee5_area_mid - p.global_position).distance_to(eee5_area_start - eee5_start) < 25.0, "EEE71 the strike travels with the caster during the dash")
+	await phys(20)
+	var eee5_moved: float = p.global_position.x - eee5_start.x
+	check(not p.context.is_dashing and eee5_moved > 100.0 and eee5_moved < 140.0 and absf(p.global_position.y - eee5_start.y) < 1.0 and not eee5_dash.is_on_cooldown(), "EEE72 the dash covers about 120 px along the direction (moved %.1f) and leaves the normal dash cooldown alone" % eee5_moved)
+
+	# The strike hurts what it passes through, once each, and spares what is off the path and the caster.
+	p.global_position = eee5_start
+	await phys(2)
+	var eee5_on_path := parked_goblin(main, eee5_start + Vector2(50, 0))
+	var eee5_side := parked_goblin(main, eee5_start + Vector2(60, 120))
+	await phys(3)
+	var eee5_path_hp := hp_of(eee5_on_path)
+	var eee5_side_hp := hp_of(eee5_side)
+	var eee5_p_hp := hp_of(p)
+	var eee5_b := eee5_lunge.duplicate() as SkillDefinition2D
+	eee5_b.id = &"lunge_b"
+	eee5_b.slot = 1
+	eee5_b.cooldown = 0.0
+	eee5_sk.set_skills([eee5_lunge, eee5_b])
+	eee5_hits.clear()
+	eee5_sk.try_use_skill(&"lunge_b", Vector2.RIGHT)
+	await phys(25)
+	var eee5_path_hits := eee5_hits.filter(func(h): return h[1] == eee5_on_path).size()
+	check(eee5_path_hits == 1 and hp_of(eee5_on_path) < eee5_path_hp and hp_of(eee5_side) == eee5_side_hp and hp_of(p) == eee5_p_hp, "EEE73 the strike hurts the goblin on the path exactly once, and not the goblin off the path or the caster")
+
+	# A plain dash (no attack) moves without a strike.
+	eee5_on_path.queue_free()
+	eee5_side.queue_free()
+	p.global_position = eee5_start
+	await phys(3)
+	var eee5_plain_start: Vector2 = p.global_position
+	var eee5_n := eee5_spawned.size()
+	var eee5_plain_used := eee5_sk.set_skills([eee5_plain]) == 1 and eee5_sk.try_use_skill(&"plain_dash", Vector2.RIGHT)
+	await phys(25)
+	check(eee5_plain_used and eee5_spawned.size() == eee5_n and p.global_position.x - eee5_plain_start.x > 100.0, "EEE74 a dash skill with no attack dashes and spawns no strike")
+
+	# Refused uses dash nowhere and spend nothing; the skill's own cooldown holds.
+	eee5_sk.set_skills([eee5_lunge])
+	p.global_position = eee5_start
+	await phys(2)
+	var eee5_before: Vector2 = p.global_position
+	var eee5_cd_refused := not eee5_sk.try_use_skill(&"lunge", Vector2.RIGHT)
+	await phys(5)
+	check(eee5_cd_refused and not p.context.is_dashing and p.global_position.is_equal_approx(eee5_before) and has_problem([eee5_sk.can_use(&"lunge")], "cooldown"), "EEE75 a dash skill on cooldown does not move the caster")
+
+	# SELF targeting dashes along the movement input.
+	var eee5_self := eee5_plain.duplicate() as SkillDefinition2D
+	eee5_self.id = &"self_dash"
+	eee5_self.cooldown = 0.0
+	eee5_self.targeting = SkillDefinition2D.Targeting.SELF
+	eee5_sk.set_skills([eee5_self])
+	p.context.movement_input = Vector2(0, 1)
+	var eee5_self_used := eee5_sk.try_use_skill(&"self_dash")
+	var eee5_self_ok: bool = eee5_self_used and p.context.dash_velocity.normalized().is_equal_approx(Vector2(0, 1))
+	eee5_dash.cancel()
+	p.context.movement_input = Vector2.ZERO
+	check(eee5_self_ok, "EEE76 a SELF dash skill goes the way the character is moving")
+	await phys(3)
+	p.global_position = eee5_start
+	await phys(2)
+
+	# A cast dash starts when the cast ends; a cast cancelled by a hit never dashes.
+	var eee5_cast := eee5_plain.duplicate() as SkillDefinition2D
+	eee5_cast.id = &"cast_dash"
+	eee5_cast.cooldown = 3.0
+	eee5_cast.cast_time = 0.3
+	var eee5_cast2 := eee5_cast.duplicate() as SkillDefinition2D
+	eee5_cast2.id = &"cast_dash2"
+	eee5_cast2.slot = 1
+	eee5_sk.set_skills([eee5_cast, eee5_cast2])
+	p.global_position = eee5_start
+	await phys(2)
+	var eee5_cast_start: Vector2 = p.global_position
+	eee5_sk.try_use_skill(&"cast_dash", Vector2.RIGHT)
+	await phys(8)
+	var eee5_cast_idle := not p.context.is_dashing and p.global_position.is_equal_approx(eee5_cast_start)
+	await phys(30)
+	var eee5_cast_moved: bool = p.global_position.x - eee5_cast_start.x > 100.0
+	p.global_position = eee5_start
+	await phys(2)
+	var eee5_pos2: Vector2 = p.global_position
+	eee5_sk.try_use_skill(&"cast_dash2", Vector2.RIGHT)
+	p.apply_hit(HitData.new(1, null, Vector2.RIGHT))
+	await phys(30)
+	check(eee5_cast_idle and eee5_cast_moved and not eee5_sk.is_casting() and not p.context.is_dashing and p.global_position.is_equal_approx(eee5_pos2) and eee5_sk.get_cooldown_remaining(&"cast_dash2") == 0.0 and eee5_sk.get_cooldown_remaining(&"cast_dash") > 0.0, "EEE77 a cast dash stays put while casting and dashes when the cast ends; a cast cancelled by a hit never dashes and clears the cooldown")
+
+	# A weapon with an invalid dash skill refuses to equip.
+	var eee5_w := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	eee5_w.weapon_id = &"sword_bad_dash"
+	var eee5_bad_list: Array[SkillDefinition2D] = [eee5_no_range]
+	eee5_w.active_skills = eee5_bad_list
+	check(has_problem(eee5_w.validate(), "max_range") and not p.weapon_controller.can_equip(eee5_w), "EEE78 a weapon whose dash skill has no distance is reported and refuses the equip")
+	await cleanup(main)
+
+	# ---------- EEE (13.3.4). Buff skill and the damage modifier ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(0, 600)
+	await phys(2)
+	var eee6_empower := load(EMPOWER_PATH) as SkillDefinition2D
+	var eee6_status: StatusEffectDefinition2D = eee6_empower.status_effect if eee6_empower != null else null
+	check(eee6_empower != null and eee6_status != null and eee6_empower.id == &"empower" and eee6_empower.behavior == SkillDefinition2D.Behavior.BUFF and eee6_empower.cost_resource == SkillDefinition2D.CostResource.MANA and is_equal_approx(eee6_empower.cost_amount, 15.0) and is_equal_approx(eee6_empower.cooldown, 10.0) and eee6_status.id == &"empowered" and is_equal_approx(eee6_status.duration, 6.0) and is_equal_approx(eee6_status.damage_multiplier, 1.5) and eee6_empower.validate().is_empty(), "EEE79 the shipped Weapon Empowerment skill loads: a 15 mana buff with a 10 s cooldown that puts the 6 s empowered status (damage x1.5) on the caster, and validates")
+
+	# validate(): what a buff skill needs.
+	var eee6_none := eee6_empower.duplicate() as SkillDefinition2D
+	eee6_none.status_effect = null
+	var eee6_dead_status := make_status(&"dead_buff", 0.0, 0.0, 0)
+	var eee6_zero := eee6_empower.duplicate() as SkillDefinition2D
+	eee6_zero.status_effect = eee6_dead_status
+	check(has_problem(eee6_none.validate(), "needs a status_effect") and has_problem(eee6_zero.validate(), "no duration"), "EEE80 a buff skill with no status, or a status with no duration, is reported")
+
+	# The modifier itself: the controller's multiplier, stacks adding their bonus, expiry.
+	var eee6_srig := status_rig(main, 50)
+	var eee6_ctl: StatusController2D = eee6_srig["ctl"]
+	var eee6_before := eee6_ctl.get_damage_multiplier()
+	var eee6_buff := make_status(&"rage", 0.5, 0.0, 0, StatusEffectDefinition2D.StackRule.STACK, 3)
+	eee6_buff.damage_multiplier = 1.25
+	eee6_ctl.apply_status(eee6_buff)
+	var eee6_one := eee6_ctl.get_damage_multiplier()
+	eee6_ctl.apply_status(eee6_buff)
+	var eee6_two := eee6_ctl.get_damage_multiplier()
+	await phys(40)
+	check(is_equal_approx(eee6_before, 1.0) and is_equal_approx(eee6_one, 1.25) and is_equal_approx(eee6_two, 1.5) and is_equal_approx(eee6_ctl.get_damage_multiplier(), 1.0) and not eee6_ctl.has_status(&"rage") and is_equal_approx(load(BLEED_PATH).damage_multiplier, 1.0), "EEE81 the damage multiplier is 1 with no status, 1.25 with one stack of x1.25, 1.5 with two, 1 again when it expires; bleed leaves it at 1")
+
+	# The resolver applies it, before crit and defense; sources without a controller are untouched.
+	var eee6_buffed := StatusController2D.new()
+	p.add_child(eee6_buffed)
+	p.status_controller = eee6_buffed
+	eee6_buffed.initialize(p.health_component)
+	var eee6_empowered := load("res://Characters/Components/Status/EmpoweredStatusDefinition.tres") as StatusEffectDefinition2D
+	var eee6_target: HealthComponent2D = eee6_srig["health"]
+	var eee6_plain_hit := CombatResolver2D.resolve(HitData.new(10, e), eee6_target)
+	eee6_buffed.apply_status(eee6_empowered)
+	var eee6_hit := CombatResolver2D.resolve(HitData.new(10, p), eee6_target)
+	var eee6_nosrc := CombatResolver2D.resolve(HitData.new(10, null), eee6_target)
+	var eee6_periodic_hit := HitData.new(10, p)
+	eee6_periodic_hit.is_periodic = true
+	var eee6_periodic := CombatResolver2D.resolve(eee6_periodic_hit, eee6_target)
+	eee6_target.defense = 3
+	var eee6_def := CombatResolver2D.resolve(HitData.new(10, p), eee6_target)
+	eee6_target.defense = 0
+	var eee6_crit_hit := HitData.new(10, p)
+	eee6_crit_hit.crit_chance = 1.0
+	eee6_crit_hit.crit_multiplier = 2.0
+	var eee6_crit := CombatResolver2D.resolve(eee6_crit_hit, eee6_target)
+	check(eee6_plain_hit.damage == 10 and eee6_hit.damage == 15 and eee6_nosrc.damage == 10 and eee6_periodic.damage == 10 and eee6_def.damage == 12 and eee6_crit.damage == 30 and eee6_crit.is_crit, "EEE82 the resolver multiplies the attacker's damage (10 -> 15), before defense (15 - 3 = 12) and crit (15 x 2 = 30); a source with no buff, no source and a status tick are unchanged")
+	eee6_buffed.remove_status(&"empowered")
+
+	# End to end: a buffed caster really hurts a goblin more; an unbuffed one does not.
+	var eee6_g1 := parked_goblin(main, p.global_position + Vector2(200, 0))
+	var eee6_g2 := parked_goblin(main, p.global_position + Vector2(200, 100))
+	await phys(3)
+	var eee6_dealt_plain: int = eee6_g1.apply_hit(HitData.new(10, p, Vector2.RIGHT))
+	eee6_buffed.apply_status(eee6_empowered)
+	var eee6_dealt_buffed: int = eee6_g2.apply_hit(HitData.new(10, p, Vector2.RIGHT))
+	eee6_buffed.remove_status(&"empowered")
+	check(eee6_dealt_plain == 10 and eee6_dealt_buffed == 15 and hp_of(eee6_g2) == 5, "EEE83 a hit by a buffed caster deals 15 to a goblin, the same hit unbuffed deals 10")
+
+	# Using the skill.
+	var eee6_rig := skill_rig(p, 100.0)
+	var eee6_sk: SkillComponent2D = eee6_rig["skills"]
+	var eee6_mana: ManaComponent2D = eee6_rig["mana"]
+	check(eee6_sk.set_skills([eee6_none, eee6_zero]) == 0 and eee6_sk.set_skills([eee6_empower]) == 1, "EEE84 SkillComponent2D refuses the invalid buff skills and accepts the shipped one")
+	var eee6_done: Array = []
+	eee6_sk.skill_executed.connect(func(skill: SkillDefinition2D, _dir: Vector2) -> void: eee6_done.append(skill.id))
+	var eee6_used := eee6_sk.try_use_skill(&"empower")
+	check(eee6_used and eee6_buffed.has_status(&"empowered") and is_equal_approx(eee6_buffed.get_remaining(&"empowered"), 6.0) and is_equal_approx(eee6_mana.mana, 85.0) and eee6_sk.get_cooldown_remaining(&"empower") > 9.9 and eee6_done.size() == 1 and is_equal_approx(eee6_buffed.get_damage_multiplier(), 1.5), "EEE85 using the skill puts the 6 s empowered status on the caster, pays 15 mana, starts the 10 s cooldown and executes once")
+	var eee6_refused := not eee6_sk.try_use_skill(&"empower") and is_equal_approx(eee6_mana.mana, 85.0)
+	eee6_buffed.remove_status(&"empowered")
+
+	# A caster that cannot carry statuses is refused cleanly.
+	var eee6_goblin := parked_goblin(main, p.global_position + Vector2(-200, 0))
+	await phys(2)
+	var eee6_g_rig := skill_rig(eee6_goblin, 100.0)
+	var eee6_g_sk: SkillComponent2D = eee6_g_rig["skills"]
+	eee6_g_sk.set_skills([eee6_empower])
+	var eee6_g_used := eee6_g_sk.try_use_skill(&"empower")
+	check(eee6_refused and not eee6_g_used and has_problem([eee6_g_sk.can_use(&"empower")], "StatusController2D") and is_equal_approx((eee6_g_rig["mana"] as ManaComponent2D).mana, 100.0) and eee6_g_sk.get_cooldown_remaining(&"empower") == 0.0, "EEE86 a skill on cooldown is refused, and a caster with no StatusController2D is refused with a reason, spending nothing and starting no cooldown")
+
+	# Using it again while it runs refreshes it (REFRESH rule); the status ends by itself.
+	var eee6_short_status := make_status(&"quick_buff", 0.3, 0.0, 0)
+	eee6_short_status.damage_multiplier = 2.0
+	var eee6_quick := eee6_empower.duplicate() as SkillDefinition2D
+	eee6_quick.id = &"quick"
+	eee6_quick.slot = 1
+	eee6_quick.cooldown = 0.0
+	eee6_quick.status_effect = eee6_short_status
+	eee6_sk.set_skills([eee6_empower, eee6_quick])
+	eee6_mana.mana = 100.0
+	eee6_sk.try_use_skill(&"quick")
+	await phys(10)
+	var eee6_left_before := eee6_buffed.get_remaining(&"quick_buff")
+	eee6_sk.try_use_skill(&"quick")
+	var eee6_left_after := eee6_buffed.get_remaining(&"quick_buff")
+	await phys(30)
+	check(eee6_left_before < 0.2 and is_equal_approx(eee6_left_after, 0.3) and eee6_buffed.get_stacks(&"quick_buff") == 0 and not eee6_buffed.has_status(&"quick_buff") and is_equal_approx(eee6_buffed.get_damage_multiplier(), 1.0), "EEE87 using a buff again while it runs restarts its time, and when the time is over the status and its bonus are gone")
+
+	# A cast buff applies when the cast ends; one cancelled by a hit applies nothing and refunds.
+	var eee6_cast := eee6_empower.duplicate() as SkillDefinition2D
+	eee6_cast.id = &"cast_buff"
+	eee6_cast.slot = 1
+	eee6_cast.cooldown = 3.0
+	eee6_cast.cast_time = 0.3
+	var eee6_cast2 := eee6_cast.duplicate() as SkillDefinition2D
+	eee6_cast2.id = &"cast_buff2"
+	eee6_cast2.slot = 2
+	eee6_sk.set_skills([eee6_cast, eee6_cast2])
+	eee6_mana.mana = 100.0
+	eee6_sk.try_use_skill(&"cast_buff")
+	await phys(8)
+	var eee6_during := eee6_buffed.has_status(&"empowered")
+	await phys(20)
+	var eee6_after := eee6_buffed.has_status(&"empowered")
+	eee6_buffed.remove_status(&"empowered")
+	eee6_mana.mana = 100.0
+	eee6_sk.try_use_skill(&"cast_buff2")
+	p.apply_hit(HitData.new(1, null, Vector2.RIGHT))
+	await phys(30)
+	check(not eee6_during and eee6_after and not eee6_buffed.has_status(&"empowered") and is_equal_approx(eee6_mana.mana, 100.0) and eee6_sk.get_cooldown_remaining(&"cast_buff2") == 0.0, "EEE88 a cast buff applies at the end of the cast; a cast cancelled by a hit applies nothing, refunds the mana and clears the cooldown")
+
+	# A weapon with an invalid buff skill refuses to equip.
+	var eee6_w := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	eee6_w.weapon_id = &"sword_bad_buff"
+	var eee6_bad_list: Array[SkillDefinition2D] = [eee6_none]
+	eee6_w.active_skills = eee6_bad_list
+	check(has_problem(eee6_w.validate(), "needs a status_effect") and not p.weapon_controller.can_equip(eee6_w), "EEE89 a weapon whose buff skill has no status is reported and refuses the equip")
+	await cleanup(main)
+
+	# ---------- FFF (13.4.1). Skill signals and the HUD read API ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(0, 600)
+	await phys(2)
+	var fff1_rig := skill_rig(p, 100.0)
+	var fff1_sk: SkillComponent2D = fff1_rig["skills"]
+	var fff1_mana: ManaComponent2D = fff1_rig["mana"]
+	var fff1_quick := make_skill(&"quick", 0, 0.25, 0.0, 10.0)
+	var fff1_free := make_skill(&"free", 1, 0.0)
+	var fff1_slow := make_skill(&"slow", 2, 0.5, 0.4, 0.0)
+	var fff1_log: Array = []
+	fff1_sk.cooldown_started.connect(func(skill: SkillDefinition2D, duration: float) -> void: fff1_log.append(["started", skill.id, duration]))
+	fff1_sk.cooldown_finished.connect(func(skill_id: StringName) -> void: fff1_log.append(["finished", skill_id, fff1_sk.get_cooldown_remaining(skill_id), fff1_sk.is_ready(skill_id)]))
+	fff1_sk.skill_refused.connect(func(skill: SkillDefinition2D, reason: String) -> void: fff1_log.append(["refused", skill.id, reason]))
+	fff1_sk.skill_cancelled.connect(func(skill: SkillDefinition2D) -> void: fff1_log.append(["cancelled", skill.id]))
+	fff1_sk.skills_changed.connect(func() -> void: fff1_log.append(["changed"]))
+
+	# skills_changed: once per set_skills() call.
+	var fff1_count := fff1_sk.set_skills([fff1_quick, fff1_free, fff1_slow])
+	check(fff1_count == 3 and fff1_log == [["changed"]], "FFF1 set_skills() emits skills_changed once and still returns how many skills it accepted (3)")
+	fff1_log.clear()
+
+	# cooldown_started: the skill and the full length, before anything else; the duration is readable while it runs.
+	var fff1_used := fff1_sk.try_use_skill(&"quick")
+	check(fff1_used and fff1_log == [["started", &"quick", 0.25]] and is_equal_approx(fff1_sk.get_cooldown_duration(&"quick"), 0.25) and is_equal_approx(fff1_mana.mana, 90.0), "FFF2 using a skill emits cooldown_started once with the skill and its 0.25 s, and a successful use emits no refusal; get_cooldown_duration() reads 0.25")
+
+	# cooldown_finished: only when the time is over, and the cooldown is already gone when it arrives.
+	await phys(8)
+	var fff1_mid_size := fff1_log.size()
+	var fff1_mid_duration := fff1_sk.get_cooldown_duration(&"quick")
+	var fff1_mid_remaining := fff1_sk.get_cooldown_remaining(&"quick")
+	await phys(10)
+	check(fff1_mid_size == 1 and is_equal_approx(fff1_mid_duration, 0.25) and fff1_mid_remaining > 0.05 and fff1_mid_remaining < 0.25 and fff1_log == [["started", &"quick", 0.25], ["finished", &"quick", 0.0, true]] and fff1_sk.get_cooldown_duration(&"quick") == 0.0, "FFF3 cooldown_finished comes once when the 0.25 s are over, not before, with nothing left on the clock, the skill ready and the duration back to 0")
+
+	# A skill with no cooldown announces nothing and can be used again at once.
+	fff1_log.clear()
+	var fff1_free_a := fff1_sk.try_use_skill(&"free")
+	var fff1_free_b := fff1_sk.try_use_skill(&"free")
+	check(fff1_free_a and fff1_free_b and fff1_log.is_empty() and fff1_sk.get_cooldown_duration(&"free") == 0.0 and fff1_sk.get_cooldown_remaining(&"free") == 0.0, "FFF4 a skill with cooldown 0 emits neither cooldown signal and is usable twice in a row")
+
+	# skill_refused on cooldown: the skill and the same reason can_use() gives.
+	fff1_log.clear()
+	fff1_sk.try_use_skill(&"quick")
+	var fff1_again := fff1_sk.try_use_skill(&"quick")
+	var fff1_reason := fff1_sk.can_use(&"quick")
+	check(not fff1_again and fff1_log.size() == 2 and fff1_log[1][0] == "refused" and fff1_log[1][1] == &"quick" and fff1_log[1][2] == fff1_reason and has_problem([fff1_reason], "cooldown") and is_equal_approx(fff1_mana.mana, 80.0), "FFF5 a skill used while cooling down emits skill_refused with its reason (on cooldown) and spends nothing more")
+
+	# skill_refused for a cost, and no cooldown starts.
+	await phys(18)
+	fff1_log.clear()
+	fff1_mana.mana = 5.0
+	var fff1_poor := fff1_sk.try_use_skill(&"quick")
+	check(not fff1_poor and fff1_log.size() == 1 and fff1_log[0][0] == "refused" and fff1_log[0][1] == &"quick" and has_problem([fff1_log[0][2]], "mana") and fff1_sk.get_cooldown_duration(&"quick") == 0.0 and is_equal_approx(fff1_mana.mana, 5.0), "FFF6 a skill refused for lack of mana emits skill_refused with the mana reason, starts no cooldown and keeps the mana")
+
+	# No refusal for an id that is not set or a slot with nothing in it (the HUD has nothing to shake).
+	fff1_log.clear()
+	fff1_mana.mana = 100.0
+	var fff1_unknown := fff1_sk.try_use_skill(&"no_such_skill")
+	var fff1_empty := fff1_sk.try_use_slot(5)
+	check(not fff1_unknown and not fff1_empty and fff1_log.is_empty(), "FFF7 an unknown skill id or an empty slot emits no skill_refused")
+
+	# A cast skill: the cast progress climbs from 0 to 1 and is 0 again afterwards; the cooldown signals bracket its 0.5 s.
+	fff1_log.clear()
+	var fff1_progress_idle := fff1_sk.get_cast_progress()
+	fff1_sk.try_use_skill(&"slow")
+	await phys(12)
+	var fff1_progress_half := fff1_sk.get_cast_progress()
+	await phys(20)
+	check(is_equal_approx(fff1_progress_idle, 0.0) and fff1_progress_half > 0.35 and fff1_progress_half < 0.65 and not fff1_sk.is_casting() and fff1_sk.get_cast_progress() == 0.0 and fff1_log == [["started", &"slow", 0.5], ["finished", &"slow", 0.0, true]], "FFF8 get_cast_progress() is 0 idle, about half way through a 0.4 s cast (%.2f) and 0 after it; the cooldown signals bracket the skill's 0.5 s" % fff1_progress_half)
+
+	# A weapon switch: skills_changed once, and the running cooldown goes on and finishes for a skill no longer set.
+	fff1_log.clear()
+	fff1_mana.mana = 100.0
+	fff1_sk.try_use_skill(&"quick")
+	await phys(3)
+	var fff1_equipped := p.weapon_controller.equip(load(BOW_WEAPON_PATH))
+	var fff1_still_set := fff1_sk.has_skill(&"quick")
+	var fff1_switch_duration := fff1_sk.get_cooldown_duration(&"quick")
+	var fff1_switch_remaining := fff1_sk.get_cooldown_remaining(&"quick")
+	await phys(18)
+	check(fff1_equipped and not fff1_still_set and is_equal_approx(fff1_switch_duration, 0.25) and fff1_switch_remaining > 0.05 and fff1_switch_remaining < 0.25 and fff1_log == [["started", &"quick", 0.25], ["changed"], ["finished", &"quick", 0.0, false]], "FFF9 equipping a weapon emits skills_changed once; a cooldown running across the switch keeps its 0.25 s duration and still finishes, for a skill that is no longer set")
+
+	# A cast cancelled by a hit: the cooldown is cleared (finished), then the cancel, and the progress is 0.
+	fff1_sk.set_skills([fff1_quick, fff1_free, fff1_slow])
+	fff1_log.clear()
+	fff1_sk.try_use_skill(&"slow")
+	await phys(5)
+	var fff1_cancel_progress := fff1_sk.get_cast_progress()
+	p.apply_hit(HitData.new(1, null, Vector2.RIGHT))
+	await phys(2)
+	check(fff1_cancel_progress > 0.0 and not fff1_sk.is_casting() and fff1_sk.get_cast_progress() == 0.0 and fff1_sk.get_cooldown_duration(&"slow") == 0.0 and fff1_log == [["started", &"slow", 0.5], ["finished", &"slow", 0.0, true], ["cancelled", &"slow"]], "FFF10 a cast cancelled by a hit emits cooldown_finished (its cooldown is cleared) and then skill_cancelled, and the cast progress is back to 0")
+	await cleanup(main)
+
+	# ---------- GGG (13.4.2). The player has the skill components and the skill keys ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(0, 600)
+	await phys(2)
+	var ggg_mana := p.get_node_or_null("ManaComponent2D") as ManaComponent2D
+	var ggg_skills := p.get_node_or_null("SkillComponent2D") as SkillComponent2D
+	var ggg_status := p.get_node_or_null("StatusController2D") as StatusController2D
+	check(ggg_mana != null and ggg_skills != null and ggg_status != null and p.mana_component == ggg_mana and p.skill_component == ggg_skills and p.status_controller == ggg_status and ggg_skills.is_initialized() and e.mana_component == null and e.skill_component == null and e.status_controller == null, "GGG1 player.tscn has children named ManaComponent2D, SkillComponent2D and StatusController2D, Character2D found and initialized them, and the goblin has none")
+	check(is_equal_approx(ggg_mana.max_mana, 100.0) and is_equal_approx(ggg_mana.mana, 100.0) and is_equal_approx(ggg_mana.regen_per_second, 5.0), "GGG2 the player's mana pool uses the defaults: 100 mana, full, 5 per second")
+	var ggg_codes: Array = []
+	for action in [&"skill_1", &"skill_2", &"skill_3"]:
+		var ggg_events := InputMap.action_get_events(action) if InputMap.has_action(action) else []
+		ggg_codes.append(ggg_events[0].physical_keycode if ggg_events.size() == 1 and ggg_events[0] is InputEventKey else -1)
+	check(ggg_codes == [KEY_1, KEY_2, KEY_3] and InputMap.has_action(&"weapon_next") and InputMap.has_action(&"attack_light") and InputMap.has_action(&"attack_heavy") and InputMap.has_action(&"dash"), "GGG3 skill_1 to skill_3 are one key each, 1 to 3, and the existing actions are still there")
+	check(p.weapon_controller.skill_component == ggg_skills, "GGG4 the weapon controller hands the equipped weapon's skills to the player's SkillComponent2D")
+
+	var ggg_log: Array = []
+	ggg_skills.skill_started.connect(func(skill: SkillDefinition2D) -> void: ggg_log.append(["started", skill.id]))
+	ggg_skills.skill_refused.connect(func(skill: SkillDefinition2D, reason: String) -> void: ggg_log.append(["refused", skill.id, reason]))
+	ggg_skills.skills_changed.connect(func() -> void: ggg_log.append(["changed"]))
+
+	# The sword's skills are in the slots from the start (13.4.3); the slots are emptied by hand so the keys have nothing to use.
+	ggg_skills.set_skills([])
+	ggg_log.clear()
+	var ggg_no_skills := ggg_skills.get_skills().is_empty()
+	for action in ["skill_1", "skill_2", "skill_3"]:
+		Input.action_press(action)
+		await phys(3)
+		Input.action_release(action)
+		await phys(2)
+	check(ggg_no_skills and ggg_log.is_empty() and is_equal_approx(ggg_mana.mana, 100.0), "GGG5 with the slots emptied, pressing 1, 2 and 3 starts nothing, refuses nothing and spends nothing")
+
+	# The real input path: each key uses the skill in its slot, through player.gd.
+	var ggg_quick := make_skill(&"quick", 0, 0.5, 0.0, 10.0)
+	var ggg_second := make_skill(&"second", 1, 0.5, 0.0, 10.0)
+	var ggg_third := make_skill(&"third", 2, 0.5, 0.0, 10.0)
+	ggg_skills.set_skills([ggg_quick, ggg_second, ggg_third])
+	ggg_log.clear()
+	Input.action_press("skill_1")
+	await phys(3)
+	Input.action_release("skill_1")
+	await phys(2)
+	check(ggg_log == [["started", &"quick"]] and ggg_mana.mana >= 89.99 and ggg_mana.mana < 91.0 and ggg_skills.get_cooldown_remaining(&"quick") > 0.0, "GGG6 pressing skill_1 once uses the skill in slot 0 once (not once per frame held): 10 mana paid, cooldown running")
+	ggg_log.clear()
+	Input.action_press("skill_2")
+	await phys(3)
+	Input.action_release("skill_2")
+	await phys(2)
+	Input.action_press("skill_3")
+	await phys(3)
+	Input.action_release("skill_3")
+	await phys(2)
+	check(ggg_log == [["started", &"second"], ["started", &"third"]], "GGG7 skill_2 uses the skill in slot 1 and skill_3 the skill in slot 2")
+
+	# A press that cannot be honored is refused with the component's own reason and costs nothing.
+	ggg_log.clear()
+	var ggg_mana_before := ggg_mana.mana
+	Input.action_press("skill_1")
+	await phys(3)
+	Input.action_release("skill_1")
+	await phys(2)
+	check(ggg_log.size() == 1 and ggg_log[0][0] == "refused" and ggg_log[0][1] == &"quick" and has_problem([ggg_log[0][2]], "cooldown") and ggg_mana.mana >= ggg_mana_before, "GGG8 pressing a skill that is still cooling down is refused (skill_refused, reason names the cooldown) and spends no mana")
+	await phys(60)
+	ggg_log.clear()
+	check(p.attack_component.try_start_attack(&"player_light", Vector2.RIGHT), "GGG9pre a sword swing starts")
+	await phys(5)
+	Input.action_press("skill_1")
+	await phys(3)
+	Input.action_release("skill_1")
+	await phys(2)
+	check(p.context.is_attacking and ggg_log.size() == 1 and ggg_log[0][0] == "refused" and has_problem([ggg_log[0][2]], "attacking"), "GGG9 a skill key pressed in the middle of a swing is refused (the character is attacking) and the swing goes on")
+	await phys(120)
+
+	# The weapon key still works next to the skill keys, and the switch tells the component once.
+	ggg_log.clear()
+	var ggg_weapon_before: StringName = p.weapon_controller.get_equipped_weapon().weapon_id
+	Input.action_press("weapon_next")
+	await phys(3)
+	Input.action_release("weapon_next")
+	await phys(2)
+	check(p.weapon_controller.get_equipped_weapon().weapon_id != ggg_weapon_before and ggg_log == [["changed"]], "GGG10 weapon_next still switches the weapon, and the skill component hears skills_changed once")
+
+	# A dead player ignores the skill keys.
+	ggg_skills.set_skills([ggg_quick, ggg_second, ggg_third])
+	await phys(2)
+	var ggg_dead_mana := ggg_mana.mana
+	p.health_component.apply_hit(HitData.new(9999, e, Vector2.RIGHT))
+	await phys(2)
+	ggg_log.clear()
+	Input.action_press("skill_2")
+	await phys(3)
+	Input.action_release("skill_2")
+	await phys(2)
+	check(not p.is_alive() and ggg_log.is_empty() and ggg_mana.mana >= ggg_dead_mana and ggg_skills.get_cooldown_remaining(&"second") == 0.0, "GGG11 a dead player ignores the skill keys: nothing started, nothing refused, nothing spent")
+	await cleanup(main)
+
+	# ---------- HHH (13.4.3). The shipped skills are on the weapons ----------
+	main = await fresh_far()
+	p = main.get_node("Player")
+	e = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(0, 600)
+	await phys(2)
+	var hhh_sword := load(SWORD_WEAPON_PATH) as WeaponDefinition2D
+	var hhh_bow := load(BOW_WEAPON_PATH) as WeaponDefinition2D
+	var hhh_lunge := load(LUNGE_PATH) as SkillDefinition2D
+	var hhh_slam := load(GROUND_SLAM_PATH) as SkillDefinition2D
+	var hhh_empower := load(EMPOWER_PATH) as SkillDefinition2D
+	var hhh_power := load(POWER_SHOT_PATH) as SkillDefinition2D
+	var hhh_icons_ok := true
+	for hhh_s in [hhh_lunge, hhh_slam, hhh_empower, hhh_power]:
+		hhh_icons_ok = hhh_icons_ok and hhh_s.icon != null and hhh_s.icon.get_width() == 64 and hhh_s.icon.get_height() == 64
+	check(hhh_icons_ok and hhh_lunge.icon != hhh_slam.icon and hhh_slam.icon != hhh_empower.icon and hhh_empower.icon != hhh_power.icon, "HHH1 each of the four shipped skills has its own 64 x 64 placeholder icon")
+	check(hhh_sword.active_skills.size() == 3 and hhh_sword.get_skill_in_slot(0) == hhh_lunge and hhh_sword.get_skill_in_slot(1) == hhh_slam and hhh_sword.get_skill_in_slot(2) == hhh_empower and hhh_bow.active_skills.size() == 2 and hhh_bow.get_skill_in_slot(0) == hhh_power and hhh_bow.get_skill_in_slot(1) == null and hhh_bow.get_skill_in_slot(2) == hhh_empower and hhh_sword.validate().is_empty() and hhh_bow.validate().is_empty() and hhh_sword.validate_scene().is_empty() and hhh_bow.validate_scene().is_empty(), "HHH2 the sword has Lunge, Ground Slam and Empowerment in slots 0 to 2; the bow has Power Shot in slot 0, nothing in slot 1 and Empowerment in slot 2; both weapons still validate")
+	var hhh_sk: SkillComponent2D = p.skill_component
+	var hhh_mana: ManaComponent2D = p.mana_component
+	check(p.weapon_controller.get_equipped_weapon() == hhh_sword and hhh_sk.get_skills().size() == 3 and hhh_sk.get_skill_in_slot(0) == hhh_lunge and hhh_sk.get_skill_in_slot(1) == hhh_slam and hhh_sk.get_skill_in_slot(2) == hhh_empower, "HHH3 the player starts with the sword and the sword's three skills in the player's own SkillComponent2D")
+	var hhh_to_bow: bool = p.weapon_controller.equip(hhh_bow)
+	var hhh_bow_ok: bool = hhh_sk.get_skills().size() == 2 and hhh_sk.get_skill_in_slot(0) == hhh_power and hhh_sk.get_skill_in_slot(1) == null and hhh_sk.get_skill_in_slot(2) == hhh_empower
+	var hhh_to_sword: bool = p.weapon_controller.equip(hhh_sword)
+	check(hhh_to_bow and hhh_bow_ok and hhh_to_sword and hhh_sk.get_skills().size() == 3 and hhh_sk.get_skill_in_slot(1) == hhh_slam, "HHH4 equipping the bow gives Power Shot and Empowerment (slot 1 empty), equipping the sword gives its three back")
+
+	# Ground Slam (sword, slot 1) hurts a goblin in front of the player and pays 15 mana.
+	var hhh_origin: Vector2 = p.context.get_attack_origin()
+	var hhh_target := parked_goblin(main, hhh_origin + Vector2(32, 0))
+	await phys(3)
+	var hhh_target_hp := hp_of(hhh_target)
+	var hhh_used_slam := hhh_sk.try_use_slot(1, Vector2.RIGHT)
+	for hhh_i in 40:
+		if hp_of(hhh_target) < hhh_target_hp:
+			break
+		await phys(1)
+	check(hhh_used_slam and hp_of(hhh_target) < hhh_target_hp and hhh_mana.mana >= 84.99 and hhh_mana.mana < 88.0 and hhh_sk.get_cooldown_remaining(&"ground_slam") > 5.0, "HHH5 Ground Slam from the sword's slot 1 hurts the goblin in front of the player, pays 15 mana and starts its 6 s cooldown")
+	hhh_target.queue_free()
+	await phys(3)
+
+	# Lunge (sword, slot 0) carries the player forward about 120 px.
+	var hhh_start: Vector2 = p.global_position
+	var hhh_lunged := hhh_sk.try_use_slot(0, Vector2.RIGHT)
+	await phys(30)
+	var hhh_moved: float = p.global_position.x - hhh_start.x
+	check(hhh_lunged and hhh_moved > 100.0 and hhh_moved < 140.0 and not p.context.is_dashing and hhh_sk.get_cooldown_remaining(&"lunge") > 3.0, "HHH6 Lunge from the sword's slot 0 carries the player about 120 px along the aim (moved %.1f) and starts its 4 s cooldown" % hhh_moved)
+
+	# Power Shot (bow, slot 0) sends an arrow that hurts a goblin 120 px away and pays 20 mana.
+	var hhh_bow_on: bool = p.weapon_controller.equip(hhh_bow)
+	var hhh_shot_target := parked_goblin(main, p.global_position + Vector2(120, 0))
+	await phys(3)
+	var hhh_shot_hp := hp_of(hhh_shot_target)
+	var hhh_mana_before := hhh_mana.mana
+	var hhh_shot := hhh_sk.try_use_slot(0, Vector2.RIGHT)
+	for hhh_i in 60:
+		if hp_of(hhh_shot_target) < hhh_shot_hp:
+			break
+		await phys(1)
+	check(hhh_bow_on and hhh_shot and hp_of(hhh_shot_target) < hhh_shot_hp and hhh_mana.mana < hhh_mana_before - 18.0 and hhh_sk.get_cooldown_remaining(&"power_shot") > 2.5, "HHH7 Power Shot from the bow's slot 0 hurts a goblin 120 px away, pays 20 mana and starts its 4 s cooldown")
+
+	# Empowerment (bow, slot 2) through the real key: the status goes on the player and the cooldown starts.
+	var hhh_mana_empower := hhh_mana.mana
+	Input.action_press("skill_3")
+	await phys(3)
+	Input.action_release("skill_3")
+	await phys(2)
+	check(p.status_controller.has_status(&"empowered") and hhh_mana.mana < hhh_mana_empower - 13.0 and hhh_sk.get_cooldown_remaining(&"empower") > 9.0, "HHH8 pressing key 3 with the bow uses Empowerment: the empowered status is on the player, 15 mana paid, 10 s cooldown running")
+
+	# The same skill is in slot 2 of the sword, and its cooldown keeps running across the switch.
+	var hhh_back: bool = p.weapon_controller.equip(hhh_sword)
+	check(hhh_back and hhh_sk.get_skill_in_slot(2) == hhh_empower and hhh_sk.get_cooldown_remaining(&"empower") > 8.0 and not hhh_sk.is_ready(&"empower") and has_problem([hhh_sk.can_use(&"empower")], "cooldown"), "HHH9 Empowerment is slot 2 on both weapons, and switching from the bow to the sword does not reset its cooldown")
 	await cleanup(main)
