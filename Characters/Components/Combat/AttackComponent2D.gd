@@ -22,10 +22,27 @@ class_name AttackComponent2D
 ## that started on its own, with no link, repeats itself (it is its own first attack). A chain
 ## never runs on by itself: when the window closes with no press, the return clip of the attack
 ## that was last performed plays, and no attack can start until it has finished.
+##
+## Draw (bow): an attack with a draw_animation plays it first. When it finishes the component plays the weapon clip
+## (a swing) or the charge clip (a charge) by itself. A swing that starts from a combo link plays the draw again, a
+## swing that starts from a charge release does not (the charge already drew). Releasing a charge while the draw is
+## still playing is remembered and fires the shot the moment the draw ends; the charge time only counts after it.
+##
+## Input queue (bow): an attack with input_queue_time > 0 remembers a request that arrives while it runs. The request
+## chains when the combo window opens, or when the weapon clip finishes, and otherwise waits for the return to end:
+## Character2D then asks take_queued_attack() and starts it. So a cycle reads draw > shot > draw > shot while the
+## button is pressed again in time, and draw > shot > return to idle when it is not.
 
 signal attack_started(direction: Vector2)
 signal attack_hit(target: Node, damage: int)
 signal attack_finished
+## A swing or charge ended: `cancelled` is false when it ran to its end and true when it was cancelled or
+## interrupted. Emitted before the weapon clip is stopped, so a listener can still read the pose the weapon is in.
+## Not emitted when nothing was attacking.
+signal swing_ended(cancelled: bool)
+## A code-driven return (AttackDefinition2D.recovery_time) began: the swing is over, no attack can start for
+## `duration` seconds, and the weapon should blend to rest with `ease` (a Curve, or null for smoothstep).
+signal recovery_started(duration: float, ease: Curve)
 ## A combo link started: `previous_id` ended its swing and `next_id` took over inside the window.
 signal attack_chained(previous_id: StringName, next_id: StringName)
 
@@ -62,6 +79,9 @@ var _combo_window_open := false
 ## True once the weapon clip has ended and the recovery clip is playing. Combo window events
 ## are ignored in recovery.
 var _in_recovery := false
+## True while the recovery in progress is code driven (recovery_time) rather than a clip, and its elapsed seconds.
+var _code_recovery := false
+var _code_recovery_elapsed := 0.0
 ## Combo sequence of the combo in progress, and the index of its next link (9.6a). Runtime only:
 ## both are set when a swing starts and cleared when the combo ends.
 var _combo_sequence: Array[AttackDefinition2D] = []
@@ -78,6 +98,15 @@ var _charge_direction := Vector2.RIGHT
 var _extra_attacks: Dictionary = {}
 ## The weapon AnimationPlayer whose animation_finished is connected to this component (9.7c-3).
 var _connected_player: AnimationPlayer
+## True while a draw_animation is playing: before a swing (_active_definition) or before a charge (_charging_definition).
+var _drawing := false
+## A charge was released while its draw was still playing; the shot starts when the draw ends.
+var _release_pending := false
+## The request remembered by an attack with input_queue_time (empty = none), the aim it was made with, and the seconds
+## it stays valid. Runtime only; cancel() drops it.
+var _queued_id: StringName = &""
+var _queued_direction := Vector2.ZERO
+var _queue_remaining := 0.0
 
 func initialize(shared_context: CharacterContext2D) -> void:
 	context = shared_context
@@ -132,6 +161,11 @@ func validate_definition(candidate: AttackDefinition2D) -> String:
 		return "attack '%s' on '%s': effect_scene cannot be instantiated." % [candidate.id, owner_name]
 	if candidate.effect_scene != null and AttackSlash2D.scene_lacks_animation(candidate.effect_scene, candidate.effect_animation):
 		return "attack '%s' on '%s': effect_scene has no clip '%s' (effect_animation)." % [candidate.id, owner_name, candidate.effect_animation]
+	if candidate.draw_animation != &"":
+		if not player.has_animation(candidate.draw_animation):
+			return "attack '%s' on '%s': weapon AnimationPlayer has no clip '%s' (draw_animation)." % [candidate.id, owner_name, candidate.draw_animation]
+		if candidate.draw_animation == candidate.weapon_animation or candidate.draw_animation == candidate.charge_animation or candidate.draw_animation == candidate.recovery_animation:
+			return "attack '%s' on '%s': draw_animation must differ from weapon_animation, charge_animation and recovery_animation ('%s')." % [candidate.id, owner_name, candidate.draw_animation]
 	if candidate.charge_animation != &"" and not player.has_animation(candidate.charge_animation):
 		return "attack '%s' on '%s': weapon AnimationPlayer has no clip '%s' (charge_animation)." % [candidate.id, owner_name, candidate.charge_animation]
 	if candidate.release_mode == AttackDefinition2D.ReleaseMode.THRESHOLD and candidate.charge_threshold <= 0.0:
@@ -158,6 +192,8 @@ func try_start(requested: bool, direction: Vector2 = Vector2.ZERO) -> bool:
 		return false
 	if is_combo_window_open():
 		return _try_chain(direction)
+	if definition != null and _try_queue(definition.id, direction):
+		return false
 	return _begin_attack(definition, direction)
 
 ## Starts the attack with this id: the default attack's own id, or an entry of `attacks`.
@@ -173,6 +209,8 @@ func try_start_attack(attack_id: StringName, direction: Vector2 = Vector2.ZERO) 
 	if chosen == null:
 		var owner_name: String = context.character.name if context != null and context.character != null else "?"
 		push_warning("AttackComponent2D on '%s': no attack with id '%s' (known: %s)." % [owner_name, attack_id, get_attack_ids()])
+		return false
+	if _try_queue(attack_id, direction):
 		return false
 	return _begin_attack(chosen, direction)
 
@@ -266,7 +304,12 @@ func begin_charge(attack_id: StringName, direction: Vector2 = Vector2.ZERO) -> b
 	context.aim_direction = _charge_direction
 	context.is_attacking = true
 	context.move_multiplier = chosen.movement_multiplier
-	if chosen.charge_animation != &"":
+	_drawing = false
+	_release_pending = false
+	if chosen.draw_animation != &"":
+		_drawing = true
+		context.weapon_animation_player.play(chosen.draw_animation)
+	elif chosen.charge_animation != &"":
 		context.weapon_animation_player.play(chosen.charge_animation)
 	return true
 
@@ -275,13 +318,34 @@ func begin_charge(attack_id: StringName, direction: Vector2 = Vector2.ZERO) -> b
 func release_charge(direction: Vector2 = Vector2.ZERO) -> bool:
 	if _charging_definition == null:
 		return false
+	if _drawing:
+		# The draw is still playing: the shot fires the moment it ends (see _finish_draw()).
+		_release_pending = true
+		if direction.length_squared() > 0.0001:
+			_charge_direction = direction.normalized()
+		return true
 	var charged := _charging_definition
 	var aim := _resolve_attack_direction(direction if direction.length_squared() > 0.0001 else _charge_direction)
+	_commit_release(charged, aim)
+	return true
+
+## The charge `charged` ends and its swing starts. The draw is skipped: a charge has already drawn the bow.
+func _commit_release(charged: AttackDefinition2D, aim: Vector2) -> void:
 	_charging_definition = null
 	_charge_elapsed = 0.0
+	_release_pending = false
 	_begin_combo(charged)
-	_start_swing(charged, aim)
-	return true
+	_start_swing(charged, aim, false)
+
+## Points the charge in progress at `direction` (the live aim while the button is held). The direction the
+## swing takes is still decided at release; this only keeps `attack_direction` and `aim_direction` current so the
+## facing and the weapon pivot follow the aim during the charge. Does nothing when not charging or for a zero vector.
+func update_charge_direction(direction: Vector2) -> void:
+	if _charging_definition == null or direction.length_squared() < 0.0001:
+		return
+	_charge_direction = direction.normalized()
+	context.attack_direction = _charge_direction
+	context.aim_direction = _charge_direction
 
 ## True while a charge is in progress.
 func is_charging() -> bool:
@@ -359,10 +423,29 @@ func _close_window_without_press() -> void:
 	if active.recovery_animation != &"":
 		_in_recovery = true
 		context.weapon_animation_player.play(active.recovery_animation)
+	elif active.recovery_time > 0.0:
+		_begin_code_recovery(active)
 	else:
-		if context.weapon_animation_player.has_animation(&"RESET"):
-			context.weapon_animation_player.play(&"RESET")
+		# Finish first: swing_ended lets FacingComponent2D take over the hand pose (context.hand_settling).
 		_finish_attack()
+		if context.hand_settling:
+			context.weapon_animation_player.stop(true) # keep the pose; the blend takes it from here
+		elif context.weapon_animation_player.has_animation(&"RESET"):
+			context.weapon_animation_player.play(&"RESET")
+
+## Starts the code-driven return (P10): the weapon clip is stopped where it is (the pose is kept), the attack
+## stays in recovery for recovery_time, and listeners blend the weapon to rest. _finish_attack() ends it.
+func _begin_code_recovery(active: AttackDefinition2D) -> void:
+	_combo_window_open = false
+	_in_recovery = true
+	_code_recovery = true
+	_code_recovery_elapsed = 0.0
+	recovery_started.emit(active.recovery_time, active.recovery_ease) # listeners read the pose before the clip stops
+	context.weapon_animation_player.stop(true)
+
+## True while a code-driven return is running.
+func is_code_recovering() -> bool:
+	return _code_recovery
 
 ## Ends the combo: the next swing starts a fresh one.
 func _reset_combo() -> void:
@@ -382,15 +465,22 @@ func _resolve_attack_direction(direction: Vector2) -> Vector2:
 	return attack_direction
 
 ## Puts `chosen` into effect and starts its weapon clip. Used for normal starts and for chain links.
-func _start_swing(chosen: AttackDefinition2D, attack_direction: Vector2) -> void:
+func _start_swing(chosen: AttackDefinition2D, attack_direction: Vector2, with_draw: bool = true) -> void:
 	_active_definition = chosen
 	_combo_window_open = false
 	_in_recovery = false
+	_code_recovery = false
+	_drawing = false
+	_release_pending = false
 	context.attack_direction = attack_direction
 	context.aim_direction = attack_direction
 	context.is_attacking = true
 	context.move_multiplier = _active_definition.movement_multiplier
-	context.weapon_animation_player.play(_active_definition.weapon_animation)
+	if with_draw and chosen.draw_animation != &"":
+		_drawing = true
+		context.weapon_animation_player.play(chosen.draw_animation)
+	else:
+		context.weapon_animation_player.play(chosen.weapon_animation)
 	attack_started.emit(attack_direction)
 
 ## Rebuilds the id lookup from `attacks`. A bad entry (empty, no id, duplicate id, missing
@@ -421,8 +511,17 @@ func _register_extra_attacks() -> int:
 func physics_update(delta: float) -> void:
 	if _initialized:
 		_cooldown_remaining = maxf(_cooldown_remaining - delta, 0.0)
+		if _queued_id != &"":
+			_queue_remaining -= delta
+			if _queue_remaining <= 0.0:
+				_clear_queue()
+		if _code_recovery and _active_definition != null:
+			_code_recovery_elapsed += delta
+			if _code_recovery_elapsed >= _active_definition.recovery_time:
+				_finish_attack()
 		if _charging_definition != null:
-			_charge_elapsed += delta
+			if not _drawing:
+				_charge_elapsed += delta # the charge starts counting once the draw is over
 			if _charging_definition.release_mode == AttackDefinition2D.ReleaseMode.THRESHOLD and _charge_elapsed >= _charging_definition.charge_threshold:
 				release_charge()
 
@@ -440,6 +539,11 @@ func handle_event(event: StringName) -> void:
 			_spawn_effect()
 		EVENT_COMBO_WINDOW_OPEN:
 			_combo_window_open = not _in_recovery
+			if _combo_window_open and _queued_id != &"":
+				# A request made before the window opened (during the draw or the shot) chains now.
+				var queued_direction := _queued_direction
+				_clear_queue()
+				_try_chain(queued_direction)
 		EVENT_COMBO_WINDOW_CLOSE:
 			_combo_window_open = false
 			_close_window_without_press()
@@ -478,6 +582,8 @@ func _forget_effect(slash: AttackEffect2D) -> void:
 	_active_effects.erase(slash)
 
 func cancel() -> void:
+	if context != null and context.is_attacking:
+		swing_ended.emit(true)
 	for effect in _active_effects.duplicate():
 		if is_instance_valid(effect):
 			effect.queue_free()
@@ -485,17 +591,26 @@ func cancel() -> void:
 	_active_definition = null
 	_combo_window_open = false
 	_in_recovery = false
+	_code_recovery = false
 	_reset_combo()
 	_charging_definition = null
 	_charge_elapsed = 0.0
+	_drawing = false
+	_release_pending = false
+	_clear_queue()
 	if context == null:
 		return
 	context.is_attacking = false
 	context.move_multiplier = 1.0
 	if is_instance_valid(context.weapon_animation_player):
-		context.weapon_animation_player.stop()
-		if context.weapon_animation_player.has_animation(&"RESET"):
+		# A listener that settles the hand pose itself (FacingComponent2D) sets context.hand_settling; the pose is
+		# then kept as it is (stop(true)) and no RESET snap is played.
+		context.weapon_animation_player.stop(context.hand_settling)
+		if not context.hand_settling and context.weapon_animation_player.has_animation(&"RESET"):
 			context.weapon_animation_player.play(&"RESET")
+	# A weapon that carries props (the bow's nocked arrow) puts them away, even when the pose is kept above.
+	if is_instance_valid(context.weapon_pivot) and context.weapon_pivot.has_method(&"on_attack_cancelled"):
+		context.weapon_pivot.call(&"on_attack_cancelled")
 
 ## Called when the owner is hit. Cancels the swing in progress if its definition is
 ## interruptible, and starts that attack's cooldown. Returns true if a swing was cancelled.
@@ -513,6 +628,8 @@ func interrupt() -> bool:
 
 ## True while a swing is running whose definition asks for the weapon to aim.
 func is_aiming_weapon() -> bool:
+	if _code_recovery:
+		return false # the pivot is blending back to rest
 	var aiming := _active_definition if _active_definition != null else _charging_definition
 	return _initialized and context.is_attacking and aiming != null and aiming.aim_weapon
 
@@ -525,26 +642,106 @@ func is_on_cooldown() -> bool:
 	return _cooldown_remaining > 0.0
 
 func _on_weapon_animation_finished(animation_name: StringName) -> void:
-	if not _initialized or not context.is_attacking or _active_definition == null:
+	if not _initialized or not context.is_attacking:
+		return
+	if _drawing:
+		_finish_draw(animation_name)
+		return
+	if _active_definition == null:
 		return
 	var active := _active_definition
 	if animation_name == active.weapon_animation:
+		if _queued_id != &"" and _chain_from_queue(active):
+			return # a request is waiting: draw again instead of returning
 		if active.recovery_animation != &"":
 			_combo_window_open = false
 			_in_recovery = true
 			context.weapon_animation_player.play(active.recovery_animation)
+		elif active.recovery_time > 0.0:
+			_begin_code_recovery(active)
 		else:
 			_finish_attack()
 	elif active.recovery_animation != &"" and animation_name == active.recovery_animation:
 		_finish_attack()
 
+## The draw clip of the swing or charge in progress ended. A swing goes on to its weapon clip. A charge goes on to its
+## charge clip, or straight to the shot when the button was already released.
+func _finish_draw(animation_name: StringName) -> void:
+	var swinging := _active_definition != null
+	var drawing := _active_definition if swinging else _charging_definition
+	if drawing == null or animation_name != drawing.draw_animation:
+		return
+	_drawing = false
+	if swinging:
+		context.weapon_animation_player.play(drawing.weapon_animation)
+		return
+	if _release_pending:
+		_commit_release(drawing, _resolve_attack_direction(_charge_direction))
+	elif drawing.charge_animation != &"":
+		context.weapon_animation_player.play(drawing.charge_animation)
+
+## True while a draw clip is playing (a swing's or a charge's).
+func is_drawing() -> bool:
+	return _drawing
+
+## Remembers a request for `attack_id` made while an attack with input_queue_time is running (a swing or its return, not
+## a charge). True when it was remembered, so the caller reports the request as not started. The newest request wins.
+func _try_queue(attack_id: StringName, direction: Vector2) -> bool:
+	if not _initialized or attack_id == &"" or not context.is_attacking or _charging_definition != null or _active_definition == null:
+		return false
+	if _active_definition.input_queue_time <= 0.0 or context.is_dashing or context.hit_stun_remaining > 0.0:
+		return false
+	_queued_id = attack_id
+	_queued_direction = direction
+	_queue_remaining = _active_definition.input_queue_time
+	return true
+
+func _clear_queue() -> void:
+	_queued_id = &""
+	_queued_direction = Vector2.ZERO
+	_queue_remaining = 0.0
+
+## The attack id remembered by _try_queue(), or empty.
+func get_queued_attack_id() -> StringName:
+	return _queued_id
+
+## Hands out the remembered request once the character can start an attack again (nothing running, no dash, cast, stun
+## or cooldown), and forgets it. Empty when there is none or it cannot start yet; it stays until it expires. Character2D
+## asks for it each frame when the player pressed nothing new, so a click made during the return still plays.
+func take_queued_attack() -> StringName:
+	if _queued_id == &"" or not _initialized:
+		return &""
+	if context.is_attacking or context.is_dashing or context.is_casting or context.hit_stun_remaining > 0.0 or _cooldown_remaining > 0.0:
+		return &""
+	var queued := _queued_id
+	_clear_queue()
+	return queued
+
+## The weapon clip ended with a request waiting: the next attack starts at once (its draw plays first), as a chain link
+## from `previous`. The request's own attack is used, so a heavy shot followed by a light click plays the light attack.
+func _chain_from_queue(previous: AttackDefinition2D) -> bool:
+	if context.is_dashing or context.hit_stun_remaining > 0.0:
+		return false
+	var next := get_attack(_queued_id)
+	var direction := _queued_direction
+	_clear_queue()
+	if next == null:
+		return false
+	_begin_combo(next)
+	_start_swing(next, _resolve_attack_direction(direction))
+	attack_chained.emit(previous.id, next.id)
+	return true
+
 func _finish_attack() -> void:
+	swing_ended.emit(false)
 	context.is_attacking = false
 	context.move_multiplier = 1.0
 	_cooldown_remaining = maxf(_active_definition.cooldown_duration, 0.0)
 	_active_definition = null
 	_combo_window_open = false
 	_in_recovery = false
+	_code_recovery = false
+	_drawing = false
 	_reset_combo()
 	# Effects outlive the swing and free themselves; just stop tracking them.
 	_active_effects.clear()

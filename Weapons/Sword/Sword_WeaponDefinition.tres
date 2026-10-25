@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeaponDefinition2D" format=3 uid="uid://bhehk7x0ebkd7"]
+
+[ext_resource type="Script" uid="uid://n1fmcxqhoh6t" path="res://Characters/Components/Weapons/WeaponDefinition2D.gd" id="1_weapon"]
+[ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="2_attack_script"]
+[ext_resource type="Resource" uid="uid://xrvcsh4tu5qs" path="res://Weapons/Sword/Attacks/Sword_Slash1.tres" id="3_light"]
+[ext_resource type="Resource" uid="uid://d2pkc8vgmu0kt" path="res://Weapons/Sword/Attacks/Sword_Slash2.tres" id="4_light2"]
+[ext_resource type="Resource" uid="uid://bkk8cvsetk4lk" path="res://Weapons/Sword/Attacks/Sword_HeavySlash.tres" id="5_heavy"]
+[ext_resource type="PackedScene" uid="uid://bfesegeunf2io" path="res://Weapons/Sword/Sword.tscn" id="6_scene"]
+[ext_resource type="Script" uid="uid://c8wyqi583fwgm" path="res://Characters/Components/Passives/PassiveDefinition2D.gd" id="9_nsb0b"]
+[ext_resource type="Script" uid="uid://bddw52d2igqtf" path="res://Characters/Components/Skills/SkillDefinition2D.gd" id="20_skill_script"]
+[ext_resource type="Resource" uid="uid://4725464hdfih" path="res://Weapons/Sword/Skills/Sword_Lunge.tres" id="21_lunge"]
+[ext_resource type="Resource" uid="uid://pdycoabh7m0u" path="res://Weapons/Sword/Skills/Sword_Empower.tres" id="23_empower"]
+[ext_resource type="Resource" uid="uid://j1yhekc40att" path="res://Weapons/Sword/Skills/Sword_Spin.tres" id="24_spin"]
+
+[resource]
+script = ExtResource("1_weapon")
+weapon_id = &"sword"
+display_name = "Sword"
+weapon_scene = ExtResource("6_scene")
+basic_combo = Array[ExtResource("2_attack_script")]([ExtResource("3_light"), ExtResource("4_light2")])
+heavy_attack = ExtResource("5_heavy")
+active_skills = Array[ExtResource("20_skill_script")]([ExtResource("21_lunge"), ExtResource("24_spin"), ExtResource("23_empower")])

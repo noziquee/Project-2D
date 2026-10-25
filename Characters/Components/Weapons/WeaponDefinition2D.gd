@@ -3,7 +3,7 @@ class_name WeaponDefinition2D
 ## One weapon: which attacks it gives its wielder and the scene that holds its sprite and the
 ## AnimationPlayer with the clips those attacks name.
 ##
-## 9.7a defined and validated the data; 9.7b added the weapon scene (Weapons/Sword.tscn is the sword's).
+## 9.7a defined and validated the data; 9.7b added the weapon scene (Weapons/Sword/scene.tscn is the sword's).
 ## Nothing equips a weapon yet: the player scene mounts the sword scene directly. Equipping arrives in
 ## 9.7c (WeaponController2D).
 ##
@@ -281,6 +281,8 @@ func _clip_problems(label: String, animation_player: AnimationPlayer) -> Array[S
 				problems.append("%s: attack '%s' recovery_animation must differ from weapon_animation ('%s')." % [label, attack.id, attack.weapon_animation])
 		if attack.charge_animation != &"" and not animation_player.has_animation(attack.charge_animation):
 			problems.append("%s: attack '%s' needs clip '%s' (charge_animation) on the weapon AnimationPlayer." % [label, attack.id, attack.charge_animation])
+		if attack.draw_animation != &"" and not animation_player.has_animation(attack.draw_animation):
+			problems.append("%s: attack '%s' needs clip '%s' (draw_animation) on the weapon AnimationPlayer." % [label, attack.id, attack.draw_animation])
 	return problems
 
 func _label() -> String:

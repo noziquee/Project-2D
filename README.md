@@ -19,7 +19,7 @@ A top-down 2D action RPG in Godot 4.7. The player fights goblins (and a goblin a
 
 - Open the project in Godot 4.7 and run `Main.tscn`.
 - After adding new scripts, run `godot --headless --import --path .` once so new classes are registered.
-- Smoke test: `godot --headless --fixed-fps 60 --path . --script res://tests/smoke_checks.gd`. It prints `SUMMARY passes=N failures=M`. The **last confirmed summary** is `SUMMARY passes=887 failures=0` (headless Godot 4.7.2 on Linux, Oct 25 2026, after V6; the first full Phase 13.4 run gave 885 / 0, see `docs/phaseV/V6-notes.md`). It still needs to be repeated on your machine: run the import and smoke-test commands above and replace this line with your own output; do not use an expected count as a result.
+- Smoke test: `godot --headless --fixed-fps 60 --path . --script res://tests/smoke_checks.gd`. It prints `SUMMARY passes=N failures=M`. The **last confirmed summary** is `SUMMARY passes=986 failures=0` (headless Godot 4.7 on Linux, Oct 25 2026, after Track P10, see `docs/trackP/P10-notes.md`; after P9 it was 973 / 0, after Track P8 942 / 0; the same run before P1 gave 920 / 0, so Phases 13.3.2 to 14.3 are confirmed, see `docs/trackP/P1-notes.md` and `docs/trackP/P8-notes.md`). It still needs to be repeated on your machine: run the import and smoke-test commands above and replace this line with your own output; do not use an expected count as a result.
 
 ## How it is organised
 

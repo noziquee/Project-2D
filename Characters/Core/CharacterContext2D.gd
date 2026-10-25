@@ -7,7 +7,7 @@ class_name CharacterContext2D
 ##   Goblin: AnimatedSprite2D, and a weapon at AnimatedSprite2D/Weapon
 ##
 ## The weapon (9.7b) is a scene: a Node2D root holding the sprite and an AnimationPlayer that has the
-## weapon's clips (Weapons/Sword.tscn is the shipped one). The context reads the AnimationPlayer from
+## weapon's clips (Weapons/Sword/scene.tscn is the shipped one). The context reads the AnimationPlayer from
 ## whatever weapon is mounted: the node called MainHand (player) or Weapon (goblin) first, then, on the
 ## player, any other Node2D child of WeaponFacingPivot that carries a weapon AnimationPlayer. Inside the
 ## weapon, the player is the child called HandAnim or WeaponAnimation, otherwise the first
@@ -51,6 +51,9 @@ var move_multiplier: float = 1.0
 var knockback_velocity: Vector2 = Vector2.ZERO
 ## While above zero the character cannot start an attack or a dash.
 var hit_stun_remaining: float = 0.0
+## True while FacingComponent2D is blending the weapon hand back to its idle pose after a swing. AttackComponent2D
+## then skips its instant RESET snap on a cancel, because the blend replaces it. Set only by the facing component.
+var hand_settling: bool = false
 
 func _init(owner: CharacterBody2D) -> void:
 	character = owner

@@ -1,7 +1,7 @@
 extends Character2D
-## Player controller: input, aim, and hit/death presentation. Health lives in the
-## HealthComponent2D child (see Character2D). Groups ("player", "damageable") are set on
-## the scene root in player.tscn.
+## Player controller: input and aim. Health lives in the HealthComponent2D child and the hit flash and death
+## clip in the ReactionComponent2D child (see Character2D). Groups ("player", "damageable") are set on the
+## scene root in player.tscn.
 
 ## Attack ids this controller asks the AttackComponent2D for (9.7d-1). Both are optional overrides:
 ## leave them empty and the ids come from the equipped weapon (the light attack is the component's
@@ -27,11 +27,6 @@ var _press_charged := false
 var _charge_requested := false
 ## attack_heavy is held: it charges the heavy attack directly, with no hold time.
 var _heavy_held := false
-
-## Locomotion and death clips (idle, run, death).
-@onready var _rig_animation_player: AnimationPlayer = get_node_or_null("PlayerAnim") as AnimationPlayer
-## Hit flash only (animates the shared flash material), so it plays in parallel with idle/run.
-@onready var _reaction_animation_player: AnimationPlayer = get_node_or_null("ReactionAnim") as AnimationPlayer
 
 func _get_movement_input() -> Vector2:
 	if not is_alive():
@@ -135,12 +130,7 @@ func _get_charge_begin_requested() -> StringName:
 func _get_charge_release_requested() -> bool:
 	return _pending_release
 
-func _on_damaged(_hit: HitData) -> void:
-	if not is_alive():
-		return # the death clip takes over
-	if is_instance_valid(_reaction_animation_player) and _reaction_animation_player.has_animation(&"take_damage"):
-		_reaction_animation_player.play(&"take_damage")
-
+## The death clip and the flash reset are played by ReactionComponent2D (P1). This only stops the input.
 func _on_death() -> void:
 	# Physics processing is switched off below, so _sample_attack_input() never runs again to drop a button
 	# that was held (or a request made) when the player died. Clear that state here (V2a, test U15).
@@ -152,11 +142,5 @@ func _on_death() -> void:
 	_pending_light = &""
 	_pending_begin = &""
 	_pending_release = false
-	if is_instance_valid(_reaction_animation_player):
-		_reaction_animation_player.stop() # a flash must not outlive the character
-		if _reaction_animation_player.has_animation(&"RESET"):
-			_reaction_animation_player.play(&"RESET")
-	if is_instance_valid(_rig_animation_player) and _rig_animation_player.has_animation(&"death"):
-		_rig_animation_player.play(&"death")
-	# Always stop input/movement, even if the death clip or its player is missing.
+	# Always stop input/movement, even if the character has no ReactionComponent2D or its death clip is missing.
 	set_physics_process(false)

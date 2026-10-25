@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="SkillDefinition2D" format=3 uid="uid://4725464hdfih"]
+[gd_resource type="Resource" script_class="SkillDefinition2D" format=3 uid="uid://bp82kh8lh38pt"]
 
 [ext_resource type="Script" uid="uid://bddw52d2igqtf" path="res://Characters/Components/Skills/SkillDefinition2D.gd" id="1_skill"]
 [ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="2_attack"]

@@ -42,9 +42,21 @@ enum ReleaseMode {
 @export_group("Animation")
 ## Clip played on the character's weapon AnimationPlayer when the attack starts.
 @export var weapon_animation: StringName = &"slash"
+## Optional clip played BEFORE the swing, and before the charge when this attack is charged (a bow draw: the arrow
+## is nocked and the bow comes up). When it finishes, AttackComponent2D plays weapon_animation (swing) or
+## charge_animation (charge) by itself. A combo link replays it, so a chain reads draw > shot > draw > shot. A swing
+## that starts from a charge release skips it (the charge already drew). Leave empty for no draw (every melee attack).
+@export var draw_animation: StringName = &""
 ## Optional clip played after weapon_animation. Leave empty to end the attack as soon
 ## as weapon_animation finishes.
 @export var recovery_animation: StringName = &"sword_return"
+## P10: a code-driven return instead of a return clip. Used only when recovery_animation is empty. When the weapon
+## clip ends (or the combo window closes), the attack stays in recovery for this many seconds, no attack can start
+## meanwhile, and FacingComponent2D blends the weapon pivot and hand from the pose the swing ended in to the weapon's
+## idle pose. 0 ends the attack at once (and a short settle blend runs, see FacingComponent2D.settle_time).
+@export_range(0.0, 3.0, 0.01) var recovery_time: float = 0.0
+## Optional easing of that return: a Curve from x = 0 (swing end pose) to x = 1 (idle pose), y = 0 to 1. Empty is smoothstep.
+@export var recovery_ease: Curve
 ## When true the weapon pivot (WeaponFacingPivot) is rotated toward the attack direction
 ## for the whole swing, so the authored arc is centred on where the attack is aimed.
 ## Only characters with a WeaponFacingPivot rig (the player) can aim; the goblin's weapon
@@ -103,6 +115,13 @@ enum ReleaseMode {
 ## the attack then follows next_attack, or repeats itself. Runtime progress is kept by the
 ## AttackComponent2D, never in this resource.
 @export var combo_sequence: Array[AttackDefinition2D] = []
+
+@export_group("Input queue")
+## Seconds a request for an attack made WHILE this attack is running (drawing, shooting or returning) is remembered.
+## The remembered request plays when the combo window opens, when the weapon clip finishes, or as soon as the return
+## is over, whichever comes first, so a click made a little early is not lost. 0 = no queue: a request during the
+## attack is simply refused (the behaviour of every attack that does not set this).
+@export_range(0.0, 2.0, 0.01) var input_queue_time: float = 0.0
 
 @export_group("Charge")
 ## Clip played on the weapon AnimationPlayer while the attack is charging (begin_charge()). Empty =

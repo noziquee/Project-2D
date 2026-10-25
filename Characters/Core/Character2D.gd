@@ -38,6 +38,12 @@ signal died
 @export var skill_component: SkillComponent2D
 ## Optional (14.1): a child named "PassiveController2D", which runs the equipped weapon's passives.
 @export var passive_controller: PassiveController2D
+## Optional (P1): a child named "ReactionComponent2D", which plays the hit flash, the death clip and the death
+## effect. A character without one has no hit or death presentation (its `_on_damaged` / `_on_death` hooks still run).
+@export var reaction_component: ReactionComponent2D
+## Optional (P8): a child named "FacingComponent2D", which mirrors the rig and aims the weapon pivot. A character
+## without one gets a default component made in code, so scenes written before P8 behave as they did.
+@export var facing_component: FacingComponent2D
 ## Optional (10.5): a Marker2D (default name "AttackSpawnPoint") where attack effects appear, such as a
 ## hand or a staff tip. Leave it empty and add no such child to spawn effects at the character's origin,
 ## as before. The marker moves with whatever node it is a child of, so put it under the weapon pivot if it
@@ -78,8 +84,15 @@ func _ready() -> void:
 	mana_component = _resolve_component(mana_component, "ManaComponent2D") as ManaComponent2D
 	skill_component = _resolve_component(skill_component, "SkillComponent2D") as SkillComponent2D
 	passive_controller = _resolve_component(passive_controller, "PassiveController2D") as PassiveController2D
+	reaction_component = _resolve_component(reaction_component, "ReactionComponent2D") as ReactionComponent2D
 	attack_spawn_point = _resolve_spawn_point(attack_spawn_point)
 	context.attack_spawn_point = attack_spawn_point
+	facing_component = _resolve_component(facing_component, "FacingComponent2D") as FacingComponent2D
+	if facing_component == null:
+		facing_component = FacingComponent2D.new()
+		facing_component.name = "FacingComponent2D"
+		add_child(facing_component)
+	facing_component.initialize(context, attack_component)
 	var missing: Array[String] = []
 	if movement_component == null:
 		missing.append("MovementComponent2D")
@@ -109,6 +122,8 @@ func _ready() -> void:
 		status_controller.initialize(health_component)
 	if is_instance_valid(passive_controller):
 		passive_controller.initialize(attack_component, status_controller, health_component)
+	if is_instance_valid(reaction_component):
+		reaction_component.initialize(self)
 
 	state_machine.initialize(context)
 
@@ -141,6 +156,10 @@ func _physics_process(delta: float) -> void:
 	# Advance pre-existing timers before accepting new requests, avoiding a one-frame
 	# cooldown/duration loss on the exact frame an action starts.
 	dash_component.physics_update(delta)
+	# While charging, the attack direction follows the live aim, so the facing and the weapon pivot track it
+	# (the direction is still read again at release).
+	if attack_component.is_charging():
+		attack_component.update_charge_direction(_get_attack_direction())
 	attack_component.physics_update(delta)
 	_sample_attack_input(delta)
 	_update_facing_direction()
@@ -154,46 +173,21 @@ func _physics_process(delta: float) -> void:
 		var charge_id := _get_charge_begin_requested()
 		if charge_id != &"" and attack_component.begin_charge(charge_id, _get_attack_direction()):
 			state_machine.transition_to(&"Attack")
-		if attack_component.try_start_attack(_get_attack_requested(), _get_attack_direction()):
+		# A click made during an attack that remembers input (the bow, input_queue_time) plays once the return is over.
+		var requested_attack := _get_attack_requested()
+		if requested_attack == &"":
+			requested_attack = attack_component.take_queued_attack()
+		if attack_component.try_start_attack(requested_attack, _get_attack_direction()):
 			state_machine.transition_to(&"Attack")
 			_update_facing_direction()
 
 	movement_component.physics_update(delta)
 	state_machine.physics_update(delta)
 
+## Facing, rig mirroring and weapon aim live in FacingComponent2D (P8); this only hands it the aim direction.
 func _update_facing_direction() -> void:
-	if context.movement_input.x < -0.001:
-		context.movement_facing_direction = Vector2.LEFT
-	elif context.movement_input.x > 0.001:
-		context.movement_facing_direction = Vector2.RIGHT
-	var visible_facing: Vector2 = context.movement_facing_direction
-	if context.is_attacking and absf(context.attack_direction.x) > 0.001:
-		visible_facing = Vector2.LEFT if context.attack_direction.x < 0.0 else Vector2.RIGHT
-	context.facing_direction = visible_facing
-	context.aim_direction = context.attack_direction if context.is_attacking else _get_aim_direction()
-
-	if is_instance_valid(context.visual_root):
-		var sx := absf(context.visual_root.scale.x)
-		context.visual_root.scale.x = -sx if visible_facing.x < 0.0 else sx
-		if context.animated_sprite != null:
-			context.animated_sprite.flip_h = false
-	if is_instance_valid(context.weapon_facing_root):
-		var fx := absf(context.weapon_facing_root.scale.x)
-		context.weapon_facing_root.scale.x = -fx if visible_facing.x < 0.0 else fx
-	_update_weapon_aim()
-
-## Rotates the weapon pivot toward the attack direction for attacks that set aim_weapon,
-## and back to 0 otherwise. The pivot is mirrored on x when facing left, so the angle is
-## measured from the mirrored forward axis: the authored right-facing arc is centred on
-## the aim, and the mirror reflects it for the left.
-func _update_weapon_aim() -> void:
-	if not is_instance_valid(context.weapon_facing_root):
-		return
-	var rotation_target := 0.0
-	if is_instance_valid(attack_component) and attack_component.is_aiming_weapon():
-		var aim := context.attack_direction
-		rotation_target = atan2(aim.y, aim.x) if context.facing_direction.x >= 0.0 else atan2(-aim.y, -aim.x)
-	context.weapon_facing_root.rotation = rotation_target
+	if is_instance_valid(facing_component):
+		facing_component.update(_get_aim_direction())
 
 ## Called by a method track on this character's own weapon AnimationPlayer with the
 ## event name as the single argument, e.g. attack_event(&"spawn_effect").
@@ -215,13 +209,15 @@ func take_damage(amount: int) -> void:
 func heal(amount: int) -> int:
 	return health_component.heal(amount) if is_instance_valid(health_component) else 0
 
-## Presentation hook: called for every hit that deals damage, including the killing one
-## (check is_alive()). Subclasses play hit reactions here.
+## Hook: called for every hit that deals damage, including the killing one (check is_alive()).
+## The hit flash is not played here any more: it belongs to ReactionComponent2D (P1). Override this
+## only for behavior a component cannot express.
 func _on_damaged(_hit: HitData) -> void:
 	pass
 
-## Presentation hook: called once on death after the shared cleanup (attack and dash
-## cancelled, velocity cleared). Subclasses play the death clip or free the node here.
+## Hook: called once on death after the shared cleanup (attack and dash cancelled, velocity
+## cleared). The death clip, death effect and freeing belong to ReactionComponent2D (P1); override
+## this only for behavior a component cannot express (the player stops its input here).
 func _on_death() -> void:
 	pass
 
@@ -261,7 +257,8 @@ func _on_health_component_died() -> void:
 		dash_component.cancel()
 	if is_instance_valid(skill_component):
 		skill_component.cancel()
-	_update_weapon_aim()
+	if is_instance_valid(facing_component):
+		facing_component.snap_to_rest() # death never blends
 	_on_death()
 
 func _get_movement_input() -> Vector2:

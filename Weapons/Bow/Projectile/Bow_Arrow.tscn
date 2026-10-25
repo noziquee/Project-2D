@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://cn4kci1dwd8gx"]
+
+[ext_resource type="Script" uid="uid://drb54xvdxange" path="res://Characters/Components/Combat/ProjectileEffect2D.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://cps6gq57fwd27" path="res://2D_RPG_Assets/Weapon/Arrow.png" id="2_arrow"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_rdb0f"]
+radius = 2.5
+height = 14.0
+
+[node name="Arrow" type="Node2D" unique_id=1006443659]
+script = ExtResource("1_script")
+speed = 420.0
+lifetime = 1.2
+
+[node name="Visual" type="Sprite2D" parent="." unique_id=1262601335]
+texture = ExtResource("2_arrow")
+
+[node name="Hitbox" type="Area2D" parent="." unique_id=1046686858]
+collision_layer = 0
+collision_mask = 7
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox" unique_id=505365385]
+position = Vector2(0, 0.5)
+rotation = 1.5707964
+shape = SubResource("CapsuleShape2D_rdb0f")

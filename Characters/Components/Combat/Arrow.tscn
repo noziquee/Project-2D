@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://cn4kci1dwd8gx"]
+[gd_scene format=3 uid="uid://chnw6pbs6awgl"]
 
 [ext_resource type="Script" uid="uid://drb54xvdxange" path="res://Characters/Components/Combat/ProjectileEffect2D.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://cps6gq57fwd27" path="res://2D_RPG_Assets/Weapon/Arrow.png" id="2_arrow"]

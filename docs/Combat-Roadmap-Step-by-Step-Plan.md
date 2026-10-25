@@ -9,6 +9,7 @@ This continues `docs/phase9/PLAN.md`. Same rules as Phase 9: small steps, each l
 - **Phase V** is verification. Nothing else should start before it, because every step from 9.2 onward is unconfirmed in Godot.
 - **Phases 10 to 14** are the missing systems, in dependency order: effect framework, projectiles and bow, damage resolver, skills, passives.
 - **Track P** (presentation and data cleanup) is independent. Any P step can be done after Phase V, between other phases.
+- **Track W** (weapon-owned content: one folder per weapon, generic attack names, a real goblin weapon) is planned in `docs/trackW/W0-plan.md` and **must be finished before P2**, because it changes where weapon files live and how the goblin gets its weapon.
 - **Phase 15** is content and polish: more weapons, VFX, sound.
 - Every step lists **Do**, **Tests** and **Done when**. New classes use the `2D` suffix and new folders are added only when a step needs them (guide 10.4 and 10.6).
 
@@ -22,7 +23,8 @@ This continues `docs/phase9/PLAN.md`. Same rules as Phase 9: small steps, each l
 | 12 | Combat resolver (defense, crits, status effects) | **Phase 12 done** (12.1 to 12.4, 46 new checks). Full run after V5 in headless Godot 4.7.2: **`SUMMARY passes=726 failures=0`**. Notes in `docs/phase12/`; the first run's failures were editor-tuned values, see `docs/phaseV/V5-notes.md` |
 | 13 | Active skills | 13.0 decisions, 13.1 `SkillDefinition2D` and 13.2 `SkillComponent2D` / `ManaComponent2D` done, run in headless Godot 4.7.2: **`SUMMARY passes=760 failures=0`** (726 + 34). **13.3.1 projectile skill done (Oct 25), run in headless Godot 4.7.2: `SUMMARY passes=776 failures=0`** (760 + 16, `docs/phase13/13.3.1-notes.md`). **13.3.2 area skill written (Oct 25), not yet run in Godot: expected `SUMMARY passes=791 failures=0`** (776 + 15, `docs/phase13/13.3.2-notes.md`). **13.3.3 dash skill written (Oct 25), not yet run: expected `SUMMARY passes=804 failures=0`** (791 + 13, `docs/phase13/13.3.3-notes.md`). **13.3.4 buff skill written (Oct 25), not yet run: expected `SUMMARY passes=815 failures=0`** (804 + 11, `docs/phase13/13.3.4-notes.md`). 13.3.5 channel (only if a weapon needs it) not started. **13.4 (input, HUD and the first playable skills; the old 13.4 and 13.5 are merged) is planned in 8 segments, 13.4.1 to 13.4.8 (`docs/phase13/13.4-plan.md`). 13.4.1 (skill signals and HUD read API) source present, runtime verification deferred to the final Phase 13.4 smoke test (`docs/phase13/13.4.1-notes.md`; no passing summary claimed); 13.4.2 (the player gets the skill components and the skill keys) source integration completed during 13.4.6, runtime verification deferred to the final Phase 13.4 smoke test (`docs/phase13/13.4.2-notes.md`; no passing summary claimed); 13.4.3 (the shipped skills on the sword and bow) source data present, with slot 1 upgraded to Spin and Multi-shot in 13.4.7; runtime verification deferred to the final Phase 13.4 smoke test (`docs/phase13/13.4.3-notes.md`; no passing summary claimed); 13.4.4 (scene-based mana bar) implemented, pending the single smoke test after Phase 13.4 is complete (`docs/phase13/13.4.4-notes.md`); **13.4.5 (reusable scene-based SkillSlot with cooldown wipe and feedback animations) implemented, pending that same final smoke test (`docs/phase13/13.4.5-notes.md`, checks SSS1–SSS11); 13.4.6 (three-slot SkillBar, weapon switching, Input Map labels, and missing player input/component integration) implemented, pending that same final smoke test (`docs/phase13/13.4.6-notes.md`, checks TTT1–TTT11); 13.4.7 (Spin, Multi-shot volley fields, weapon data and tests) implemented, pending that same final smoke test (`docs/phase13/13.4.7-notes.md`, checks UUU1–UUU7); 13.4.8 documentation/checklist prepared. The final Phase 13.4 smoke run was done headless in V6: 885 / 0, then 887 / 0 (see `docs/phaseV/V6-notes.md`); it still needs your own run and the play-test checklist.** Notes in `docs/phase13/` |
 | 14 | Passives | **14.0 rules, 14.1 `PassiveDefinition2D` / `PassiveController2D` and 14.2 first passive (Rising Strikes) written (Oct 25), not yet run in Godot: expected `SUMMARY passes=908 failures=0`** (887 + 21, `docs/phase14/`). **14.3 event passives written (Oct 25), not yet run: expected `SUMMARY passes=920 failures=0`** (908 + 12, `docs/phase14/14.3-notes.md`) |
-| P | Presentation and data cleanup (reactions, stagger, rig paths, hurtbox, team targeting) | not started |
+| W | Weapon folders and shared attack data (before P2) | **W0 plan done and decisions D1 to D6 answered (Oct 25): `docs/trackW/W0-plan.md`. W1 written, not yet run (`docs/trackW/W1-notes.md`); W2 and W3 written, not yet run (`docs/trackW/W2-notes.md`, `W3-notes.md`): all three expect `SUMMARY passes=986 failures=0`; you will run one smoke test after Track W is finished. File naming rule: every weapon file carries the weapon's name (`Sword.tscn`, `Sword_WeaponDefinition.tres`, `bow.gd`).** W1 move weapon scenes and definitions, W2 move attacks, skills and arrow into the folder of the weapon that created them (no `Shared/` folder), W3 generic file names, W4 ids (**written Oct 25, not yet run**, expected 988, `docs/trackW/W4-notes.md`), W5 `GoblinSword` weapon and enemy wiring, goblin slash uses the sword's `slash1` (expected 1002) (in increments: **W5a `weapon_mount` written Oct 25, not yet run, expected 994**, `docs/trackW/W5a-notes.md`), W6 goblin archer onto the Bow folder, W7 shared-resource audit, W8 docs. Starts from the last confirmed 986 / 0 |
+| P | Presentation and data cleanup (reactions, stagger, rig paths, hurtbox, team targeting) | **P1 `ReactionComponent2D` done (Oct 25), run in headless Godot 4.7: `SUMMARY passes=932 failures=0`** (the archive's 920 + 12, `docs/trackP/P1-notes.md`). **P8 `FacingComponent2D` done (Oct 25), run in headless Godot 4.7: `SUMMARY passes=942 failures=0`** (932 + 10, `docs/trackP/P8-notes.md`). **P9 charge aim, sticky facing, bow rest pose and settle blend done (Oct 25), 973 / 0** (`docs/trackP/P9-notes.md`). **P10 code-driven return done (Oct 25), `SUMMARY passes=986 failures=0`** (`docs/trackP/P10-notes.md`). P2 to P7 not started; **P2 now waits for Track W** |
 | 15 | More weapons, VFX, sound, polish | not started |
 
 ## Decisions to make before the phase that needs them
@@ -35,6 +37,7 @@ This continues `docs/phase9/PLAN.md`. Same rules as Phase 9: small steps, each l
 | Number of skill slots: fixed (3 or 4) or per weapon | 13.0 | **Decided: 3 slots per weapon**, skills live on `WeaponDefinition2D` |
 | Passive counter rules: do misses count, multi-target counts once per target or per attack, can stacks overlap | 14.0 | **Decided: misses do not count, once per attack, rewards do not overlap**; full table in `docs/phase14/14.0-notes.md` |
 | Threshold release values left on `DefaultAttackDefinition.tres` | V4 | **Decided: cleared** (inert, no check reads them) |
+| Weapon content layout: one folder per weapon, `Weapons/Shared/` for resources used by two or more weapons, attacks named by action not by character | W1 | **Decided Oct 25 (`docs/trackW/W0-plan.md`): no `Shared/` folder, a resource stays in the folder of the first weapon that created it; the goblin uses the sword's slash effect and numbers for now; skill icons stay in `UI/HUD/Icons/` until you make your own folder in `2D_RPG_Assets`; `weapon_mount` on `WeaponController2D`; the goblin archer uses the Bow folder; no redirect for old paths. Q1 answered: the goblin lunge also takes the sword's damage, knockback and hit stun. Q2 answered: the weapon is in the file name. Q3 answered: resource ids follow the new file names (W4)** |
 | Skill keys, radial wipe approach, multi-shot fields, HUD signals | 13.4 | **Decided in `docs/phase13/13.4-plan.md`**: keys 1 to 3, a `TextureProgressBar` wipe, `projectile_count` and `spread_degrees`, new `SkillComponent2D` signals. Change them before the segment that needs them |
 
 ---
@@ -209,18 +212,40 @@ Why merged: a skill HUD with empty slots cannot be play-tested, so the first ski
 
 ---
 
+## Track W: weapon-owned content (before P2; full plan in `docs/trackW/W0-plan.md`)
+
+Why: attacks and skills are spread over `Weapons/`, `Data/Weapons/`, `Characters/Components/Combat/` and `Characters/Components/Skills/`, they carry character names (`PlayerLight...`, `Goblin...`), and the goblin's knife is baked into `BasicEnemy2D.tscn` with no weapon definition. Goal: one folder per weapon (`Weapons/Sword`, `Weapons/Bow`, `Weapons/GoblinSword`; a resource lives in the folder of the first weapon that created it, no `Shared/`), weapon-named files (`Sword_Slash1`, `Sword_Slash2`, `GoblinSword_Lunge`), shared attack and skill resources where behavior matches, and a goblin that uses its own weapon definition and scene.
+
+Rules: preserve behavior, move before rename, rename before changing ids, one step per commit, every step ends with the import and the smoke test. No `.gd` system is rewritten; only `WeaponController2D` gets one new field (`weapon_mount`, W5) and `smoke_checks.gd` gets path and id updates.
+
+| Step | What | Expected SUMMARY |
+|---|---|---|
+| W0 | The plan, the decisions and this roadmap update (**done, documents only**) | 986 / 0 unchanged |
+| W1 | Move weapon scenes and weapon definitions into `Weapons/Sword/` and `Weapons/Bow/` (**written Oct 25, not yet run**, `docs/trackW/W1-notes.md`) | 986 / 0 |
+| W2 | Move attack, skill and arrow files into the folder of the weapon that created them (old names kept) (**written Oct 25, not yet run**, `docs/trackW/W2-notes.md`) | 986 / 0 |
+| W3 | Rename files with the weapon in the name, e.g. `Sword_Slash1.tres`, `Bow_ArrowShot.tres` (ids unchanged) (**written Oct 25, not yet run**, `docs/trackW/W3-notes.md`) | 986 / 0 |
+| W4 | Rename ids to follow the file names (Q3 answered: yes); 2 new checks (**written Oct 25, not yet run**, `docs/trackW/W4-notes.md`) | 988 / 0 |
+| W5 | `GoblinSword` scene and definition, `weapon_mount` on `WeaponController2D`, goblin wired through it; 14 new checks. Built in increments: W5a `weapon_mount` (**written Oct 25, not yet run**, 6 checks, expected 994, `docs/trackW/W5a-notes.md`), W5b the `GoblinSword` scene and definition (**written Oct 25, not yet run**, 4 checks, expected 998, `docs/trackW/W5b-notes.md`), W5c the goblin lunge on the goblin sword (**written Oct 25, not yet run**, 3 checks, expected 1001, `docs/trackW/W5c-notes.md`), then the enemy wiring | 1002 / 0 at the end |
+| W6 | Goblin archer onto the Bow folder | set in its notes |
+| W7 | Cross-weapon reference audit and clip validation | set in its notes |
+| W8 | README, implementation notes, guide and roadmap docs | no code change |
+
+- **Done when:** a new weapon is a new folder under `Weapons/`, the goblin and the player use the same kinds of resources, no weapon-specific file sits in `Characters/Components/`, and the final SUMMARY is in the README.
+
+---
+
 ## Track P: presentation and data cleanup (any time after Phase V)
 
 Each of these removes a place where adding content still needs a script change. Do them when the next new character or weapon needs them, not all at once. Order below is by value (guide section 6).
 
-- **P1. `ReactionComponent2D`.** Listens to `damaged` and `died` and plays exported clip names and effect scenes. Moves the hard-coded `take_damage`, `RESET` and `death` strings out of `player.gd` and `BasicEnemy2D.gd`. *Done when:* a new enemy needs no presentation script.
-- **P2. Exported rig paths.** Exported `NodePath`s on `Character2D` for the visual root, locomotion player, weapon player and weapon pivot, defaulting to today's names, replacing the name lookups in `CharacterContext2D._init`. *Done when:* a third character layout works without copying node names.
+- **P1. `ReactionComponent2D` (done, 932 / 0, see `docs/trackP/P1-notes.md`).** Listens to `damaged` and `died` and plays exported clip names and effect scenes. Moves the hard-coded `take_damage`, `RESET` and `death` strings out of `player.gd` and `BasicEnemy2D.gd`. *Done when:* a new enemy needs no presentation script.
+- **P2. Exported rig paths (starts after Track W).** Exported `NodePath`s on `Character2D` for the visual root, locomotion player, weapon player and weapon pivot, defaulting to today's names, replacing the name lookups in `CharacterContext2D._init`. *Done when:* a third character layout works without copying node names.
 - **P3. Locomotion clip names.** Exported `StringName`s on the states, or one `CharacterAnimationSet` resource, for `idle`, `run` and the `RESET` clip used in `AttackComponent2D`.
 - **P4. Team targeting.** `EnemyAIController2D` targets any character on a different team instead of the `player` group; the `DetectionArea` mask still filters. *Done when:* `target_group` is gone.
 - **P5. `Hurtbox` component.** An `Area2D` that forwards hits to `HealthComponent2D`, so crates and switches take hits without joining the `damageable` group by hand (this also removes the group check in `AttackSlash2D`).
 - **P6. `Stagger` state.** A state node plus a reaction clip, added only to characters that should flinch when hit stun applies.
 - **P7. Goblin lunge impulse.** A forward movement impulse in `MovementComponent2D` for the lunge (listed as open in `docs/phase9/PLAN.md`).
-- **P8. `FacingComponent2D`.** Low priority; the current facing flip works.
+- **P8. `FacingComponent2D` (done, 942 / 0, see `docs/trackP/P8-notes.md`).** Moved the facing flip and weapon aim out of `Character2D`, with mirroring, art direction and weapon aim as fields.
 
 ---
 

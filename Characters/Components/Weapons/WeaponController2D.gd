@@ -4,7 +4,7 @@ class_name WeaponController2D
 ##
 ## validate_equip() and can_equip() report every reason a weapon would be refused and change nothing
 ## (9.7c-1). equip() gives the character the weapon's attacks (9.7c-2) and, when the weapon has a
-## weapon_scene that is not the one mounted, swaps that scene in under WeaponFacingPivot first (9.7c-3).
+## weapon_scene that is not the one mounted, swaps that scene in under its mount first (WeaponFacingPivot unless weapon_mount says otherwise, W5; 9.7c-3).
 ## A weapon with no scene, or the scene already mounted, keeps the weapon that is there.
 ##
 ## equip() only touches the mounted weapon and the AttackComponent2D's attacks (the default attack and the
@@ -25,6 +25,10 @@ signal equip_failed(weapon: WeaponDefinition2D, problems: Array)
 ## The weapons equip_next() cycles through, in order (11.4). Empty or a single entry means there is nothing to switch to.
 ## Put starting_weapon in the list too, so the cycle continues from it.
 @export var loadout: Array[WeaponDefinition2D] = []
+## The node a swapped weapon is mounted under (W5), as a path relative to this controller (for a goblin
+## whose weapon hangs on its sprite: ../AnimatedSprite2D). Empty means the character's WeaponFacingPivot,
+## which is what the player uses.
+@export var weapon_mount: NodePath = NodePath("")
 
 var context: CharacterContext2D
 var attack_component: AttackComponent2D
@@ -53,6 +57,15 @@ func initialize(shared_context: CharacterContext2D, attacks: AttackComponent2D) 
 
 func is_initialized() -> bool:
 	return _initialized
+
+## The node weapons are mounted under: the node at `weapon_mount`, or the character's WeaponFacingPivot when the
+## path is empty. Null when there is none (no pivot on that rig, or the path does not resolve).
+func get_mount_root() -> Node2D:
+	if weapon_mount.is_empty():
+		return context.weapon_facing_root if context != null else null
+	if not is_inside_tree():
+		return null
+	return get_node_or_null(weapon_mount) as Node2D
 
 func get_equipped_weapon() -> WeaponDefinition2D:
 	return _equipped_weapon
@@ -138,8 +151,11 @@ func validate_equip(weapon: WeaponDefinition2D) -> Array[String]:
 	if not _initialized:
 		problems.append("%s: the weapon controller is not initialized (needs a character context, an attack component and a weapon AnimationPlayer)." % label)
 		return problems
-	if not is_instance_valid(context.weapon_facing_root):
-		_add(problems, "%s: this character has no WeaponFacingPivot, so its weapon cannot be swapped (only the layered player rig supports equipping)." % label)
+	if not is_instance_valid(get_mount_root()):
+		if weapon_mount.is_empty():
+			_add(problems, "%s: this character has no WeaponFacingPivot, so its weapon cannot be swapped (only the layered player rig supports equipping)." % label)
+		else:
+			_add(problems, "%s: weapon_mount '%s' does not resolve to a Node2D, so its weapon cannot be swapped." % [label, weapon_mount])
 	if context.is_attacking:
 		_add(problems, "%s: cannot be equipped during a swing or charge." % label)
 	if context.is_casting:
@@ -165,11 +181,12 @@ func validate_equip(weapon: WeaponDefinition2D) -> Array[String]:
 			_add(problems, "%s: attack '%s' uses a THRESHOLD release, which needs charge_threshold > 0." % [label, attack.id])
 	return problems
 
-## The mounted weapon must sit directly under the WeaponFacingPivot to be swapped out.
+## The mounted weapon must sit directly under the mount (WeaponFacingPivot by default) to be swapped out.
 func _mount_problems(weapon: WeaponDefinition2D) -> Array[String]:
 	var problems: Array[String] = []
-	if _needs_swap(weapon) and (context.weapon_pivot == null or context.weapon_pivot.get_parent() != context.weapon_facing_root):
-		problems.append("%s: the mounted weapon is not a direct child of WeaponFacingPivot, so it cannot be swapped out." % _label(weapon))
+	if _needs_swap(weapon) and (context.weapon_pivot == null or context.weapon_pivot.get_parent() != get_mount_root()):
+		var mount_name := "WeaponFacingPivot" if weapon_mount.is_empty() else str(weapon_mount)
+		problems.append("%s: the mounted weapon is not a direct child of %s, so it cannot be swapped out." % [_label(weapon), mount_name])
 	return problems
 
 ## True when the weapon has a scene that is not the one mounted now. A weapon with no scene, or the
@@ -187,7 +204,7 @@ func _needs_swap(weapon: WeaponDefinition2D) -> bool:
 ## changed, when the new weapon cannot be bound.
 func _swap_mount(new_mount: Node2D) -> Node2D:
 	var old_mount := context.weapon_pivot
-	var parent := context.weapon_facing_root
+	var parent := get_mount_root()
 	var index := old_mount.get_index()
 	parent.remove_child(old_mount)
 	new_mount.name = old_mount.name
@@ -204,7 +221,7 @@ func _swap_mount(new_mount: Node2D) -> Node2D:
 ## Undoes _swap_mount(): frees the weapon that was mounted, puts `old_mount` back in its place and binds
 ## the context and the attack component to it again.
 func _restore_mount(old_mount: Node2D) -> void:
-	var parent := context.weapon_facing_root
+	var parent := get_mount_root()
 	var failed_mount := context.weapon_pivot
 	var index := failed_mount.get_index()
 	parent.remove_child(failed_mount)

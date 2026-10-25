@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" path="res://Characters/Enemies/BasicEnemy2D.tscn" id="1_base"]
 [ext_resource type="Texture2D" uid="uid://dn5u0gyvv7awe" path="res://2D_RPG_Assets/Weapon/Bow.png" id="2_bow"]
 [ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="3_definition_script"]
-[ext_resource type="Resource" path="res://Characters/Components/Combat/GoblinArrowAttackDefinition.tres" id="4_arrow"]
+[ext_resource type="Resource" path="res://Weapons/Bow/Attacks/Bow_ArrowEnemy.tres" id="4_arrow"]
 [ext_resource type="Resource" path="res://Characters/Controllers/GoblinArcherBehaviorProfile.tres" id="5_profile"]
 
 [sub_resource type="Animation" id="Animation_archer_reset"]

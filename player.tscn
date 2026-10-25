@@ -16,18 +16,20 @@
 [ext_resource type="Script" uid="uid://8ya30f8mrstn" path="res://Characters/StateMachine/States/MoveState.gd" id="15_move"]
 [ext_resource type="Script" uid="uid://bqnytmqmkbmtj" path="res://Characters/StateMachine/States/DashState.gd" id="16_dash"]
 [ext_resource type="Script" uid="uid://nwen6k2klg6r" path="res://Characters/StateMachine/States/AttackState.gd" id="17_attack"]
-[ext_resource type="Resource" uid="uid://d2pkc8vgmu0kt" path="res://Characters/Components/Combat/PlayerLight2AttackDefinition.tres" id="18_light2"]
-[ext_resource type="Resource" uid="uid://bkk8cvsetk4lk" path="res://Characters/Components/Combat/PlayerHeavyAttackDefinition.tres" id="19_heavy"]
-[ext_resource type="PackedScene" uid="uid://bfesegeunf2io" path="res://Weapons/Sword.tscn" id="20_sword"]
+[ext_resource type="Resource" uid="uid://d2pkc8vgmu0kt" path="res://Weapons/Sword/Attacks/Sword_Slash2.tres" id="18_light2"]
+[ext_resource type="Resource" uid="uid://bkk8cvsetk4lk" path="res://Weapons/Sword/Attacks/Sword_HeavySlash.tres" id="19_heavy"]
+[ext_resource type="PackedScene" uid="uid://bfesegeunf2io" path="res://Weapons/Sword/Sword.tscn" id="20_sword"]
 [ext_resource type="Script" uid="uid://cxp6co2ulrj0w" path="res://Characters/Components/Weapons/WeaponController2D.gd" id="21_weapon_controller"]
-[ext_resource type="Resource" uid="uid://bhehk7x0ebkd7" path="res://Data/Weapons/SwordWeaponDefinition.tres" id="22_sword_def"]
-[ext_resource type="Resource" uid="uid://xrvcsh4tu5qs" path="res://Characters/Components/Combat/DefaultAttackDefinition.tres" id="23_default_attack"]
+[ext_resource type="Resource" uid="uid://bhehk7x0ebkd7" path="res://Weapons/Sword/Sword_WeaponDefinition.tres" id="22_sword_def"]
+[ext_resource type="Resource" uid="uid://xrvcsh4tu5qs" path="res://Weapons/Sword/Attacks/Sword_Slash1.tres" id="23_default_attack"]
 [ext_resource type="Script" uid="uid://n1fmcxqhoh6t" path="res://Characters/Components/Weapons/WeaponDefinition2D.gd" id="24_weapon_script"]
-[ext_resource type="Resource" uid="uid://cgumw8d30ka8x" path="res://Data/Weapons/BowWeaponDefinition.tres" id="25_bow_def"]
-[ext_resource type="Script" path="res://Characters/Components/Resources/ManaComponent2D.gd" id="26_mana"]
-[ext_resource type="Script" path="res://Characters/Components/Skills/SkillComponent2D.gd" id="27_skills"]
-[ext_resource type="Script" path="res://Characters/Components/Status/StatusController2D.gd" id="28_status"]
-[ext_resource type="Script" path="res://Characters/Components/Passives/PassiveController2D.gd" id="29_passives"]
+[ext_resource type="Resource" uid="uid://cgumw8d30ka8x" path="res://Weapons/Bow/Bow_WeaponDefinition.tres" id="25_bow_def"]
+[ext_resource type="Script" uid="uid://dyt55pv7bd2ai" path="res://Characters/Components/Resources/ManaComponent2D.gd" id="26_mana"]
+[ext_resource type="Script" uid="uid://bnkr4gbd54uen" path="res://Characters/Components/Skills/SkillComponent2D.gd" id="27_skills"]
+[ext_resource type="Script" uid="uid://bfs2fvu842o76" path="res://Characters/Components/Status/StatusController2D.gd" id="28_status"]
+[ext_resource type="Script" uid="uid://bthla3y8smhgt" path="res://Characters/Components/Passives/PassiveController2D.gd" id="29_passives"]
+[ext_resource type="Script" uid="uid://cf1mkji337dbr" path="res://Characters/Components/Reaction/ReactionComponent2D.gd" id="30_reaction"]
+[ext_resource type="Script" uid="uid://bka2tbouw64mv" path="res://Characters/Components/Facing/FacingComponent2D.gd" id="31_facing"]
 
 [sub_resource type="Animation" id="Animation_n7ghd"]
 length = 0.001
@@ -483,7 +485,7 @@ _data = {
 radius = 6.0
 height = 18.0
 
-[node name="Player" type="CharacterBody2D" unique_id=176143687 node_paths=PackedStringArray("movement_component", "dash_component", "attack_component", "health_component", "state_machine", "mana_component", "skill_component", "status_controller") groups=["damageable", "player"]]
+[node name="Player" type="CharacterBody2D" unique_id=176143687 node_paths=PackedStringArray("movement_component", "dash_component", "attack_component", "health_component", "state_machine", "status_controller", "mana_component", "skill_component") groups=["damageable", "player"]]
 collision_mask = 7
 script = ExtResource("7_player_script")
 charge_start_time = 0.5
@@ -493,9 +495,9 @@ dash_component = NodePath("DashComponent2D")
 attack_component = NodePath("AttackComponent2D")
 health_component = NodePath("HealthComponent2D")
 state_machine = NodePath("CharacterStateMachine")
+status_controller = NodePath("StatusController2D")
 mana_component = NodePath("ManaComponent2D")
 skill_component = NodePath("SkillComponent2D")
-status_controller = NodePath("StatusController2D")
 
 [node name="LayeredRig" type="Node2D" parent="." unique_id=72007712]
 
@@ -534,7 +536,7 @@ shape = SubResource("CapsuleShape2D_2nri0")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=558928301]
 visible = false
-zoom = Vector2(2, 2)
+zoom = Vector2(3, 3)
 position_smoothing_enabled = true
 position_smoothing_speed = 8.0
 
@@ -559,17 +561,25 @@ script = ExtResource("21_weapon_controller")
 starting_weapon = ExtResource("22_sword_def")
 loadout = Array[ExtResource("24_weapon_script")]([ExtResource("22_sword_def"), ExtResource("25_bow_def")])
 
-[node name="ManaComponent2D" type="Node" parent="."]
+[node name="ManaComponent2D" type="Node" parent="." unique_id=315315696]
 script = ExtResource("26_mana")
 
-[node name="SkillComponent2D" type="Node" parent="."]
+[node name="SkillComponent2D" type="Node" parent="." unique_id=513042114]
 script = ExtResource("27_skills")
 
-[node name="StatusController2D" type="Node" parent="."]
+[node name="StatusController2D" type="Node" parent="." unique_id=152665156]
 script = ExtResource("28_status")
 
-[node name="PassiveController2D" type="Node" parent="."]
+[node name="PassiveController2D" type="Node" parent="." unique_id=545219099]
 script = ExtResource("29_passives")
+
+[node name="ReactionComponent2D" type="Node" parent="." unique_id=476760020 node_paths=PackedStringArray("hit_player", "death_player")]
+script = ExtResource("30_reaction")
+hit_player = NodePath("../ReactionAnim")
+death_player = NodePath("../PlayerAnim")
+
+[node name="FacingComponent2D" type="Node" parent="." unique_id=1337218293]
+script = ExtResource("31_facing")
 
 [node name="CharacterStateMachine" type="Node" parent="." unique_id=1322817306]
 script = ExtResource("13_machine")

@@ -35,8 +35,12 @@ If the equipped weapon has no heavy attack, `attack_light` is the light attack o
 - `Characters/Components/Weapons/WeaponController2D.gd`: validates and equips a weapon (swaps the weapon scene, sets the character's attacks, rolls back on failure)
 - `Weapons/Sword.tscn` and `Data/Weapons/SwordWeaponDefinition.tres`: the shipped sword (sprite, `HandAnim` with its clips) and its definition
 - `Characters/Controllers/AttackChoice2D.gd`: one weighted attack choice for an enemy's `EnemyBehaviorProfile`
-- `player.gd`: player controls (tap, hold and release of the attack buttons, taking attack ids from the equipped weapon), hit reaction, and death presentation
-- `Characters/Controllers/EnemyAIController2D.gd` and `Characters/Enemies/BasicEnemy2D.gd`: goblin target acquisition, chase, melee attacks, return-home behavior, and hit/death presentation
+- `player.gd`: player controls (tap, hold and release of the attack buttons, taking attack ids from the equipped weapon) and stopping input on death
+- `Characters/Components/Reaction/ReactionComponent2D.gd` (Track P1): hit flash, death clip, death effect and free-on-death as exported data on a child node of the character; `player.gd` and `BasicEnemy2D.gd` no longer play clips or spawn effects (`docs/trackP/P1-notes.md`)
+- `Characters/Components/Facing/FacingComponent2D.gd` (Track P8): which way a character faces, mirroring of the body and weapon pivot, and the weapon-pivot aim, with fields for what to mirror and which way the art faces; `Character2D` calls it every physics frame and makes a default one when a scene has none (`docs/trackP/P8-notes.md`)
+- Track P9 (`docs/trackP/P9-notes.md`): the charge aim follows the mouse (`AttackComponent2D.update_charge_direction()`), `FacingComponent2D` gets `facing_dead_zone`, `sticky_facing` and `settle_time` (the pivot and the weapon hand blend to rest when a swing ends or is cancelled, via the new `swing_ended` signal), and the bow's `RESET` pose matches its `idle` pose
+- Track P10 (`docs/trackP/P10-notes.md`): `AttackDefinition2D.recovery_time` and `recovery_ease` give an attack a code-driven return (the weapon pivot and hand blend from the pose the swing ended in to the weapon's `idle` pose) instead of a return clip; the shipped player and bow attacks use it
+- `Characters/Controllers/EnemyAIController2D.gd` and `Characters/Enemies/BasicEnemy2D.gd`: goblin target acquisition, chase, melee attacks and return-home behavior
 
 ## Integration and improvements
 
@@ -95,7 +99,7 @@ Smoke test: `godot --headless --fixed-fps 60 --path . --script res://tests/smoke
 - `invulnerability_duration` (default 0, off) opens a window after any non-lethal hit; hits inside it are ignored entirely (they also do not count as a slash hit).
 - `player.tscn` (max 5) and `BasicEnemy2D.tscn` (max 3) each have a `HealthComponent2D` child. `Character2D` finds it by name and creates a default one with a warning if it is missing.
 - `Character2D` re-emits `health_changed`, `damaged` and `died`, exposes `apply_hit()`, `heal()` and read-through `health` / `max_health` (the HUD and tests still use these; remove them in Phase 8). `take_damage(amount)` is now a shim that wraps a `HitData`.
-- Shared death handling lives in `Character2D` (emit `died`, clear velocity, cancel attack and dash). Subclasses only override two presentation hooks: `_on_damaged(hit)` (hit reaction; check `is_alive()` for the killing hit) and `_on_death()` (player: `death` clip and stop processing; goblin: `queue_free()`).
+- Shared death handling lives in `Character2D` (emit `died`, clear velocity, cancel attack and dash). Hit and death presentation (flash, `death` clip, death effect, freeing) is a `ReactionComponent2D` child since Track P1. The `_on_damaged(hit)` and `_on_death()` hooks remain for behavior a component cannot express (the player stops its input in `_on_death()`).
 - `AttackSlash2D` builds `HitData(damage, source, direction)` and calls `apply_hit` when the target has it, otherwise falls back to `take_damage`. `attack_hit` / `hit_confirmed` now report the damage actually dealt.
 - The `max_health` export on the player and goblin scripts is gone: set it on the `HealthComponent2D` node instead.
 - New tests are in smoke section K. As before, nothing here has been run in this environment, so open the project once in Godot 4.7 (this refreshes the global class cache for `HitData` and `HealthComponent2D`) and then run the smoke test.

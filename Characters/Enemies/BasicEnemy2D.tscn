@@ -20,6 +20,8 @@
 [ext_resource type="Resource" uid="uid://crfo3gq0o40qf" path="res://Characters/Controllers/GoblinBehaviorProfile.tres" id="19_profile"]
 [ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="20_definition_script"]
 [ext_resource type="Resource" path="res://Characters/Components/Combat/GoblinLungeAttackDefinition.tres" id="21_lunge"]
+[ext_resource type="Script" path="res://Characters/Components/Reaction/ReactionComponent2D.gd" id="22_reaction"]
+[ext_resource type="Script" path="res://Characters/Components/Facing/FacingComponent2D.gd" id="23_facing"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_goblin_0"]
 atlas = ExtResource("2_goblin")
@@ -365,7 +367,6 @@ radius = 200.0
 collision_layer = 2
 collision_mask = 7
 script = ExtResource("1_script")
-death_effect_scene = ExtResource("18_death")
 team = &"enemy"
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=457849524]
@@ -424,6 +425,15 @@ dash_speed = 150.0
 script = ExtResource("12_attack")
 attack_definition = ExtResource("5_attack")
 attacks = Array[ExtResource("20_definition_script")]([ExtResource("21_lunge")])
+
+[node name="ReactionComponent2D" type="Node" parent="." node_paths=PackedStringArray("hit_player")]
+script = ExtResource("22_reaction")
+hit_player = NodePath("../AnimatedSprite2D/AnimationPlayer")
+death_effect_scene = ExtResource("18_death")
+free_on_death = true
+
+[node name="FacingComponent2D" type="Node" parent="."]
+script = ExtResource("23_facing")
 
 [node name="CharacterStateMachine" type="Node" parent="." unique_id=269831209]
 script = ExtResource("13_machine")
