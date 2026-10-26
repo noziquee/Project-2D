@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" uid="uid://bysdgsi3ih8o" path="res://Characters/Controllers/EnemyBehaviorProfile.gd" id="1_profile"]
 [ext_resource type="Script" uid="uid://8y3nwxuiytgq" path="res://Characters/Controllers/AttackChoice2D.gd" id="2_choice"]
-[ext_resource type="Resource" uid="uid://fxvdwr0kdi3j" path="res://Characters/Components/Combat/GoblinAttackDefinition.tres" id="3_slash"]
-[ext_resource type="Resource" path="res://Characters/Components/Combat/GoblinLungeAttackDefinition.tres" id="4_lunge"]
+[ext_resource type="Resource" uid="uid://xrvcsh4tu5qs" path="res://Weapons/Sword/Attacks/Sword_Slash1.tres" id="3_slash"]
+[ext_resource type="Resource" uid="uid://b6tbupt5g6mow" path="res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres" id="4_lunge"]
 
 [sub_resource type="Resource" id="Resource_slash_choice"]
 script = ExtResource("2_choice")

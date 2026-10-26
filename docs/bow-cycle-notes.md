@@ -19,7 +19,7 @@ Every transition happens by itself when the previous clip ends; nothing waits fo
 
 ## Tuning
 
-- Draw speed: length of `bow_draw` (0.167 s).
+- Draw speed: length of `bow_draw` (0.5 s since Track W5c; it was 0.167 s when these notes were written, and the BC20 to BC43 timings were retimed for 0.5 s on Oct 26, see `docs/trackW/W9-notes.md`).
 - How early a click may come: `input_queue_time` on the arrow definitions.
 - When the next shot can chain: `combo_window_open` / `combo_window_close` keys in `bow_shoot`.
 - Time back to idle after the last shot: `recovery_time` on `ArrowAttackDefinition.tres`.

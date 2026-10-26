@@ -1,11 +1,13 @@
-[gd_resource type="Resource" script_class="WeaponDefinition2D" format=3]
+[gd_resource type="Resource" script_class="WeaponDefinition2D" format=3 uid="uid://v3vrqcs5e2e1"]
 
+[ext_resource type="Script" uid="uid://bddw52d2igqtf" path="res://Characters/Components/Skills/SkillDefinition2D.gd" id="1_mamtt"]
 [ext_resource type="Script" uid="uid://n1fmcxqhoh6t" path="res://Characters/Components/Weapons/WeaponDefinition2D.gd" id="1_weapon"]
 [ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="2_attack_script"]
 [ext_resource type="Resource" uid="uid://xrvcsh4tu5qs" path="res://Weapons/Sword/Attacks/Sword_Slash1.tres" id="3_slash1"]
 [ext_resource type="Resource" uid="uid://d2pkc8vgmu0kt" path="res://Weapons/Sword/Attacks/Sword_Slash2.tres" id="4_slash2"]
 [ext_resource type="PackedScene" path="res://Weapons/GoblinSword/GoblinSword.tscn" id="5_scene"]
-[ext_resource type="Resource" path="res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres" id="6_lunge"]
+[ext_resource type="Resource" uid="uid://b6tbupt5g6mow" path="res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres" id="6_lunge"]
+[ext_resource type="Script" uid="uid://c8wyqi583fwgm" path="res://Characters/Components/Passives/PassiveDefinition2D.gd" id="6_ypnr0"]
 
 [resource]
 script = ExtResource("1_weapon")

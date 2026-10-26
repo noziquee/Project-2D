@@ -37,7 +37,7 @@ Weapons/
 │   ├── Sword_WeaponDefinition.tres
 │   ├── Sword.tscn                # was Weapons/Sword.tscn            (W1, done)
 │   ├── Attacks/                  # Sword_Slash1.tres, Sword_Slash2.tres, Sword_HeavySlash.tres   (W2, W3 done)
-│   └── Skills/                   # Sword_Lunge.tres, Sword_Spin.tres, Sword_GroundSlam.tres, Sword_Empower.tres (Empower is also used by the bow)
+│   └── Skills/                   # Sword_Lunge.tres, Sword_Spin.tres, Sword_Empower.tres (Empower is also used by the bow)
 ├── Bow/
 │   ├── Bow_WeaponDefinition.tres
 │   ├── Bow.tscn                  # was Weapons/Bow.tscn              (W1, done)
@@ -51,6 +51,8 @@ Weapons/
     ├── GoblinSword.tscn          # knife sprite + clips taken from BasicEnemy2D.tscn
     └── Attacks/                  # GoblinSword_Lunge.tres (see W5)
 ```
+
+`Data/Examples/WeaponSkills/Sword_GroundSlam.tres` holds the valid Ground Slam example because no weapon equips it.
 
 **Stays where it is** (framework, not weapon content, and icons per D3): all `.gd` scripts under `Characters/Components/`, `AttackSlash2D.tscn`, `AreaEffect2D.tscn` and `ProjectileEffect2D.tscn` (base scenes that weapon effect scenes inherit from), `Characters/Effects/HitEffect.tscn`, `Characters/Components/Status/`, `Characters/Components/Passives/`, `UI/HUD/Icons/` (HUD textures, not weapon data; decision D3). `WeaponDefinition2D.gd` and `WeaponController2D.gd` stay in `Characters/Components/Weapons/`.
 
@@ -126,8 +128,8 @@ Each step lists **Do**, **Tests** and **Done when**. Every step starts with `git
 - **Do:**
   1. `WeaponController2D`: add `weapon_mount: NodePath` (empty = `WeaponFacingPivot`, today's behavior). `_mount_problems()` and `_swap_mount()` use it. The context gets a `weapon_mount_root`. Keep `validate_equip()` messages in the same form.
   2. `Weapons/GoblinSword/GoblinSword.tscn`: the knife `Sprite2D` and the `AnimationPlayer` clips (`RESET`, `lunge`, `slash`, `sword_return`) moved out of `BasicEnemy2D.tscn`, keeping the `attack_event` keys (`../..`).
-  3. `Weapons/GoblinSword/GoblinSword_WeaponDefinition.tres`: `basic_combo` = `Weapons/Sword/Attacks/Sword_Slash1.tres` (D2: the sword's effect and numbers), `heavy_attack` empty, no skills. `GoblinAttackDefinition.tres` is deleted. The goblin's lunge becomes `GoblinSword/Attacks/GoblinSword_Lunge.tres` with the sword Lunge's damage, knockback and hit stun (Q1). `Sword_Slash1` chains into `Sword_Slash2` through `next_attack`; check in W5 that the goblin AI does not start the combo (it only chains on a second request).
-  4. `BasicEnemy2D.tscn`: add a `WeaponController2D` child with `weapon_mount = AnimatedSprite2D` and `starting_weapon = GoblinSword definition`; remove the baked-in `Weapon` and `WeaponAnimation` nodes. `attack_definition` on its `AttackComponent2D` is then set by `equip()`.
+  3. `Weapons/GoblinSword/GoblinSword_WeaponDefinition.tres`: `basic_combo` = `Weapons/Sword/Attacks/Sword_Slash1.tres` and `Sword_Slash2.tres` (D2: the sword's effect and numbers), `heavy_attack` = `GoblinSword_Lunge.tres`, no skills. `GoblinAttackDefinition.tres` is deleted. The goblin's lunge becomes `GoblinSword/Attacks/GoblinSword_Lunge.tres` with the sword Lunge's damage, knockback and hit stun (Q1). `Sword_Slash1` chains into `Sword_Slash2` through `next_attack`; check in W5 that the goblin AI does not start the combo (it only chains on a second request).
+  4. `BasicEnemy2D.tscn`: add a `WeaponController2D` child with `weapon_mount = ../AnimatedSprite2D` and `starting_weapon = GoblinSword definition`; instance `GoblinSword.tscn` as `AnimatedSprite2D/Weapon` and remove the baked-in weapon animations. `attack_definition` on its `AttackComponent2D` is then set by `equip()`.
   5. The goblin AI profile keeps picking from `GoblinBehaviorProfile.tres` (slash weight 3, lunge); the lunge is `GoblinSword_Lunge.tres` in `GoblinSword/Attacks/`.
 - **Tests (expected +14, 988 + 14 = 1002):** `validate_equip` for the goblin sword has no problems (GS1); the goblin carries and initializes a `WeaponController2D` (GS2); it ends up with the same two attacks as before (GS3); the knife is mounted under `AnimatedSprite2D` and flips with it (GS4); a slash and a lunge still hit a target at the old reach (GS5, GS6); the existing goblin checks (I, M, EE ..., AI range checks) pass untouched (GS7); the sword is still refused on a character with no mount (GS8); the player's sword and bow swap unchanged (GS9, GS10); the goblin archer is untouched at this point (GS11); no node named `Weapon` remains in the base scene's own tree except the mounted one (GS12 to GS14, final list in the notes).
 - **Gameplay change:** the goblin's slash now has the sword's damage, hitbox, knockback and range. Every existing check that reads `goblin_slash` numbers or `ai_attack_range = 60` is listed and updated in the W5 notes; assertions are changed on purpose, not loosened.
@@ -166,3 +168,8 @@ Each step lists **Do**, **Tests** and **Done when**. Every step starts with `git
 - **P2 (exported rig paths) starts after W8**, not before. W5 already adds the one mount field the goblin needs; P2 then covers `visual_root`, locomotion player, weapon player and weapon pivot, and can build on `weapon_mount`.
 - **P3 to P7 and Phase 15** are unchanged. Phase 15 weapons (fire staff, war hammer, dual daggers, spear) become "add a folder under `Weapons/`", which is the point of this track.
 - The `13.3.5` channel skill and the Phase 14 passives are untouched. Passives stay in `Components/Passives/`; a weapon only lists them.
+
+
+## W5d implementation update (October 25, 2026)
+
+The source changes for W5d are recorded in `W5d-notes.md`. The goblin now equips `GoblinSword` from its scene, uses `Sword_Slash1` and `Sword_Slash2` as its combo resources plus its own lunge, and its AI profile chooses only the first slash and lunge. The old character-owned goblin attack resources are deleted. These changes have not been run in Godot yet.

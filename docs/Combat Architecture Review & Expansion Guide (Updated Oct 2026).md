@@ -4,6 +4,8 @@
 
 ## 1. Summary
 
+> **Status note (Track W, October 25, 2026):** Sections 4–8 preserve findings and recommendations from the earlier architecture review; some findings in those sections have since been implemented and should be read as historical context, not as the current task list. Track W moved weapon-owned data into `Weapons/Sword/`, `Weapons/Bow/` and `Weapons/GoblinSword/`. The current layout and status are in section 10.6 and `docs/Combat-Roadmap-Step-by-Step-Plan.md`. Track W runtime verification is still pending; expected smoke result 1030 / 0 is not confirmed.
+
 The project has moved from "data-driven in theory" to "data-driven in practice". Since the last review you have finished Phases 0 to 8: an attack is now one `AttackDefinition2D` resource, weapon clips fire named events, health and hits are real components, teams and hit layers are data, and components, states, AI detection and the HUD are all nodes or resources you can edit in the Scene dock.
 
 What is left is mostly **Phase 9 (multiple attacks and combos)** and a handful of places where a hard-coded node path, clip name or group still limits how freely you can add content.
@@ -74,7 +76,7 @@ This is the answer to "what do I edit to change X?" and the reason the workflow 
 
 ### 4.2 Findings and recommendations
 
-**A. One attack per character (Phase 9 not started).** `combo_window_open` and `combo_window_close` are accepted and ignored, and there is no `next_attack`. The fix is small and mostly data: an `attacks` array on `AttackComponent2D`, an id passed to `try_start`, and a second input action. See section 8.
+**A. One attack per character (historical finding; superseded).** The original review noted that combo events were ignored. Phases 9–14 have since added weapon-defined combos, heavy attacks, projectiles, skills, passives and related combat data. See `IMPLEMENTATION_NOTES.md` and the roadmap for the current state.
 
 **B. The effect scene contract is rigid.**
 
@@ -105,7 +107,7 @@ This is the answer to "what do I edit to change X?" and the reason the workflow 
 **K. Housekeeping.**
 
 - The project root contains two copies of the old guide (one with a mangled `#U2013` file name). Keep one, ideally under a `docs/` folder.
-- `IMPLEMENTATION_NOTES.md` still says the project was never opened in Godot. Update it after you run the game and the smoke test.
+- Update the runtime verification note in `IMPLEMENTATION_NOTES.md` only after the game and smoke suite have actually been run in Godot.
 - The goblin carries a `DashComponent2D` it never uses. That is harmless; keep it if you plan a dash enemy.
 
 ## 5. Step-by-step: add a new attack yourself
@@ -231,10 +233,10 @@ Attack timing, cooldown, gating rules, the hit filter, knockback decay and the s
 - Reword the `hit_layers` tooltip: layers are numbered 1 to 3, and the flag value for world is 4.
 - Remove `attack_slash_scene`, `set_slash_scene()` and the `DEFAULT_*` preloads once every definition sets `effect_scene` and every character sets `attack_definition`.
 - Run the game and the smoke test in Godot 4.7, then update the validation note in `IMPLEMENTATION_NOTES.md`.
-- Update `README.md` (it still says only "Hack and Slash") with controls and how to add an attack.
+- README controls, current folder structure, and attack-authoring instructions are now documented; see `README.md`.
 - Keep `.godot/` out of archives. It is already in `.gitignore`.
 
-## 8. Suggested next steps: Phase 9 (multiple attacks and combos)
+## 8. Original Phase 9 implementation plan (historical)
 
 Do these in order, running the smoke test after each. Each step leaves the game playable.
 
@@ -334,50 +336,72 @@ class_name WeaponDefinition2D
 
 Validate it the way `validate_definition()` already does: check that every attack's clips exist on the weapon scene's `AnimationPlayer`, and name the weapon and the missing clip in the error.
 
-### 10.6 Proposed folder layout (added, not reorganized)
+### 10.6 Current folder layout (Track W)
 
-```
+Track W (W1–W7) moves weapon-owned data into the folder of the weapon that first created it. The framework remains shared; there is no `Shared/` folder.
+
+```text
 res://
-├── Characters/Components/Combat/         (existing: attack component, definition, slash, HitData)
-├── Characters/Components/Weapons/        (new)
-│   ├── WeaponDefinition2D.gd
-│   ├── WeaponController2D.gd
-│   └── Skills/ and Passives/             (later phases)
-├── Combat/Effects/                       (new: projectile and area effect scripts, shared base)
-├── Data/Weapons/                         (sword.tres, bow.tres, ...)
-├── Data/Attacks/                         (one AttackDefinition2D .tres per attack)
-└── Weapons/                              (one scene per weapon: sprite + AnimationPlayer + clips)
+├── Weapons/
+│   ├── Sword/
+│   │   ├── Sword.tscn
+│   │   ├── Sword_WeaponDefinition.tres
+│   │   ├── Attacks/       # Sword_Slash1, Sword_Slash2, Sword_HeavySlash
+│   │   └── Skills/        # Sword_Lunge, Sword_Spin, Sword_Empower
+│   ├── Bow/
+│   │   ├── Bow.tscn
+│   │   ├── Bow_WeaponDefinition.tres
+│   │   ├── Bow_EnemyWeaponDefinition.tres
+│   │   ├── bow.gd
+│   │   ├── Attacks/       # Bow_ArrowShot, Bow_ArrowHeavy, Bow_ArrowEnemy
+│   │   ├── Skills/        # Bow_PowerShot, Bow_MultiShot
+│   │   └── Projectile/    # Bow_Arrow.tscn
+│   └── GoblinSword/
+│       ├── GoblinSword.tscn
+│       ├── GoblinSword_WeaponDefinition.tres
+│       └── Attacks/       # GoblinSword_Lunge
+├── Data/Examples/WeaponSkills/Sword_GroundSlam.tres
+└── Characters/Components/
+	├── Combat/            # attack definitions/scripts, effect base scenes, hit data
+	├── Weapons/           # WeaponDefinition2D and WeaponController2D scripts
+	├── Skills/            # reusable skill framework
+	└── Passives/          # reusable passive framework
 ```
 
-This is the guide's structure adapted to what exists. Create folders only as each phase needs them.
+**Ownership conventions:** weapon-specific files use the weapon name in their filename; shared resources stay with their original owning weapon and are referenced by other weapons. A cross-weapon attack can only be shared when each consuming weapon provides the animation clip named in the resource. `Bow_EnemyWeaponDefinition.tres` shares the Bow scene but keeps enemy-specific arrow data. Ground Slam is an example resource, not part of the default loadout; its canonical example location is `Data/Examples/WeaponSkills/Sword_GroundSlam.tres`.
 
-### 10.7 Decisions to finalize
+The Track W source changes and checks are prepared, but W4–W7 have not been runtime-verified in Godot. The expected combined smoke summary is `SUMMARY passes=1030 failures=0`; the last confirmed baseline before Track W remains 986 / 0. See `docs/trackW/W0-plan.md` and the per-step notes.
 
-The guide leaves four choices open. A starting recommendation for each, based on your current code:
+### 10.7 Decisions finalized for Track W
 
-- **Basic and heavy input.** Dedicated actions (`attack_light`, `attack_heavy`) are the smallest change from today. Hold-to-charge needs a charge timer and a charged variant of the attack. Start with dedicated buttons and add charging later if the feel calls for it.
-- **Aiming.** Mouse direction with left/right sprite flipping is what you have, and `aim_weapon` already rotates the weapon toward it for the player. Keep it. Lock-on would be a new targeting system.
-- **Active skill slots.** Decide before building the skill UI: three, four, or a count set on each weapon. A count per weapon costs nothing extra if skills live on `WeaponDefinition2D`.
-- **Authoring approach.** Hybrid, as the guide recommends. This is already the shape of your project.
+The Track W decisions are recorded in `docs/trackW/W0-plan.md`:
+
+- **Shared resources:** no `Shared/` folder. A resource stays with the first weapon that created it; other weapons reference it there.
+- **Goblin basic slash:** reuse `Weapons/Sword/Attacks/Sword_Slash1.tres` so the same attack data and numbers are shared.
+- **Weapon identity:** weapon scenes, definitions, attack files and skills use weapon-prefixed names; resource ids are explicit and weapon-specific where needed.
+- **Enemy bow:** use `Bow_EnemyWeaponDefinition.tres` with the shared Bow scene but enemy arrow data, rather than equipping the player's attack definition.
+- **Validation:** a weapon cannot use an attack unless its scene contains the animation clip named by that attack resource. Missing-clip errors should identify the weapon, attack and clip.
+
+These choices preserve one combat framework while keeping content ownership clear.
 
 ### 10.8 Later phases: skills, passives and projectiles
 
-**Projectiles.** Add a base class for effect scenes, then a projectile script that owns velocity, collision mask (from `hit_layers`), lifetime and impact. Route damage through `HitData` and `apply_hit`, the same way `AttackSlash2D` does, and spawn the definition's `hit_effect_scene` on impact. The weapon decides which projectile scene is used; the projectile does not hard-code its impact effect or damage.
+**Projectiles.** Implemented: `ProjectileEffect2D` extends the shared effect base and weapon-owned `Weapons/Bow/Projectile/Bow_Arrow.tscn` uses it. Projectiles route damage through the shared hit pipeline and obey target, team, hit-once, pierce and lifetime rules. Keep projectile selection in attack data rather than hard-coding weapon behavior into the projectile.
 
-**Active skills.** Reusable behavior types configured by resources, not one big match on skill names: projectile skill, area skill, dash skill (reuse `DashComponent2D` for the movement), channel skill and buff skill. A skill definition holds name, icon, slot, cooldown, cost, cast or channel timing, targeting, range, area shape, and its animation, audio and VFX references.
+**Active skills.** Implemented through `SkillDefinition2D`, `SkillComponent2D`, `ManaComponent2D` and weapon definitions. Current examples cover projectile, area, dash and buff behaviors; continue extending reusable resource-configured behaviors rather than branching on skill names.
 
-**Passives and status effects.** Passives respond to events. `Character2D` already re-emits `damaged`, `died` and `health_changed`, and `AttackComponent2D` emits `attack_started`, `attack_hit` and `attack_finished`; a `PassiveController` can connect to those. Before building any passive, write down the counter rules: do misses count, how counters reset, whether a multi-target attack counts once per target or once per attack, and whether stacks can overlap. The guide's example (Heroic Momentum: three qualifying hits grant an empowered state that the next attack consumes for bonus damage) is a good first test.
+**Passives and status effects.** The reusable `PassiveDefinition2D` and `PassiveController2D` framework and event-based passive effects are present. Rising Strikes, Vampiric Strikes, Serrated Edge and Executioner exist as examples but are not assigned to a weapon by default. Keep trigger, counter-window, target and reward-consumption rules explicit in data and tests.
 
 **Combat resolver.** When defense, crits and statuses arrive, extend what `HealthComponent2D.apply_hit` and `HitData` carry rather than adding a second damage path. Every source of damage should end in the same call.
 
 ### 10.9 Guide roadmap against your phases
 
-- **Guide Phase 1, foundation** (resources, attack executor, sword hit detection, damage resolution, hit-once). *Mostly done:* your Phases 1 to 8. Remaining: the weapon resource, equip and switch.
-- **Guide Phase 2, heavy attacks and animation ownership.** This is your Phase 9 (combo and heavy), built as 10.5 describes. Animation ownership for idle, run and reactions is already separated.
-- **Guide Phase 3, projectile framework and a bow.** Not started. Needs the effect base class and a projectile script.
-- **Guide Phase 4, active skills.** Not started.
-- **Guide Phase 5, passives and status effects.** Not started; the signals it needs exist.
-- **Guide Phase 6, expand and polish.** Fire staff, hammer, daggers, distinct effects, sound, debug tools and resource validation. By then each new weapon should be content only.
+- **Foundation and weapon data:** implemented, with Track W moving content under `Weapons/Sword/`, `Weapons/Bow/` and `Weapons/GoblinSword/`. Runtime verification of W4–W7 remains pending.
+- **Heavy attacks and animation ownership:** combo, charge and code-driven return behavior are implemented; see the Phase 9 and Track P notes.
+- **Projectile framework and bow:** implemented; enemy bow data is kept separate from player bow data.
+- **Active skills, mana and HUD:** implemented for projectile, area, dash and buff examples.
+- **Passives and status effects:** framework and sample passives/status effects are implemented; the sample passives are not assigned to a weapon by default.
+- **Expansion and polish:** additional weapon families, distinct effects, audio, debug tooling and further validation remain future work.
 
 ### 10.10 Design rules, checked against your code
 

@@ -18,4 +18,5 @@ knockback = 160.0
 hit_stun = 0.15
 effect_scene = ExtResource("2_effect")
 hit_effect_scene = ExtResource("3_hit")
+ai_attack_range = 60.0
 next_attack = ExtResource("4_light2")

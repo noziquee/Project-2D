@@ -5,7 +5,7 @@ class_name AttackEffect2D
 ## keeps the same configure(...) signature, never a change to the attack component.
 ##
 ## This class owns the part every effect shares: the attack numbers handed over by configure(), the signals,
-## the target filter (not the attacker, damageable, not the same team), hit-once tracking and the HitData
+## the target filter (not the attacker, can take a hit, not the same team), hit-once tracking and the HitData
 ## call into apply_hit(). A subclass decides WHEN it can hit (_can_hit), WHERE the hit area is
 ## (_get_hit_origin) and how it finds targets, then calls _try_hit(target) for each body it touches.
 
@@ -84,7 +84,6 @@ func _try_hit(target: Node) -> void:
 		or not is_instance_valid(target)
 		or not _can_hit()
 		or target == source
-		or not target.is_in_group("damageable")
 		or not (target.has_method("apply_hit") or target.has_method("take_damage"))
 	):
 		return

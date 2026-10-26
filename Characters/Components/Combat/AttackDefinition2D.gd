@@ -35,6 +35,11 @@ enum ReleaseMode {
 @export_range(0.0, 5.0, 0.01) var cooldown_duration: float = 0.05
 ## Scales normal (non-dash) movement for the whole swing. 1 = unchanged, 0 = rooted.
 @export_range(0.0, 2.0, 0.01) var movement_multiplier: float = 1.0
+## P7: a forward step taken when the attack's effect spawns (the thrust of a lunge). Speed in pixels per second along
+## the attack direction, fading to nothing over impulse_duration. 0 = none. It is added to the movement and does not
+## replace it, and it stops if the swing is cancelled or interrupted.
+@export_range(0.0, 2000.0, 1.0) var forward_impulse: float = 0.0
+@export_range(0.01, 1.0, 0.01) var impulse_duration: float = 0.15
 ## When true, a hit that lands on the attacker while this attack is running cancels the
 ## swing (and starts the cooldown). Off by default so swings are never flinched out of.
 @export var interruptible: bool = false

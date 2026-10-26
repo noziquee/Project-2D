@@ -110,5 +110,5 @@ Not in 9.7: projectiles, the effect base class, `AttackSpawnPoint`, skills, pass
 ## Open items outside Phase 9
 - Done (Oct 24 cleanup): the two duplicate guide copies in the project root are deleted; the guide lives only in `docs/`.
 - Done in V4: the leftover Threshold values on `DefaultAttackDefinition.tres` were cleared (see `docs/phaseV/V4-notes.md`).
-- A forward movement impulse for the goblin lunge (needs `MovementComponent2D`).
+- A forward movement impulse for the goblin lunge (done in P7, see `docs/trackP/P7-notes.md`).
 - Projectiles, active skills and passives (guide phases 3 to 5): see `docs/Combat-Roadmap-Step-by-Step-Plan.md`.

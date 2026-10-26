@@ -28,10 +28,10 @@ func phys(n: int) -> void:
 ## for one ("BasicEnemy2D"), and the other eight (spread around the arena, inside the 200 px detection range
 ## of some) would chase and hit the player at random times. They are freed here, before the scene enters the
 ## tree, so every check sees the same single-goblin arena (V2b).
-func load_main() -> Node:
+func load_main(keep_archer: bool = false) -> Node:
 	var main: Node = load("res://Main.tscn").instantiate()
 	for child in main.get_children():
-		if child is BasicEnemy2D and child.name != &"BasicEnemy2D":
+		if child is BasicEnemy2D and child.name != &"BasicEnemy2D" and not (keep_archer and child.name == &"GoblinArcher"):
 			child.free()
 	# V5: the hold time that starts a charge is a play-feel value tuned in player.tscn (0.5 s at the time of writing).
 	# The checks are timed for the 0.1 s the code defaults to, so every test arena pins it; the scene keeps its value.
@@ -42,6 +42,15 @@ func load_main() -> Node:
 
 func fresh() -> Node:
 	var main: Node = load_main()
+	root.add_child(main)
+	quiet_goblin_choices(main)
+	await phys(3)
+	return main
+
+## Like fresh(), but the shipped GoblinArcher stays in the arena (the other goblins are still freed). Load_main frees
+## it otherwise, because it is a BasicEnemy2D too; the W6 checks need it.
+func fresh_with_archer() -> Node:
+	var main: Node = load_main(true)
 	root.add_child(main)
 	quiet_goblin_choices(main)
 	await phys(3)
@@ -380,7 +389,7 @@ func collect_projectile_direction(node: Node, projectiles: Array, directions: Ar
 		projectiles.append(node)
 		directions.append((node as ProjectileEffect2D).direction)
 
-const GROUND_SLAM_PATH := "res://Weapons/Sword/Skills/Sword_GroundSlam.tres"
+const GROUND_SLAM_PATH := "res://Data/Examples/WeaponSkills/Sword_GroundSlam.tres"
 const EMPOWER_PATH := "res://Weapons/Sword/Skills/Sword_Empower.tres"
 const LUNGE_PATH := "res://Weapons/Sword/Skills/Sword_Lunge.tres"
 const SPIN_PATH := "res://Weapons/Sword/Skills/Sword_Spin.tres"
@@ -441,6 +450,29 @@ func set_clip_returns(clips: bool) -> void:
 			_return_defs_held.append(def)
 		def.recovery_animation = RETURN_DEFS[path] if clips else &""
 		def.recovery_time = 0.0 if clips else 0.5
+	_set_goblin_sword_return_clips(clips)
+
+## Track W made the goblin share Sword_Slash1 and Sword_Slash2 with the sword. In clip mode those name the return clips
+## sword_slash_return_1 and _2, which only Sword.tscn has, so the goblin's weapon would be refused (no attacks, and
+## every goblin check fails). This adds (clips = true) or removes (clips = false) those two clips on the GoblinSword
+## scene's shared animation library, in memory only, as copies of its own sword_return. The shipped data has no
+## return clip on these attacks, so the game never needs them.
+const GOBLIN_RETURN_CLIPS: Array[StringName] = [&"sword_slash_return_1", &"sword_slash_return_2"]
+## Held so the resource cache keeps the edited library alive; a freed instance would otherwise take it along.
+var _goblin_library_held: AnimationLibrary
+func _set_goblin_sword_return_clips(clips: bool) -> void:
+	var scene := load("res://Weapons/GoblinSword/GoblinSword.tscn") as PackedScene
+	var instance := scene.instantiate()
+	var player := CharacterContext2D.find_weapon_player(instance)
+	var library := player.get_animation_library(&"") if player != null else null
+	if library != null and library.has_animation(&"sword_return"):
+		_goblin_library_held = library
+		for clip_name in GOBLIN_RETURN_CLIPS:
+			if clips and not library.has_animation(clip_name):
+				library.add_animation(clip_name, library.get_animation(&"sword_return"))
+			elif not clips and library.has_animation(clip_name):
+				library.remove_animation(clip_name)
+	instance.free()
 
 func _initialize() -> void:
 	set_clip_returns(true)
@@ -905,7 +937,7 @@ func _run() -> void:
 	ke = main.get_node("BasicEnemy2D")
 	ke.set_physics_process(false)
 	check(p.team == &"player" and ke.team == &"enemy", "L1 player and goblin are on the player/enemy teams")
-	check(p.attack_definition.knockback > 0.0 and p.attack_definition.hit_stun > 0.0 and ke.attack_definition.interruptible and not p.attack_definition.interruptible, "L2 shipped definitions carry knockback/hit stun; only the goblin's swing is interruptible")
+	check(p.attack_definition.knockback > 0.0 and p.attack_definition.hit_stun > 0.0 and not ke.attack_definition.interruptible and not p.attack_definition.interruptible, "L2 the shared sword slash and player attack carry knockback/hit stun and are not interruptible")
 
 	# L3: same-team hit does nothing. L4: a third team is damaged. L5: a neutral (empty) team is damaged.
 	var swing_results := {}
@@ -1012,7 +1044,7 @@ func _run() -> void:
 	check(p.movement_component == p.get_node("MovementComponent2D") and p.dash_component == p.get_node("DashComponent2D") and p.attack_component == p.get_node("AttackComponent2D"), "M2 the character uses the scene's component nodes")
 	check(p.movement_component.move_speed == 100.0 and p.dash_component.dash_speed == 600.0 and p.dash_component.dash_duration == 0.16 and p.dash_component.dash_cooldown == 0.45, "M3 player keeps its tuned move speed (100, set in player.tscn) and the default dash values")
 	check(ke.movement_component.move_speed == 50.0 and ke.dash_component.dash_speed == 150.0, "M4 the goblin's move_speed 50 and dash_speed 150 now live on its components")
-	check(p.attack_definition.id == &"sword_slash1" and ke.attack_definition.id == &"goblin_slash", "M5 each character's AttackComponent2D carries its own definition")
+	check(p.attack_definition.id == &"sword_slash1" and ke.attack_definition.id == &"sword_slash1", "M5 each character's AttackComponent2D carries its own definition")
 	check(not ("move_speed" in p) and not ("dash_speed" in p) and not ("attack_slash_scene" in p), "M6 Character2D no longer forwards move/dash/slash-scene values")
 	p.movement_component.move_speed = 100.0
 	Input.action_press("move_right")
@@ -1228,7 +1260,7 @@ func _run() -> void:
 	ke = main.get_node("BasicEnemy2D")
 	ke.set_physics_process(false)
 	ke.global_position = Vector2(400, 300)
-	check(p.attack_definition.aim_weapon and not ke.attack_definition.aim_weapon, "P1 the player's attack aims its weapon, the goblin's does not")
+	check(p.attack_definition.aim_weapon and ke.attack_definition.aim_weapon and p.context.weapon_facing_root != null and ke.context.weapon_facing_root == null, "P1 both use the shared sword slash data, but only the player rig has an aim pivot")
 	var pivot: Node2D = p.context.weapon_facing_root
 	var aim_ok := true
 	var aim_report := ""
@@ -1447,7 +1479,7 @@ func _run() -> void:
 	e.global_position = p.global_position + Vector2(28, 0)
 	var s_ac: AttackComponent2D = p.attack_component
 	var s_default_id: StringName = s_ac.definition.id
-	check(s_ac.attacks.size() == 2 and e.attack_component.attacks.size() == 1 and e.attack_component.has_attack(&"goblin_sword_lunge"), "S1 the player lists two extra attacks (the combo follow-up and the heavy); the goblin lists one (the lunge)")
+	check(s_ac.attacks.size() == 2 and e.attack_component.attacks.size() == 2 and e.attack_component.has_attack(&"sword_slash2") and e.attack_component.has_attack(&"goblin_sword_lunge"), "S1 the player lists two extra attacks; the goblin sword lists the combo follow-up and lunge")
 	check(s_ac.get_attack_ids().size() == 3 and s_ac.get_attack_ids()[0] == s_default_id and s_ac.get_attack_ids()[1] == &"sword_slash2" and s_ac.get_attack_ids()[2] == &"sword_heavy_slash", "S2 the player's selectable ids are the default attack and its combo follow-up and heavy attack (%s)" % str(s_ac.get_attack_ids()))
 	check(s_ac.get_attack(s_default_id) == s_ac.definition and s_ac.has_attack(s_default_id) and s_ac.get_attack(&"") == null and not s_ac.has_attack(&"no_such_attack"), "S3 get_attack finds the default by its id; empty and unknown ids give null")
 	check(not s_ac.try_start_attack(&"", Vector2.RIGHT) and not p.context.is_attacking, "S4 an empty id means no attack and starts nothing")
@@ -1660,7 +1692,7 @@ func _run() -> void:
 	check(load("res://Characters/Controllers/GoblinBehaviorProfile.tres").attack_choices.size() == 2 and AttackChoice2D.new().weight == 1.0, "V1 the shipped goblin profile offers two weighted choices; a new choice defaults to weight 1")
 	check(v_ai.get_chosen_attack_id() == v_default_id and is_equal_approx(v_ai.get_effective_attack_range(), v_default_range), "V2 with no choices the AI uses the default attack and its range (%s, %.0f)" % [str(v_default_id), v_default_range])
 	v_ai.profile = v_ai.profile.duplicate() # the shipped profile is a shared resource
-	var v_base: AttackDefinition2D = load("res://Characters/Components/Combat/GoblinAttackDefinition.tres")
+	var v_base: AttackDefinition2D = load("res://Weapons/Sword/Attacks/Sword_Slash1.tres")
 	var v_short := definition_variant(v_base, &"v_short")
 	v_short.ai_attack_range = 20.0
 	var v_long := definition_variant(v_base, &"v_long")
@@ -1719,7 +1751,7 @@ func _run() -> void:
 	set_detection_radius(e, 180.0)
 	v_ai = e._ai_controller
 	v_ai.profile = v_ai.profile.duplicate()
-	v_base = load("res://Characters/Components/Combat/GoblinAttackDefinition.tres")
+	v_base = load("res://Weapons/Sword/Attacks/Sword_Slash1.tres")
 	v_short = definition_variant(v_base, &"v_short")
 	v_short.ai_attack_range = 20.0
 	v_long = definition_variant(v_base, &"v_long")
@@ -1770,8 +1802,8 @@ func _run() -> void:
 	w_second.next_attack = w_first
 	check(w_ac.validate_combo_links().is_empty() and w_ac.get_next_attack(w_second) == w_first, "W6 a link back to the default attack is valid (cycles are allowed)")
 	var w_shipped: AttackDefinition2D = load("res://Weapons/Sword/Attacks/Sword_Slash1.tres")
-	var w_goblin: AttackDefinition2D = load("res://Characters/Components/Combat/GoblinAttackDefinition.tres")
-	check(w_shipped.next_attack != null and w_shipped.next_attack.id == &"sword_slash2" and w_goblin.next_attack == null and e.attack_component.validate_combo_links().is_empty(), "W7 the shipped player attack links to sword_slash2 and the goblin has no link")
+	var w_goblin: AttackDefinition2D = load("res://Weapons/Sword/Attacks/Sword_Slash1.tres")
+	check(w_shipped.next_attack != null and w_shipped.next_attack.id == &"sword_slash2" and w_goblin.next_attack != null and w_goblin.next_attack.id == &"sword_slash2" and e.attack_component.validate_combo_links().is_empty(), "W7 the player and goblin sword_slash1 both link to the registered sword_slash2")
 	await cleanup(main)
 
 	# ---------- X. Phase 9.4b: combo window state (tracked only, no chaining yet) ----------
@@ -1811,6 +1843,10 @@ func _run() -> void:
 	x_goblin_ac.try_start(true, Vector2.RIGHT)
 	e.attack_event(&"combo_window_open")
 	check(x_goblin_ac.is_combo_window_open(), "X10 the goblin's window opens too")
+	x_goblin_ac.cancel()
+	# The goblin's slash is the sword's shared, non-interruptible one (W5d); its lunge is the interruptible swing.
+	x_goblin_ac.try_start_attack(&"goblin_sword_lunge", Vector2.RIGHT)
+	e.attack_event(&"combo_window_open")
 	e.take_damage(1)
 	check(not e.context.is_attacking and not x_goblin_ac.is_combo_window_open(), "X11 an interrupted swing closes the window")
 	await cleanup(main)
@@ -1978,7 +2014,7 @@ func _run() -> void:
 	var cc_lunge: AttackDefinition2D = cc_ac.get_attack(&"goblin_sword_lunge")
 	var cc_ap: AnimationPlayer = e.context.weapon_animation_player
 	check(cc_lunge != null and cc_ac.validate_combo_links().is_empty() and cc_ap.has_animation(&"lunge") and cc_lunge.weapon_animation == &"lunge" and cc_ai.profile.attack_choices.size() == 2, "CC1 the goblin has a registered lunge with its clip, and its profile offers two weighted choices")
-	check(cc_lunge.movement_multiplier < 1.0 and cc_lunge.ai_attack_range > cc_slash.ai_attack_range and cc_lunge.damage > cc_slash.damage and cc_lunge.interruptible, "CC2 the lunge slows the goblin, reaches further, hits harder and can be interrupted like its slash")
+	check(cc_lunge.movement_multiplier < 1.0 and cc_lunge.ai_attack_range > cc_slash.ai_attack_range and cc_lunge.damage == cc_slash.damage and cc_lunge.interruptible, "CC2 the lunge slows the goblin, reaches further, shares the sword slash damage and can be interrupted")
 	cc_ai.rng.seed = 7
 	var cc_lunges := 0
 	for i in 400:
@@ -2969,7 +3005,7 @@ func _run() -> void:
 	check(p.weapon_controller != null and p.weapon_controller.get_equipped_weapon() != null and p.weapon_controller.get_equipped_weapon().weapon_id == &"sword", "NN1b the controller's starting weapon, the sword, is equipped")
 	check(ids_equal(p.attack_component.get_attack_ids(), [&"sword_slash1", &"sword_slash2", &"sword_heavy_slash"]) and p.attack_definition.id == &"sword_slash1" and p.context.weapon_pivot == p.get_node("WeaponFacingPivot/MainHand"), "NN1c equipping the starting weapon leaves the player's attacks and mounted sword exactly as the scene had them")
 	var nn_goblin: Character2D = main.get_node("BasicEnemy2D")
-	check(nn_goblin.weapon_controller == null and nn_goblin.attack_component.get_attack_ids().size() >= 1, "NN2a the goblin has no weapon controller and keeps its attacks")
+	check(nn_goblin.weapon_controller != null and nn_goblin.weapon_controller.is_initialized() and nn_goblin.attack_component.get_attack_ids().size() >= 1, "NN2a the goblin has a weapon controller (W5d) and keeps its attacks")
 	var nn_light: AttackDefinition2D = p.attack_definition
 	var nn_blade: Resource = make_weapon(&"nn_blade", [definition_variant(nn_light, &"nn_blade_hit")])
 	check(p.weapon_controller != null and p.weapon_controller.equip(nn_blade) and p.get_default_attack_id() == &"nn_blade_hit", "NN3a the player's own controller equips another weapon")
@@ -3531,7 +3567,7 @@ func _run() -> void:
 	check(ww_light.id == &"bow_arrow_shot" and ww_heavy.id == &"bow_arrow_heavy" and ww_light.projectile_speed == 420.0 and ww_heavy.projectile_speed == 600.0 and not ww_light.pierce and ww_heavy.pierce and ww_heavy.max_targets == 3, "WW3 the arrow definitions carry their numbers as data (speeds 420 and 600, light stops at one target, heavy pierces up to 3)")
 	check(ww_light.projectile_speed / 60.0 < ww_light.hitbox_size.x and ww_heavy.projectile_speed / 60.0 < ww_heavy.hitbox_size.x, "WW4 both speeds stay below the hitbox length per frame at 60 fps (no tunnelling, see 11.1 notes)")
 	var ww_melee_ok := true
-	for ww_path in ["res://Weapons/Sword/Attacks/Sword_Slash1.tres", "res://Weapons/Sword/Attacks/Sword_Slash2.tres", "res://Weapons/Sword/Attacks/Sword_HeavySlash.tres", "res://Characters/Components/Combat/GoblinAttackDefinition.tres", "res://Characters/Components/Combat/GoblinLungeAttackDefinition.tres"]:
+	for ww_path in ["res://Weapons/Sword/Attacks/Sword_Slash1.tres", "res://Weapons/Sword/Attacks/Sword_Slash2.tres", "res://Weapons/Sword/Attacks/Sword_HeavySlash.tres", "res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres"]:
 		ww_melee_ok = ww_melee_ok and (load(ww_path) as AttackDefinition2D).projectile_speed == 0.0
 	check(ww_melee_ok, "WW5 every shipped melee definition keeps projectile_speed 0 (the field is ignored by melee)")
 
@@ -3640,7 +3676,8 @@ func _run() -> void:
 	check(p.context.weapon_pivot.scene_file_path == BOW_SCENE_PATH and p.get_default_attack_id() == &"bow_arrow_shot" and p.get_heavy_attack_id() == &"bow_arrow_heavy" and p.attack_component.has_attack(&"bow_arrow_heavy") and p.context.weapon_animation_player.has_animation(&"bow_shoot"), "XX5 the bow is mounted and the player's light and heavy ids come from it")
 	check(not p.attack_component.has_attack(&"sword_slash1") and not p.attack_component.has_attack(&"sword_heavy_slash"), "XX6 the sword's attacks are gone from the attack component")
 
-	# A light shot, straight right: one arrow, no slash, 4 damage, and the swing ends.
+	# A light shot, straight right: one arrow, no slash, 4 damage, and the swing ends. The bow_draw clip is 0.5 s, so the
+	# arrow leaves after about 34 frames and lands after about 44; the waits below leave room for that.
 	e.global_position = p.global_position + Vector2(120, 0)
 	var xx_g2 := parked_goblin(main, p.global_position + Vector2(240, 0))
 	await phys(2)
@@ -3649,7 +3686,7 @@ func _run() -> void:
 	var xx_arrows := 0
 	var xx_slashes := 0
 	check(p.attack_component.try_start_attack(&"bow_arrow_shot", Vector2.RIGHT), "XX7pre the bow's light attack starts")
-	for xx_i in 40:
+	for xx_i in 90:
 		await phys(1)
 		xx_arrows = maxi(xx_arrows, effects_from(main, ARROW_SCENE_PATH).size())
 		xx_slashes += live_slashes(main).size()
@@ -3661,10 +3698,11 @@ func _run() -> void:
 	var xx_e_hp2 := hp_of(e)
 	var xx_g2_hp2 := hp_of(xx_g2)
 	check(p.attack_component.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT), "XX9pre the bow's heavy attack begins charging")
-	await phys(20)
+	# The 0.5 s bow_draw plays first; releasing during it would hand the direction to the live aim (the mouse), so wait it out.
+	await phys(45)
 	var xx_charging: bool = p.attack_component.is_charging()
 	check(p.attack_component.release_charge(Vector2.RIGHT), "XX9pre2 the charge can be released")
-	await phys(70)
+	await phys(130)
 	check(xx_charging and hp_of(e) == xx_e_hp2 - 9 and hp_of(xx_g2) == xx_g2_hp2 - 9, "XX9 the charged shot pierces both goblins for 9 each (health %d, %d)" % [hp_of(e), hp_of(xx_g2)])
 
 	# Aim straight down: the arrow follows the attack direction, not the facing.
@@ -3672,7 +3710,7 @@ func _run() -> void:
 	await phys(2)
 	var xx_e_hp3 := hp_of(e)
 	p.attack_component.try_start_attack(&"bow_arrow_shot", Vector2.DOWN)
-	await phys(70)
+	await phys(130)
 	check(hp_of(e) == xx_e_hp3 - 4, "XX10 a shot aimed straight down hits a goblin below (health %d -> %d)" % [xx_e_hp3, hp_of(e)])
 	check(xx_failed.is_empty(), "XX11 no equip failure was reported in this section")
 	await cleanup(main)
@@ -3761,7 +3799,7 @@ func _run() -> void:
 	await phys(3)
 	check(zz_a.team == &"enemy" and zz_a.is_in_group("enemy") and zz_a.attack_component.get_attack_ids() == [&"bow_arrow_enemy"] and zz_a.attack_component.definition.effect_scene.resource_path == ARROW_SCENE_PATH, "ZZ2 the archer is an enemy whose only attack is bow_arrow_enemy, with the arrow as its effect")
 	check(zz_a.attack_component.validate_definition(zz_a.attack_component.definition) == "" and zz_a.context.weapon_animation_player.has_animation(&"bow_shoot") and zz_a.context.weapon_animation_player.has_animation(&"bow_return"), "ZZ3 the arrow attack validates against the archer's own bow clips")
-	check(zz_a.get_node("AnimatedSprite2D/Weapon").texture.resource_path.ends_with("Bow.png") and zz_a.get_node("HealthComponent2D").max_health < e.health_component.max_health, "ZZ4 the archer carries a bow and has less health than a goblin")
+	check(zz_a.get_node("AnimatedSprite2D/Weapon").scene_file_path == BOW_SCENE_PATH and zz_a.get_node("HealthComponent2D").max_health < e.health_component.max_health, "ZZ4 the archer carries a bow and has less health than a goblin")
 	check(zz_a._ai_controller.get_effective_attack_range() == 170.0 and zz_a._ai_controller.get_detection_radius() == 260.0 and e._ai_controller.get_detection_radius() == 200.0, "ZZ5 its AI starts shooting at 170 px and notices targets at 260 px, without changing the goblin's 200 px")
 
 	# It shoots from where it stands (inside its range), an arrow crosses a goblin of its own team, and the player is hurt.
@@ -5739,6 +5777,15 @@ func _run() -> void:
 	await run_track_w_checks()
 	await run_weapon_mount_checks()
 	await run_goblin_sword_checks()
+	await run_goblin_sword_wiring_checks()
+	await run_goblin_archer_bow_checks()
+	await run_track_w7_checks()
+	await run_p2_checks()
+	await run_p3_checks()
+	await run_p4_checks()
+	await run_p5_checks()
+	await run_p6_checks()
+	await run_p7_checks()
 
 
 ## ---------- Bow cycle: draw > shot > draw > shot > return, and draw > charge > heavy shot ----------
@@ -5924,12 +5971,12 @@ func run_bow_cycle_checks() -> void:
 	main = a["main"]; p = a["p"]; ac = a["ac"]; ap = a["ap"]
 	var bc_spam := {"returns": 0, "was": false}
 	ac.try_start_attack(&"bow_arrow_shot", Vector2.UP)
-	log = await bow_record(a, 120, func(_i):
+	log = await bow_record(a, 300, func(_i):
 		ac.try_start_attack(&"bow_arrow_shot", Vector2.UP)
 		if ac.is_code_recovering() and not bc_spam["was"]:
 			bc_spam["returns"] += 1
 		bc_spam["was"] = ac.is_code_recovering())
-	check(log[log.size() - 1]["shots"] >= 5 and bc_spam["returns"] == 0, "BC23 clicking every frame for 2 s fires %d arrows with %d returns in between" % [log[log.size() - 1]["shots"], bc_spam["returns"]])
+	check(log[log.size() - 1]["shots"] >= 5 and bc_spam["returns"] == 0, "BC23 clicking every frame for 5 s fires %d arrows with %d returns in between" % [log[log.size() - 1]["shots"], bc_spam["returns"]])
 	await cleanup(main)
 
 	# ---------- A click made during the return is not lost ----------
@@ -6004,7 +6051,7 @@ func run_bow_cycle_checks() -> void:
 		if i == 6:
 			ac.try_start_attack(&"bow_arrow_shot", Vector2.UP))
 	runs = bow_clip_runs(log)
-	check(runs.size() >= 3 and runs.slice(0, 3) == [&"bow_heavy_shoot", &"bow_draw", &"bow_shoot"] and log[log.size() - 1]["shots"] == 2, "BC34 after bow_heavy_shoot finishes with a click waiting, bow_draw plays again (%s)" % str(runs))
+	check(runs.size() >= 4 and runs.slice(0, 4) == [&"bow_draw", &"bow_heavy_shoot", &"bow_draw", &"bow_shoot"] and log[log.size() - 1]["shots"] == 2, "BC34 after bow_heavy_shoot finishes with a click waiting, bow_draw plays again (%s)" % str(runs))
 	check(bc_h_chain == [[&"bow_arrow_heavy", &"bow_arrow_shot"]], "BC35 the click became a light attack chained after the heavy one (%s)" % str(bc_h_chain))
 	await cleanup(main)
 
@@ -6034,8 +6081,8 @@ func run_bow_cycle_checks() -> void:
 	# ---------- Through the real player input: taps repeat the cycle, a hold charges the heavy shot ----------
 	a = await bow_arena()
 	main = a["main"]; p = a["p"]; ac = a["ac"]; ap = a["ap"]
-	var bc_tap_frames := [0, 15, 30, 45] # four taps, one every quarter of a second
-	log = await bow_record(a, 200, func(i):
+	var bc_tap_frames := [0, 45, 90, 135] # four taps, one every 0.75 s: each lands in the combo window of the previous shot (draw is 0.5 s)
+	log = await bow_record(a, 300, func(i):
 		if bc_tap_frames.has(i):
 			Input.action_press("attack_light")
 		elif bc_tap_frames.has(i - 2):
@@ -6537,11 +6584,11 @@ func run_track_w_checks() -> void:
 	for id in attack_ids + skill_ids:
 		if id.contains("player") or id.contains("goblin"):
 			bad_ids.append(id)
-	check(paths.size() >= 12 and not attack_ids.is_empty() and not skill_ids.is_empty() and bad_ids.is_empty(), "WX1 no attack or skill id under Weapons/Sword and Weapons/Bow names a character (player, goblin); %d resources scanned, offenders: %s" % [paths.size(), str(bad_ids)])
+	check(paths.size() >= 11 and not attack_ids.is_empty() and not skill_ids.is_empty() and bad_ids.is_empty(), "WX1 no attack or skill id under Weapons/Sword and Weapons/Bow names a character (player, goblin); %d resources scanned, offenders: %s" % [paths.size(), str(bad_ids)])
 
-	# The goblin knife attacks have not moved into a weapon folder yet (W5), so they are added by path.
+	# Goblin attacks now live in their owning weapon folders (W5).
 	var all_ids: Array = attack_ids.duplicate()
-	for goblin_path in ["res://Characters/Components/Combat/GoblinAttackDefinition.tres", "res://Characters/Components/Combat/GoblinLungeAttackDefinition.tres"]:
+	for goblin_path in ["res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres"]:
 		all_ids.append(str((load(goblin_path) as AttackDefinition2D).id))
 	var seen := {}
 	var duplicates: Array = []
@@ -6549,7 +6596,7 @@ func run_track_w_checks() -> void:
 		if seen.has(id):
 			duplicates.append(id)
 		seen[id] = true
-	check(all_ids.size() >= 12 and duplicates.is_empty(), "WX2 attack ids are unique across the sword, the bow and the goblin knife (%d ids, duplicates: %s)" % [all_ids.size(), str(duplicates)])
+	check(all_ids.size() >= 11 and duplicates.is_empty(), "WX2 attack ids are unique across the sword, the bow and the goblin sword (%d ids, duplicates: %s)" % [all_ids.size(), str(duplicates)])
 
 
 ## ---------- Track W5a: WeaponController2D.weapon_mount ----------
@@ -6661,4 +6708,367 @@ func run_goblin_sword_checks() -> void:
 	check(gl_lunge != null and gl_lunge.id == &"goblin_sword_lunge" and gl_lunge.weapon_animation == &"lunge" and gl_lunge.damage == gl_skill_attack.damage and is_equal_approx(gl_lunge.knockback, gl_skill_attack.knockback) and is_equal_approx(gl_lunge.hit_stun, gl_skill_attack.hit_stun) and is_equal_approx(gl_lunge.ai_attack_range, 75.0), "GL1 the goblin lunge takes the sword Lunge's damage, knockback and hit stun (Q1), keeps the lunge clip and its 75 px AI range")
 	check(gw_weapon.heavy_attack == gl_lunge and gw_weapon.get_extra_attacks().size() == 2 and gw_weapon.get_extra_attacks()[1] == gl_lunge, "GL2 the lunge is registered on the goblin sword in the heavy_attack slot, as the last of the extra attacks")
 	check(e.attack_component.has_attack(&"goblin_sword_lunge") and e.attack_component.try_start_attack(&"goblin_sword_lunge", Vector2.RIGHT) and e.context.weapon_animation_player.current_animation == &"lunge", "GL3 the goblin that equipped the goblin sword starts the lunge by id and plays the lunge clip (clip %s)" % str(e.context.weapon_animation_player.current_animation))
+	await cleanup(main)
+
+
+## ---------- Track W5d: ship the goblin with its weapon-owned definition ----------
+
+func run_goblin_sword_wiring_checks() -> void:
+	var scene_path := "res://Characters/Enemies/BasicEnemy2D.tscn"
+	var main: Node = await fresh()
+	var e: Character2D = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	var controller: WeaponController2D = e.get_node_or_null("WeaponController2D") as WeaponController2D
+	var weapon := load(GOBLIN_SWORD_PATH) as WeaponDefinition2D
+	var slash := load("res://Weapons/Sword/Attacks/Sword_Slash1.tres") as AttackDefinition2D
+	var slash2 := load("res://Weapons/Sword/Attacks/Sword_Slash2.tres") as AttackDefinition2D
+	var lunge := load("res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres") as AttackDefinition2D
+	check(controller != null, "GS1 BasicEnemy2D has a WeaponController2D child")
+	check(controller != null and controller.is_initialized() and controller.get_equipped_weapon() == weapon, "GS2 the goblin controller initializes and equips GoblinSword")
+	check(controller != null and controller.weapon_mount == NodePath("../AnimatedSprite2D") and controller.get_mount_root() == e.get_node("AnimatedSprite2D"), "GS3 the goblin weapon mount resolves to AnimatedSprite2D")
+	check(e.context.weapon_pivot != null and e.context.weapon_pivot.name == &"Weapon" and e.context.weapon_pivot.scene_file_path == GOBLIN_SWORD_SCENE_PATH, "GS4 the weapon is the GoblinSword scene mounted as AnimatedSprite2D/Weapon")
+	check(e.attack_component.definition == slash and e.attack_component.attack_definition == slash, "GS5 the goblin's default attack is the shared sword_slash1 resource")
+	check(ids_equal(e.attack_component.get_attack_ids(), [&"sword_slash1", &"sword_slash2", &"goblin_sword_lunge"]), "GS6 the goblin exposes only sword_slash1, sword_slash2 and goblin_sword_lunge")
+	check(e.attack_component.get_attack(&"sword_slash2") == slash2 and e.attack_component.get_attack(&"goblin_sword_lunge") == lunge, "GS7 the combo follow-up and lunge resolve to their weapon-owned resources")
+	check(slash != null and slash.damage == (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).basic_combo[0].damage and slash.effect_scene == (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).basic_combo[0].effect_scene, "GS8 goblin slash uses the sword's damage and effect data")
+	check(lunge != null and lunge.damage == 5 and is_equal_approx(lunge.knockback, 200.0) and is_equal_approx(lunge.hit_stun, 0.15), "GS9 the goblin lunge keeps its intended damage, knockback and hit stun")
+	var profile := load("res://Characters/Controllers/GoblinBehaviorProfile.tres") as EnemyBehaviorProfile
+	check(profile != null and profile.attack_choices.size() == 2 and profile.attack_choices[0].attack == slash, "GS10 the AI slash choice points at sword_slash1")
+	check(profile != null and profile.attack_choices.size() == 2 and profile.attack_choices[1].attack == lunge, "GS11 the AI lunge choice points at GoblinSword_Lunge")
+	check(profile != null and profile.attack_choices.all(func(choice): return choice.attack != slash2), "GS12 the AI does not autonomously choose sword_slash2 as a combo follow-up")
+	var legacy_slash := "res://Characters/Components/Combat/GoblinAttackDefinition.tres"
+	var legacy_lunge := "res://Characters/Components/Combat/GoblinLungeAttackDefinition.tres"
+	check(not ResourceLoader.exists(legacy_slash) and not ResourceLoader.exists(legacy_lunge), "GS13 the character-owned goblin attack resources have been removed")
+	var source := FileAccess.get_file_as_string(scene_path)
+	check(not source.contains("GoblinAttackDefinition.tres") and not source.contains("GoblinLungeAttackDefinition.tres") and not source.contains("Animation_weapon_slash"), "GS14 BasicEnemy2D no longer embeds the knife animations or references deleted attack resources")
+	await cleanup(main)
+
+
+## ---------- Track W6: GoblinArcher uses the weapon-owned Bow scene and enemy attack ----------
+
+func run_goblin_archer_bow_checks() -> void:
+	var main: Node = await fresh_with_archer()
+	var archer := main.get_node_or_null("GoblinArcher") as Character2D
+	check(archer != null, "WA1 Main contains a GoblinArcher character")
+	if archer == null:
+		await cleanup(main)
+		return
+	archer.set_physics_process(false)
+	var controller := archer.get_node_or_null("WeaponController2D") as WeaponController2D
+	var bow_enemy := load("res://Weapons/Bow/Bow_EnemyWeaponDefinition.tres") as WeaponDefinition2D
+	var enemy_arrow := load("res://Weapons/Bow/Attacks/Bow_ArrowEnemy.tres") as AttackDefinition2D
+	check(controller != null, "WA2 GoblinArcher inherits WeaponController2D")
+	check(controller != null and controller.is_initialized() and controller.get_equipped_weapon() == bow_enemy, "WA3 GoblinArcher equips the Bow enemy weapon definition")
+	check(controller != null and controller.weapon_mount == NodePath("../AnimatedSprite2D") and controller.get_mount_root() == archer.get_node("AnimatedSprite2D"), "WA4 the archer mounts its weapon under AnimatedSprite2D")
+	check(archer.context.weapon_pivot != null and archer.context.weapon_pivot.scene_file_path == BOW_SCENE_PATH and archer.context.weapon_animation_player != null, "WA5 the equipped weapon is Weapons/Bow/Bow.tscn and its animation player is bound")
+	check(bow_enemy != null and bow_enemy.weapon_scene != null and bow_enemy.weapon_scene.resource_path == BOW_SCENE_PATH and bow_enemy.basic_combo.size() == 1 and bow_enemy.basic_combo[0] == enemy_arrow, "WA6 Bow enemy definition uses the shared Bow scene and Bow_ArrowEnemy attack")
+	check(archer.attack_component.definition == enemy_arrow and archer.attack_component.get_attack_ids() == [&"bow_arrow_enemy"], "WA7 the archer keeps the enemy-specific arrow attack rather than player-only Bow attacks")
+	var profile := load("res://Characters/Controllers/GoblinArcherBehaviorProfile.tres") as EnemyBehaviorProfile
+	check(profile != null and profile.attack_choices.size() == 1 and profile.attack_choices[0].attack == enemy_arrow, "WA8 archer AI selects the Bow folder's enemy arrow resource")
+	var source := FileAccess.get_file_as_string("res://Characters/Enemies/GoblinArcher.tscn")
+	check(not source.contains("Animation_archer_shoot") and not source.contains("2_bow") and not source.contains("texture ="), "WA9 archer scene no longer embeds bow animation data or a duplicate bow texture override")
+	check((load("res://Weapons/Bow/Bow_EnemyWeaponDefinition.tres") as WeaponDefinition2D).validate().is_empty(), "WA10 Bow enemy weapon definition passes WeaponDefinition2D validation")
+	await cleanup(main)
+
+
+## ---------- Track W7: cross-weapon resource and animation-clip audit ----------
+
+func run_track_w7_checks() -> void:
+	var sword := load(SWORD_WEAPON_PATH) as WeaponDefinition2D
+	var bow := load(BOW_WEAPON_PATH) as WeaponDefinition2D
+	var goblin_sword := load(GOBLIN_SWORD_PATH) as WeaponDefinition2D
+	var bow_enemy := load("res://Weapons/Bow/Bow_EnemyWeaponDefinition.tres") as WeaponDefinition2D
+	var slash1 := load("res://Weapons/Sword/Attacks/Sword_Slash1.tres") as AttackDefinition2D
+	var slash2 := load("res://Weapons/Sword/Attacks/Sword_Slash2.tres") as AttackDefinition2D
+	var empower := load("res://Weapons/Sword/Skills/Sword_Empower.tres") as SkillDefinition2D
+	check(sword.basic_combo.size() >= 2 and sword.basic_combo[0] == slash1 and sword.basic_combo[1] == slash2 and goblin_sword.basic_combo.size() >= 2 and goblin_sword.basic_combo[0] == slash1 and goblin_sword.basic_combo[1] == slash2, "WZ1 Sword and GoblinSword share Sword_Slash1 and Sword_Slash2 from the original Sword folder")
+	check(sword.active_skills.has(empower) and bow.active_skills.has(empower) and empower.resource_path == "res://Weapons/Sword/Skills/Sword_Empower.tres", "WZ2 Sword and Bow share Sword_Empower from the folder of the weapon that created it")
+	var defs: Array[WeaponDefinition2D] = [sword, bow, goblin_sword, bow_enemy]
+	var orphaned: Array[String] = []
+	for folder in ["res://Weapons/Sword", "res://Weapons/Bow", "res://Weapons/GoblinSword"]:
+		for resource_path in weapon_resource_paths(folder):
+			var resource = load(resource_path)
+			var used := false
+			for weapon in defs:
+				if resource is AttackDefinition2D and weapon.get_all_attacks().has(resource):
+					used = true
+				if resource is SkillDefinition2D and weapon.active_skills.has(resource):
+					used = true
+			if not used:
+				orphaned.append(resource_path)
+	check(orphaned.is_empty(), "WZ3 every attack and skill resource inside a weapon folder is referenced by at least one weapon definition (orphans: %s)" % str(orphaned))
+	check(sword.validate_scene().is_empty() and bow.validate_scene().is_empty() and goblin_sword.validate_scene().is_empty() and bow_enemy.validate_scene().is_empty(), "WZ4 every shipped weapon definition has all attack-named clips in its own weapon scene")
+	# A shared attack must still be refused when another weapon's scene does not provide its clip.
+	var main: Node = await fresh()
+	var player := main.get_node("Player") as Character2D
+	var controller := player.weapon_controller
+	var cross_attack := definition_variant(slash1, &"w7_missing_clip_attack")
+	var root := Node2D.new()
+	var ap := AnimationPlayer.new()
+	ap.name = &"HandAnim"
+	root.add_child(ap)
+	ap.owner = root
+	var scene := PackedScene.new()
+	scene.pack(root)
+	root.free()
+	var cross_weapon := make_weapon(&"w7_cross_weapon", [cross_attack]) as WeaponDefinition2D
+	cross_weapon.weapon_scene = scene
+	var problems := controller.validate_equip(cross_weapon)
+	check(has_problem(problems, "w7_cross_weapon") and has_problem(problems, "w7_missing_clip_attack") and has_problem(problems, "sword_slash_1") and not controller.can_equip(cross_weapon), "WZ5 validate_equip refuses a cross-weapon attack when its scene lacks the named clip, identifying weapon, attack and clip (%s)" % str(problems))
+	await cleanup(main)
+
+
+## ---------- Track P2.1: exported rig paths ----------
+
+func run_p2_checks() -> void:
+	var sword_scene := load("res://Weapons/Sword/Sword.tscn") as PackedScene
+	var main: Node = await fresh()
+	var player := main.get_node("Player") as Character2D
+	var goblin := main.get_node("BasicEnemy2D") as Character2D
+	check(player.visual_root_path.is_empty() and player.locomotion_player_path.is_empty() and player.animated_sprite_path.is_empty() and player.weapon_facing_root_path.is_empty() and player.weapon_pivot_path.is_empty() and goblin.visual_root_path.is_empty() and goblin.weapon_pivot_path.is_empty(), "P2a the shipped scenes set no rig path, so they keep the default node names")
+	check(player.context.visual_root == player.get_node("LayeredRig") and player.context.character_animation_player == player.get_node("PlayerAnim") and player.context.weapon_facing_root == player.get_node("WeaponFacingPivot") and player.context.weapon_pivot == player.get_node("WeaponFacingPivot/MainHand") and player.context.animated_sprite == null, "P2b the player's rig is found by name exactly as before")
+	check(goblin.context.visual_root == goblin.get_node("AnimatedSprite2D") and goblin.context.animated_sprite == goblin.get_node("AnimatedSprite2D") and goblin.context.character_animation_player == null and goblin.context.weapon_facing_root == null and goblin.context.weapon_pivot == goblin.get_node("AnimatedSprite2D/Weapon"), "P2c the goblin's rig is found by name exactly as before")
+
+	# A third layout: none of the default names, every node found through its path.
+	var body := Character2D.new()
+	var torso := Node2D.new()
+	torso.name = &"Torso"
+	body.add_child(torso)
+	var moves := AnimationPlayer.new()
+	moves.name = &"Moves"
+	body.add_child(moves)
+	var arm := Node2D.new()
+	arm.name = &"Arm"
+	body.add_child(arm)
+	var blade: Node2D = sword_scene.instantiate()
+	blade.name = &"Blade"
+	arm.add_child(blade)
+	var ctx := CharacterContext2D.new(body, NodePath("Torso"), NodePath("Moves"), NodePath(), NodePath("Arm"), NodePath("Arm/Blade"))
+	check(ctx.visual_root == torso and ctx.character_animation_player == moves and ctx.weapon_facing_root == arm and ctx.weapon_pivot == blade and ctx.weapon_animation_player == blade.get_node("HandAnim") and ctx.animated_sprite == null, "P2d a rig with none of the default names works through its paths")
+	var ctx_search := CharacterContext2D.new(body, NodePath("Torso"), NodePath(), NodePath(), NodePath("Arm"))
+	check(ctx_search.weapon_pivot == blade and ctx_search.weapon_animation_player == blade.get_node("HandAnim"), "P2e with no weapon path, the weapon is the first weapon scene found under the facing root")
+	body.free()
+
+	# A path that does not resolve warns and leaves the reference empty; it never falls back to a default name.
+	var body2 := Character2D.new()
+	var rig2 := Node2D.new()
+	rig2.name = &"LayeredRig"
+	body2.add_child(rig2)
+	var pivot2 := Node2D.new()
+	pivot2.name = &"WeaponFacingPivot"
+	body2.add_child(pivot2)
+	var blade2: Node2D = sword_scene.instantiate()
+	blade2.name = &"MainHand"
+	pivot2.add_child(blade2)
+	var ctx_ok := CharacterContext2D.new(body2)
+	var ctx_bad := CharacterContext2D.new(body2, NodePath(), NodePath(), NodePath(), NodePath("NoSuchPivot"))
+	check(ctx_ok.weapon_facing_root == pivot2 and ctx_bad.weapon_facing_root == null and ctx_bad.visual_root == rig2, "P2f a facing-root path that does not resolve leaves it empty instead of using WeaponFacingPivot")
+	body2.free()
+
+	# The AnimatedSprite2D layout also takes paths.
+	var body3 := Character2D.new()
+	var sprite3 := AnimatedSprite2D.new()
+	sprite3.name = &"Sprite"
+	body3.add_child(sprite3)
+	var gear: Node2D = sword_scene.instantiate()
+	gear.name = &"Gear"
+	sprite3.add_child(gear)
+	var ctx3 := CharacterContext2D.new(body3, NodePath(), NodePath(), NodePath("Sprite"), NodePath(), NodePath("Sprite/Gear"))
+	check(ctx3.visual_root == sprite3 and ctx3.animated_sprite == sprite3 and ctx3.weapon_pivot == gear and ctx3.weapon_animation_player == gear.get_node("HandAnim") and ctx3.weapon_facing_root == null, "P2g a sprite rig with renamed nodes works through its paths")
+	body3.free()
+
+	# Character2D hands its exported paths to the context when it is ready.
+	var inst := load("res://Characters/Enemies/BasicEnemy2D.tscn").instantiate() as Character2D
+	inst.locomotion_player_path = NodePath("AnimatedSprite2D/AnimationPlayer")
+	main.add_child(inst)
+	check(inst.context.character_animation_player == inst.get_node("AnimatedSprite2D/AnimationPlayer") and inst.context.weapon_pivot == inst.get_node("AnimatedSprite2D/Weapon"), "P2h Character2D passes its rig paths to its context (set one, the rest stay on defaults)")
+	inst.free()
+
+	# P2.2: a goblin whose sprite is renamed works through the paths alone (BasicEnemy2D no longer asks for AnimatedSprite2D).
+	var renamed := load("res://Characters/Enemies/BasicEnemy2D.tscn").instantiate() as BasicEnemy2D
+	renamed.get_node("AnimatedSprite2D").name = &"Body"
+	renamed.animated_sprite_path = NodePath("Body")
+	renamed.weapon_pivot_path = NodePath("Body/Weapon")
+	(renamed.get_node("WeaponController2D") as WeaponController2D).weapon_mount = NodePath("../Body")
+	main.add_child(renamed)
+	check(renamed.context.animated_sprite == renamed.get_node("Body") and renamed.context.visual_root == renamed.get_node("Body") and renamed.context.weapon_pivot == renamed.get_node("Body/Weapon") and (renamed.get_node("Body") as AnimatedSprite2D).animation == &"idle", "P2i a goblin whose sprite is renamed Body works through its paths and still plays idle")
+	renamed.free()
+	await cleanup(main)
+
+
+## ---------- Track P3.1: locomotion clip names ----------
+
+func run_p3_checks() -> void:
+	var main: Node = await fresh_far()
+	var player := main.get_node("Player") as Character2D
+	var goblin := main.get_node("BasicEnemy2D") as Character2D
+	check(player.idle_clip == &"idle" and player.run_clip == &"run" and goblin.idle_clip == &"idle" and goblin.run_clip == &"run" and player.context.idle_clip == &"idle" and goblin.context.run_clip == &"run", "P3a the shipped scenes keep the clip names idle and run, and the context carries them")
+	check(goblin.context.animated_sprite.animation == &"idle" and player.context.character_animation_player.current_animation == &"idle", "P3b the shipped goblin and player idle on the default clip")
+
+	# The names are data: a goblin told that "run" is its idle clip plays it instead.
+	var swapped := load("res://Characters/Enemies/BasicEnemy2D.tscn").instantiate() as BasicEnemy2D
+	swapped.position = Vector2(2000, 2000)
+	swapped.idle_clip = &"run"
+	swapped.run_clip = &"idle"
+	main.add_child(swapped)
+	var sprite := swapped.context.animated_sprite
+	check(swapped.context.idle_clip == &"run" and sprite.animation == &"run", "P3c a goblin with idle_clip = run starts on that clip")
+	await phys(5)
+	check(sprite.animation == &"run" and sprite.is_playing(), "P3d the idle state keeps playing the exported idle clip")
+	swapped.free()
+	await cleanup(main)
+
+
+## ---------- Track P4: team targeting ----------
+
+func run_p4_checks() -> void:
+	var main: Node = await fresh_far()
+	var player := main.get_node("Player") as Character2D
+	var goblin := main.get_node("BasicEnemy2D") as BasicEnemy2D
+	var ai := goblin.get_node("EnemyAIController2D") as EnemyAIController2D
+	check(ai.get("target_group") == null, "P4a the AI no longer has a target_group")
+	var ally := Character2D.new()
+	ally.team = &"enemy"
+	var neutral := Character2D.new()
+	var rival := Character2D.new()
+	rival.team = &"red"
+	var crate := CharacterBody2D.new()
+	check(ai._is_hostile(player) and ai._is_hostile(rival), "P4b a character on another team is hostile (the player, a third faction)")
+	check(not ai._is_hostile(ally) and not ai._is_hostile(neutral) and not ai._is_hostile(crate) and not ai._is_hostile(goblin), "P4c the same team, a neutral character, a plain body and the enemy itself are not")
+	ai._on_body_entered(rival)
+	ai._on_body_entered(ally)
+	check(ai._candidates.has(rival) and not ai._candidates.has(ally), "P4d a body that enters the detection area becomes a candidate only if it is hostile")
+	ai._candidates.erase(rival)
+	for node in [ally, neutral, rival, crate]:
+		node.free()
+	await cleanup(main)
+
+
+## ---------- Track P5: Hurtbox2D ----------
+
+func make_crate(position: Vector2, max_health: int) -> Hurtbox2D:
+	var crate := Hurtbox2D.new()
+	crate.collision_layer = 2
+	var shape := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(16, 16)
+	shape.shape = rect
+	crate.add_child(shape)
+	var health := HealthComponent2D.new()
+	health.name = &"HealthComponent2D"
+	health.max_health = max_health
+	crate.add_child(health)
+	crate.global_position = position
+	return crate
+
+func run_p5_checks() -> void:
+	var main: Node = await fresh_far()
+	var player := main.get_node("Player") as Character2D
+	var crate := make_crate(player.global_position + Vector2(0, 300), 5)
+	main.add_child(crate)
+	await phys(2)
+	var counts := [0, 0]
+	crate.damaged.connect(func(_hit: HitData) -> void: counts[0] += 1)
+	crate.died.connect(func() -> void: counts[1] += 1)
+	check(crate.health_component != null and crate.is_alive() and not crate.is_in_group("damageable"), "P5a a Hurtbox2D finds its HealthComponent2D child and is in no group")
+	check(crate.apply_hit(HitData.new(2)) == 2 and crate.health_component.health == 3 and counts[0] == 1 and counts[1] == 0, "P5b apply_hit forwards to the health and the damaged signal follows")
+	crate.take_damage(10)
+	check(not crate.is_alive() and crate.health_component.health == 0 and counts[1] == 1 and crate.apply_hit(HitData.new(1)) == 0, "P5c take_damage kills it, died fires once, and a dead hurtbox takes nothing")
+
+	# The player's arrow hits a plain hurtbox through the shared hit rules (no group, no character).
+	var target := make_crate(player.global_position + Vector2(120, 0), 20)
+	main.add_child(target)
+	player.weapon_controller.equip(load(BOW_WEAPON_PATH) as WeaponDefinition2D)
+	await phys(2)
+	player.attack_component.try_start_attack(&"bow_arrow_shot", Vector2.RIGHT)
+	await phys(90)
+	check(target.health_component.health == 16 and effects_from(main, ARROW_SCENE_PATH).is_empty(), "P5d a light arrow hurts a Hurtbox2D for 4 and is spent (health %d)" % target.health_component.health)
+	crate.free()
+	target.free()
+	await cleanup(main)
+
+
+## ---------- Track P6: Stagger state ----------
+
+func make_far_goblin(main: Node, with_stagger: bool, at: Vector2) -> BasicEnemy2D:
+	var goblin := load("res://Characters/Enemies/BasicEnemy2D.tscn").instantiate() as BasicEnemy2D
+	goblin.position = at
+	if with_stagger:
+		var stagger := load("res://Characters/StateMachine/States/StaggerState.gd").new() as CharacterState
+		stagger.name = &"Stagger"
+		stagger.set("clip", &"run")
+		goblin.get_node("CharacterStateMachine").add_child(stagger)
+	main.add_child(goblin)
+	return goblin
+
+func run_p6_checks() -> void:
+	var main: Node = await fresh_far()
+	var plain := make_far_goblin(main, false, Vector2(2000, 2000))
+	var flinch := make_far_goblin(main, true, Vector2(2000, 2400))
+	await phys(3)
+	check(flinch.state_machine.has_state(&"Stagger") and not plain.state_machine.has_state(&"Stagger") and flinch.state_machine.current_state_name == &"Idle", "P6a only the goblin given a Stagger node has the state, and both start in Idle")
+	plain.apply_hit(HitData.new(1, null, Vector2.RIGHT, 0.0, 0.3))
+	flinch.apply_hit(HitData.new(1, null, Vector2.RIGHT, 0.0, 0.3))
+	check(flinch.state_machine.current_state_name == &"Stagger" and flinch.context.animated_sprite.animation == &"run" and flinch.context.hit_stun_remaining > 0.0, "P6b a hit that applies stun puts the goblin with a Stagger node into it, playing its clip")
+	check(plain.state_machine.current_state_name == &"Idle" and plain.context.hit_stun_remaining > 0.0, "P6c a goblin without one is stunned as before and shows nothing")
+	flinch.apply_hit(HitData.new(1, null, Vector2.RIGHT, 0.0, 0.0))
+	check(flinch.state_machine.current_state_name == &"Stagger", "P6d a hit with no stun leaves the state alone (it stays staggered, the stun is not extended)")
+	await phys(40)
+	check(flinch.state_machine.current_state_name == &"Idle" and flinch.context.animated_sprite.animation == &"idle", "P6e when the stun ends it returns to Idle and the idle clip")
+	flinch.apply_hit(HitData.new(100, null, Vector2.RIGHT, 0.0, 0.3))
+	check(not flinch.is_alive() and flinch.context.hit_stun_remaining == 0.0 and flinch.state_machine.current_state_name == &"Idle", "P6f a killing hit does not stagger: the stun is cleared and the state stays Idle")
+	await phys(3)
+	check(not is_instance_valid(flinch), "P6g the killed goblin is freed by its reaction component as usual")
+	plain.free()
+	await cleanup(main)
+
+
+## ---------- Track P7: forward impulse ----------
+
+## Runs `frames` physics frames and returns the biggest impulse speed seen and how far the goblin moved along x.
+func watch_impulse(goblin: BasicEnemy2D, frames: int) -> Dictionary:
+	var start_x := goblin.global_position.x
+	var peak := 0.0
+	for i in frames:
+		await phys(1)
+		peak = maxf(peak, goblin.context.impulse_velocity.length())
+	return {"peak": peak, "moved": goblin.global_position.x - start_x}
+
+## Waits until the goblin is no longer swinging or cooling down.
+func wait_for_attack_ready(goblin: BasicEnemy2D) -> void:
+	var guard := 0
+	while (goblin.context.is_attacking or goblin.attack_component.is_on_cooldown()) and guard < 300:
+		await phys(1)
+		guard += 1
+
+func run_p7_checks() -> void:
+	var main: Node = await fresh_far()
+	var lunge_def := load("res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres") as AttackDefinition2D
+	var slash_def := load("res://Weapons/Sword/Attacks/Sword_Slash1.tres") as AttackDefinition2D
+	check(lunge_def.forward_impulse > 0.0 and lunge_def.impulse_duration > 0.0 and slash_def.forward_impulse == 0.0, "P7a the goblin's lunge has a forward impulse and the shared slash has none")
+
+	var goblin := make_far_goblin(main, false, Vector2(2000, 2000))
+	await phys(3)
+	check(goblin.attack_component.try_start_attack(&"goblin_sword_lunge", Vector2.RIGHT) and goblin.context.impulse_velocity == Vector2.ZERO, "P7b the lunge starts, and the step has not begun before its effect spawns")
+	var watched: Dictionary = await watch_impulse(goblin, 50)
+	check(watched.peak > lunge_def.forward_impulse * 0.5 and watched.peak <= lunge_def.forward_impulse, "P7c the step reaches close to its speed (peak %.0f of %.0f)" % [watched.peak, lunge_def.forward_impulse])
+	check(watched.moved > 8.0 and watched.moved < 40.0 and goblin.context.impulse_velocity == Vector2.ZERO, "P7d it moves the goblin a short way forward and is over by the end of the swing (moved %.1f px)" % watched.moved)
+
+	# A cancelled swing drops the step at once.
+	await wait_for_attack_ready(goblin)
+	goblin.attack_component.try_start_attack(&"goblin_sword_lunge", Vector2.RIGHT)
+	var guard := 0
+	while goblin.context.impulse_velocity == Vector2.ZERO and guard < 60:
+		await phys(1)
+		guard += 1
+	var started := goblin.context.impulse_velocity != Vector2.ZERO
+	goblin.attack_component.cancel()
+	check(started and goblin.context.impulse_velocity == Vector2.ZERO, "P7e cancelling the swing clears the step immediately")
+
+	# An attack without one never produces it.
+	await wait_for_attack_ready(goblin)
+	goblin.attack_component.try_start_attack(&"sword_slash1", Vector2.RIGHT)
+	var slash_watch: Dictionary = await watch_impulse(goblin, 45)
+	check(slash_watch.peak == 0.0, "P7f an attack with no forward impulse leaves the step at zero")
+	goblin.free()
 	await cleanup(main)

@@ -1,137 +1,17 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://Characters/Enemies/BasicEnemy2D.tscn" id="1_base"]
-[ext_resource type="Texture2D" uid="uid://dn5u0gyvv7awe" path="res://2D_RPG_Assets/Weapon/Bow.png" id="2_bow"]
-[ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="3_definition_script"]
-[ext_resource type="Resource" path="res://Weapons/Bow/Attacks/Bow_ArrowEnemy.tres" id="4_arrow"]
-[ext_resource type="Resource" path="res://Characters/Controllers/GoblinArcherBehaviorProfile.tres" id="5_profile"]
-
-[sub_resource type="Animation" id="Animation_archer_reset"]
-length = 0.001
-step = 0.041666668
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath(".:rotation")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [-0.7853982]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath(".:scale")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector2(0.6, 0.6)]
-}
-
-[sub_resource type="Animation" id="Animation_archer_shoot"]
-resource_name = "bow_shoot"
-length = 0.6
-step = 0.041666668
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath(".:rotation")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [-0.7853982]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath(".:scale")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0, 0.4, 0.45, 0.6),
-"transitions": PackedFloat32Array(1, 1, 1, 1),
-"update": 0,
-"values": [Vector2(0.6, 0.6), Vector2(0.42, 0.6), Vector2(0.7, 0.6), Vector2(0.6, 0.6)]
-}
-tracks/2/type = "method"
-tracks/2/imported = false
-tracks/2/enabled = true
-tracks/2/path = NodePath("../..")
-tracks/2/interp = 1
-tracks/2/loop_wrap = true
-tracks/2/keys = {
-"times": PackedFloat32Array(0.4),
-"transitions": PackedFloat32Array(1),
-"values": [{
-"args": [&"spawn_effect"],
-"method": &"attack_event"
-}]
-}
-
-[sub_resource type="Animation" id="Animation_archer_return"]
-resource_name = "bow_return"
-length = 0.4
-step = 0.041666668
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath(".:rotation")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [-0.7853982]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath(".:scale")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0, 0.4),
-"transitions": PackedFloat32Array(1, 1),
-"update": 0,
-"values": [Vector2(0.6, 0.6), Vector2(0.6, 0.6)]
-}
-
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_archer"]
-_data = {
-&"RESET": SubResource("Animation_archer_reset"),
-&"bow_return": SubResource("Animation_archer_return"),
-&"bow_shoot": SubResource("Animation_archer_shoot")
-}
+[ext_resource type="Resource" path="res://Characters/Controllers/GoblinArcherBehaviorProfile.tres" id="2_profile"]
+[ext_resource type="Resource" path="res://Weapons/Bow/Bow_EnemyWeaponDefinition.tres" id="3_bow_enemy"]
 
 [node name="GoblinArcher" instance=ExtResource("1_base")]
 
-[node name="Weapon" parent="AnimatedSprite2D" index="1"]
-position = Vector2(5, 2)
-rotation = -0.7853982
-scale = Vector2(0.6, 0.6)
-texture = ExtResource("2_bow")
-offset = Vector2(0, 0)
-flip_h = false
-
-[node name="WeaponAnimation" parent="AnimatedSprite2D/Weapon" index="0"]
-libraries/ = SubResource("AnimationLibrary_archer")
-
 [node name="EnemyAIController2D" parent="." index="3"]
-profile = ExtResource("5_profile")
+profile = ExtResource("2_profile")
 
 [node name="HealthComponent2D" parent="." index="7"]
 max_health = 12
 
-[node name="AttackComponent2D" parent="." index="10"]
-attack_definition = ExtResource("4_arrow")
-attacks = Array[ExtResource("3_definition_script")]([])
+[node name="WeaponController2D" parent="." index="11"]
+starting_weapon = ExtResource("3_bow_enemy")
+weapon_mount = NodePath("../AnimatedSprite2D")

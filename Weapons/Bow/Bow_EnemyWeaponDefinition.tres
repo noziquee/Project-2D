@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="WeaponDefinition2D" format=3]
+
+[ext_resource type="Script" path="res://Characters/Components/Weapons/WeaponDefinition2D.gd" id="1_weapon"]
+[ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="2_attack_script"]
+[ext_resource type="Resource" path="res://Weapons/Bow/Attacks/Bow_ArrowEnemy.tres" id="3_arrow"]
+[ext_resource type="PackedScene" uid="uid://ycpajll57ywg" path="res://Weapons/Bow/Bow.tscn" id="4_scene"]
+
+[resource]
+script = ExtResource("1_weapon")
+weapon_id = &"bow_enemy"
+display_name = "Bow (Enemy)"
+weapon_scene = ExtResource("4_scene")
+basic_combo = Array[ExtResource("2_attack_script")]([ExtResource("3_arrow")])

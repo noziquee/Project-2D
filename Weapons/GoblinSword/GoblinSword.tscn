@@ -230,12 +230,74 @@ tracks/1/keys = {
 "values": [Vector2(0.8, 0.95), Vector2(1, 1)]
 }
 
+[sub_resource type="Animation" id="Animation_weapon_return_1"]
+resource_name = "sword_slash_return_1"
+length = 0.6666667
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.20833333, 0.6666667),
+"transitions": PackedFloat32Array(-2, -2, 0.5),
+"update": 0,
+"values": [4.4505897, 4.4505897, 0.0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.6666667),
+"transitions": PackedFloat32Array(0.5, 0.5),
+"update": 0,
+"values": [Vector2(0.8, 0.95), Vector2(1, 1)]
+}
+
+
+[sub_resource type="Animation" id="Animation_weapon_return_2"]
+resource_name = "sword_slash_return_2"
+length = 0.6666667
+step = 0.041666668
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.20833333, 0.6666667),
+"transitions": PackedFloat32Array(-2, -2, 0.5),
+"update": 0,
+"values": [4.4505897, 4.4505897, 0.0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.6666667),
+"transitions": PackedFloat32Array(0.5, 0.5),
+"update": 0,
+"values": [Vector2(0.8, 0.95), Vector2(1, 1)]
+}
+
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_goblin_sword"]
 _data = {
 &"RESET": SubResource("Animation_weapon_reset"),
 &"lunge": SubResource("Animation_weapon_lunge"),
 &"slash": SubResource("Animation_weapon_slash"),
 &"sword_return": SubResource("Animation_weapon_return"),
+&"sword_slash_return_1": SubResource("Animation_weapon_return_1"),
+&"sword_slash_return_2": SubResource("Animation_weapon_return_2"),
 &"sword_slash_1": SubResource("Animation_weapon_slash_1"),
 &"sword_slash_2": SubResource("Animation_weapon_slash_2")
 }
