@@ -35,6 +35,11 @@ enum ReleaseMode {
 @export_range(0.0, 5.0, 0.01) var cooldown_duration: float = 0.05
 ## Scales normal (non-dash) movement for the whole swing. 1 = unchanged, 0 = rooted.
 @export_range(0.0, 2.0, 0.01) var movement_multiplier: float = 1.0
+## P7: a forward step taken when the attack's effect spawns (the thrust of a lunge). Speed in pixels per second along
+## the attack direction, fading to nothing over impulse_duration. 0 = none. It is added to the movement and does not
+## replace it, and it stops if the swing is cancelled or interrupted.
+@export_range(0.0, 2000.0, 1.0) var forward_impulse: float = 0.0
+@export_range(0.01, 1.0, 0.01) var impulse_duration: float = 0.15
 ## When true, a hit that lands on the attacker while this attack is running cancels the
 ## swing (and starts the cooldown). Off by default so swings are never flinched out of.
 @export var interruptible: bool = false
@@ -131,3 +136,21 @@ enum ReleaseMode {
 @export var release_mode: ReleaseMode = ReleaseMode.INPUT_RELEASE
 ## Seconds of charge after which a THRESHOLD attack releases by itself. Must be above 0 for THRESHOLD.
 @export_range(0.0, 10.0, 0.01) var charge_threshold: float = 0.0
+
+## The effect_animation every new attack starts with. A different, non-empty value on an area or projectile attack is a
+## deliberate choice that will never play, so it is worth a warning; the default is not.
+const DEFAULT_EFFECT_ANIMATION := &"slash"
+
+## Things that are set but will have no effect (H3.3), as readable messages naming the attack. Unlike a problem, a
+## warning never stops a weapon from being equipped. Empty when nothing is ignored.
+func get_warnings() -> Array[String]:
+	var found: Array[String] = []
+	var label := "attack '%s'" % id
+	if charge_animation == &"" and (charge_threshold > 0.0 or release_mode != ReleaseMode.INPUT_RELEASE):
+		found.append("%s: charge_threshold or release_mode is set but charge_animation is empty; nothing will show while it charges." % label)
+	if effect_animation != &"" and effect_animation != DEFAULT_EFFECT_ANIMATION and effect_scene != null and effect_scene.can_instantiate():
+		var probe := effect_scene.instantiate()
+		if probe is AreaEffect2D or probe is ProjectileEffect2D:
+			found.append("%s: effect_animation '%s' is ignored: area and projectile effects have no effect AnimationPlayer." % [label, effect_animation])
+		probe.free()
+	return found

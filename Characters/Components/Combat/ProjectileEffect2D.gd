@@ -94,12 +94,12 @@ func _physics_process(delta: float) -> void:
 func _on_body_entered(body: Node2D) -> void:
 	_touch(body)
 
-## A body reached the hit area: damageable ones go through the shared hit rules, a solid world body stops the
+## A body reached the hit area: ones that take hits (apply_hit, P5) go through the shared hit rules, a solid world body stops the
 ## projectile, anything else is ignored.
 func _touch(body: Node) -> void:
 	if _ended or _spent or not is_instance_valid(body) or body == source:
 		return
-	if body.is_in_group("damageable"):
+	if body.has_method("apply_hit") or body.has_method("take_damage"):
 		_try_hit(body)
 	elif body is CollisionObject2D and ((body as CollisionObject2D).collision_layer & WORLD_LAYER) != 0:
 		world_hit.emit(_get_hit_origin())
@@ -130,3 +130,10 @@ func _end() -> void:
 	if _hitbox != null:
 		_hitbox.set_deferred("monitoring", false)
 	queue_free()
+
+## Scene problems (H3.2): the hit area and its shape exist.
+func get_scene_problems(_effect_clip: StringName) -> Array[String]:
+	return _hitbox_scene_problems(hitbox_path, collision_shape_path)
+
+func get_scene_warnings() -> Array[String]:
+	return _shape_scene_warnings(collision_shape_path, "RectangleShape2D")

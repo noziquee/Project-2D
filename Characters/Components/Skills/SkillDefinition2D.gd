@@ -39,8 +39,9 @@ enum Targeting { AIM_DIRECTION, SELF }
 @export_range(0.0, 600.0, 0.1) var cooldown: float = 1.0
 ## Seconds between starting the skill and its effect. 0 = instant.
 @export_range(0.0, 10.0, 0.05) var cast_time: float = 0.0
-## Reserved for channel skills (last item of 13.3). Must be 0 until then.
-@export_range(0.0, 30.0, 0.1) var channel_time: float = 0.0
+## Reserved for channel skills. Hidden from the Inspector (H2.3) but still stored, so older resources load, and validate()
+## still rejects anything but 0. Make it an @export_range again when channel skills exist.
+@export_storage var channel_time: float = 0.0
 ## When true a hit that damages the caster during the cast cancels it (cost back, cooldown cleared).
 @export var interruptible: bool = true
 
@@ -60,7 +61,9 @@ enum Targeting { AIM_DIRECTION, SELF }
 @export_range(0.0, 3000.0, 1.0) var dash_speed: float = 700.0
 
 @export_group("Animation + effect")
-## Optional clip on the weapon's AnimationPlayer played when the skill executes. Empty = none.
+## Optional clip on the weapon's AnimationPlayer (H2.2, decision D3: cast, then execute). SkillComponent2D plays it the moment the
+## skill starts; the effect executes when cast_time is over, as before. If the cast is cancelled the clip stops and the weapon
+## returns to its RESET pose. Empty = no clip: the weapon player is left alone. validate() reports a clip the weapon lacks.
 @export var weapon_animation: StringName = &""
 ## The attack a projectile, area or dash skill performs (damage, effect scene, hit policy).
 @export var attack: AttackDefinition2D
@@ -116,6 +119,26 @@ func validate(animation_player: AnimationPlayer = null, slot_count: int = 3) -> 
 	elif behavior == Behavior.BUFF:
 		problems.append_array(_buff_problems(label))
 	return problems
+
+## Fields that are set but this skill's behavior never reads (H3.3), as readable messages naming the skill. A warning,
+## never a problem: the skill still works. Empty when nothing is ignored.
+func get_warnings() -> Array[String]:
+	var found: Array[String] = []
+	var label := _label()
+	if behavior != Behavior.BUFF and status_effect != null:
+		found.append("%s: status_effect is only used by BUFF skills; it is ignored here (put statuses on the attack's status_effects instead)." % label)
+	if (behavior == Behavior.BUFF or behavior == Behavior.NONE) and attack != null:
+		found.append("%s: attack is ignored by %s skills." % [label, Behavior.keys()[behavior]])
+	if behavior != Behavior.AREA and behavior != Behavior.DASH and area_radius > 0.0:
+		found.append("%s: area_radius is only used by AREA and DASH skills." % label)
+	if (behavior == Behavior.BUFF or behavior == Behavior.NONE) and max_range > 0.0:
+		found.append("%s: max_range is only used by PROJECTILE and DASH skills." % label)
+	if behavior == Behavior.BUFF and status_effect != null and status_effect.tick_damage > 0:
+		found.append("%s: the buff's status_effect ticks %d damage on the caster; a buff normally does not." % [label, status_effect.tick_damage])
+	if attack != null and (behavior == Behavior.PROJECTILE or behavior == Behavior.AREA or behavior == Behavior.DASH):
+		for message in attack.get_warnings():
+			found.append("%s: %s" % [label, message])
+	return found
 
 ## What an area skill needs (13.3.2): an attack whose effect scene has an AreaEffect2D root. Either targeting works: SELF
 ## centres the area on the caster, AIM_DIRECTION places it hitbox_offset in front of the caster along the aim.

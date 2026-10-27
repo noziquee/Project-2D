@@ -2,9 +2,13 @@ extends RefCounted
 class_name CharacterContext2D
 ## Per-character runtime references and intent shared by states/components.
 ##
-## Two rig layouts are supported. Anything else warns instead of guessing:
+## Two rig layouts are found by name when nothing else is said. Anything else warns instead of guessing:
 ##   Player: LayeredRig, PlayerAnim, and a weapon mounted under WeaponFacingPivot
 ##   Goblin: AnimatedSprite2D, and a weapon at AnimatedSprite2D/Weapon
+## A character with another layout names its nodes with the rig paths on Character2D (P2), which arrive here as
+## the optional _init arguments. A path that is set wins over the default name; one that does not resolve warns
+## and leaves that reference empty (it never falls back to a default name). A rig that has a visual root (set or
+## named LayeredRig) gets the player-style defaults for the rest; any other rig gets the goblin-style ones.
 ##
 ## The weapon (9.7b) is a scene: a Node2D root holding the sprite and an AnimationPlayer that has the
 ## weapon's clips (Weapons/Sword/scene.tscn is the shipped one). The context reads the AnimationPlayer from
@@ -25,6 +29,9 @@ var character: CharacterBody2D
 var visual_root: Node2D
 var character_animation_player: AnimationPlayer
 var animated_sprite: AnimatedSprite2D
+## The locomotion clip names the idle, move, dash and attack states play (P3). Character2D copies its exports here.
+var idle_clip: StringName = &"idle"
+var run_clip: StringName = &"run"
 var weapon_pivot: Node2D
 var weapon_facing_root: Node2D
 var weapon_animation_player: AnimationPlayer
@@ -49,39 +56,46 @@ var move_multiplier: float = 1.0
 ## Extra velocity from being hit. Character2D decays it every physics frame and
 ## MovementComponent2D adds it to normal and dash movement.
 var knockback_velocity: Vector2 = Vector2.ZERO
+## Forward step from the attack in progress (AttackDefinition2D.forward_impulse, P7); AttackComponent2D owns it.
+var impulse_velocity: Vector2 = Vector2.ZERO
 ## While above zero the character cannot start an attack or a dash.
 var hit_stun_remaining: float = 0.0
 ## True while FacingComponent2D is blending the weapon hand back to its idle pose after a swing. AttackComponent2D
 ## then skips its instant RESET snap on a cancel, because the blend replaces it. Set only by the facing component.
 var hand_settling: bool = false
 
-func _init(owner: CharacterBody2D) -> void:
+func _init(owner: CharacterBody2D, visual_root_path: NodePath = NodePath(), locomotion_player_path: NodePath = NodePath(), animated_sprite_path: NodePath = NodePath(), weapon_facing_root_path: NodePath = NodePath(), weapon_pivot_path: NodePath = NodePath()) -> void:
 	character = owner
-	animated_sprite = owner.get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+	animated_sprite = _rig_node(owner, animated_sprite_path, "AnimatedSprite2D") as AnimatedSprite2D
 
-	var layered_rig := owner.get_node_or_null("LayeredRig") as Node2D
-	if layered_rig != null:
-		# Layout A: layered player rig driven by AnimationPlayer clips.
-		visual_root = layered_rig
-		character_animation_player = owner.get_node_or_null("PlayerAnim") as AnimationPlayer
-		weapon_facing_root = owner.get_node_or_null("WeaponFacingPivot") as Node2D
-		weapon_pivot = owner.get_node_or_null("WeaponFacingPivot/MainHand") as Node2D
-		if weapon_pivot == null and weapon_facing_root != null:
-			weapon_pivot = _find_mounted_weapon(weapon_facing_root)
-		if weapon_pivot != null:
-			weapon_animation_player = find_weapon_player(weapon_pivot)
-	else:
-		# Layout B: AnimatedSprite2D enemy. The weapon is a child of the sprite, so
-		# flipping the sprite mirrors the weapon with it.
-		visual_root = animated_sprite
-		weapon_pivot = owner.get_node_or_null("AnimatedSprite2D/Weapon") as Node2D
-		if weapon_pivot != null:
-			weapon_animation_player = find_weapon_player(weapon_pivot)
+	# Layout A (a visual root: the layered player rig, or whatever visual_root_path names) looks for the player's
+	# node names; layout B (no visual root) mirrors the AnimatedSprite2D enemy and looks only for its weapon.
+	var layered_rig := _rig_node(owner, visual_root_path, "LayeredRig") as Node2D
+	var layered := layered_rig != null
+	visual_root = layered_rig if layered else animated_sprite
+	character_animation_player = _rig_node(owner, locomotion_player_path, "PlayerAnim" if layered else "") as AnimationPlayer
+	weapon_facing_root = _rig_node(owner, weapon_facing_root_path, "WeaponFacingPivot" if layered else "") as Node2D
+	# The goblin's weapon is a child of the sprite, so flipping the sprite mirrors the weapon with it.
+	weapon_pivot = _rig_node(owner, weapon_pivot_path, "WeaponFacingPivot/MainHand" if layered else "AnimatedSprite2D/Weapon") as Node2D
+	if weapon_pivot == null and layered and weapon_pivot_path.is_empty() and weapon_facing_root != null:
+		weapon_pivot = _find_mounted_weapon(weapon_facing_root)
+	if weapon_pivot != null:
+		weapon_animation_player = find_weapon_player(weapon_pivot)
 
 	if weapon_animation_player == null:
 		push_warning("CharacterContext2D: '%s' has no weapon AnimationPlayer (expected a weapon scene with an AnimationPlayer under WeaponFacingPivot, or at AnimatedSprite2D/Weapon). Attacks are disabled." % owner.name)
 		return
 	_validate_attack_event_tracks()
+
+## A rig node: the one at `path` when it is set (a warning when it does not resolve), otherwise the child at
+## `default_name`. An empty default name means there is no default, so an unset path gives null.
+func _rig_node(owner: Node, path: NodePath, default_name: String) -> Node:
+	if path.is_empty():
+		return owner.get_node_or_null(default_name) if default_name != "" else null
+	var found := owner.get_node_or_null(path)
+	if found == null:
+		push_warning("CharacterContext2D: '%s' rig path '%s' does not resolve to a node." % [owner.name, path])
+	return found
 
 ## Where an attack effect appears: the spawn marker when there is a live one in the tree, otherwise the
 ## character's origin.

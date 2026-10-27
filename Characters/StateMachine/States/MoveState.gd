@@ -1,7 +1,7 @@
 extends CharacterState
 
 func enter() -> void:
-	context.play_locomotion_animation(&"run")
+	context.play_locomotion_animation(context.run_clip)
 
 func physics_update(_delta: float) -> void:
 	if context.is_attacking:
@@ -12,4 +12,4 @@ func physics_update(_delta: float) -> void:
 		state_machine.transition_to(&"Idle")
 	else:
 		# Resume "run" after a hit reaction interrupted it (see IdleState).
-		context.play_locomotion_animation(&"run")
+		context.play_locomotion_animation(context.run_clip)

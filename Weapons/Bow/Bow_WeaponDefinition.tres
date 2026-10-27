@@ -2,14 +2,14 @@
 
 [ext_resource type="Script" uid="uid://n1fmcxqhoh6t" path="res://Characters/Components/Weapons/WeaponDefinition2D.gd" id="1_weapon"]
 [ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="2_attack_script"]
-[ext_resource type="Resource" uid="uid://cnm8eyjpnpj47" path="res://Weapons/Bow/Attacks/Bow_ArrowShot.tres" id="3_light"]
+[ext_resource type="Resource" uid="uid://01vqywrmmvr2" path="res://Weapons/Bow/Skills/Bow_PowerShot.tres" id="2_es6jq"]
+[ext_resource type="Resource" uid="uid://c6nvdc5hrsojb" path="res://Weapons/Bow/Skills/Bow_MultiShot.tres" id="3_ebe4m"]
+[ext_resource type="Resource" uid="uid://bkiyeokjeextg" path="res://Weapons/Bow/Attacks/Bow_ArrowShot.tres" id="3_light"]
 [ext_resource type="Resource" uid="uid://c2p46qvon7e82" path="res://Weapons/Bow/Attacks/Bow_ArrowHeavy.tres" id="4_heavy"]
 [ext_resource type="PackedScene" uid="uid://ycpajll57ywg" path="res://Weapons/Bow/Bow.tscn" id="5_scene"]
 [ext_resource type="Script" uid="uid://c8wyqi583fwgm" path="res://Characters/Components/Passives/PassiveDefinition2D.gd" id="8_vvibp"]
 [ext_resource type="Script" uid="uid://bddw52d2igqtf" path="res://Characters/Components/Skills/SkillDefinition2D.gd" id="20_skill_script"]
-[ext_resource type="Resource" uid="uid://ct8egq7603isj" path="res://Weapons/Bow/Skills/Bow_PowerShot.tres" id="21_power_shot"]
 [ext_resource type="Resource" uid="uid://pdycoabh7m0u" path="res://Weapons/Sword/Skills/Sword_Empower.tres" id="22_empower"]
-[ext_resource type="Resource" uid="uid://cpfnamn47n2bw" path="res://Weapons/Bow/Skills/Bow_MultiShot.tres" id="23_multi_shot"]
 
 [resource]
 script = ExtResource("1_weapon")
@@ -18,4 +18,4 @@ display_name = "Bow"
 weapon_scene = ExtResource("5_scene")
 basic_combo = Array[ExtResource("2_attack_script")]([ExtResource("3_light")])
 heavy_attack = ExtResource("4_heavy")
-active_skills = Array[ExtResource("20_skill_script")]([ExtResource("21_power_shot"), ExtResource("23_multi_shot"), ExtResource("22_empower")])
+active_skills = Array[ExtResource("20_skill_script")]([ExtResource("2_es6jq"), ExtResource("3_ebe4m"), ExtResource("22_empower")])

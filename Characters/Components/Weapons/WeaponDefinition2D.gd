@@ -161,6 +161,20 @@ func validate(animation_player: AnimationPlayer = null) -> Array[String]:
 		problems.append_array(_clip_problems(label, animation_player))
 	return problems
 
+## Everything this weapon sets that nothing will read (H3.3): its attacks' and skills' warnings, each naming the weapon.
+## Never a reason to refuse the weapon; WeaponController2D.equip() logs them.
+func get_warnings() -> Array[String]:
+	var found: Array[String] = []
+	var label := _label()
+	for attack in get_all_attacks():
+		for message in attack.get_warnings():
+			found.append("%s: %s" % [label, message])
+	for skill in active_skills:
+		if skill != null:
+			for message in skill.get_warnings():
+				found.append("%s: %s" % [label, message])
+	return found
+
 ## A new instance of weapon_scene, or null when there is no scene or its root is not a Node2D. The caller
 ## owns the instance (mount it or free it).
 func instantiate_weapon() -> Node2D:

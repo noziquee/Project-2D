@@ -82,6 +82,8 @@ func equip(weapon: WeaponDefinition2D) -> bool:
 	if not problems.is_empty():
 		_fail(weapon, problems)
 		return false
+	for warning in LoadoutReport2D.for_weapon(weapon, context.weapon_animation_player).warnings:
+		push_warning(warning)
 	var old_mount: Node2D = null
 	if _needs_swap(weapon):
 		var new_mount := weapon.instantiate_weapon()
@@ -161,25 +163,19 @@ func validate_equip(weapon: WeaponDefinition2D) -> Array[String]:
 	if context.is_casting:
 		_add(problems, "%s: cannot be equipped during a skill cast." % label)
 
-	for message in weapon.validate():
+	# Everything about the weapon itself comes from one report (H3.1): definition, scene, attacks, effect scenes,
+	# skills, statuses. Only what depends on this character (mount, swing, cast) is checked here.
+	var report := LoadoutReport2D.for_weapon(weapon, context.weapon_animation_player)
+	for message in report.problems:
 		_add(problems, message)
-	if weapon.weapon_scene != null:
-		for message in weapon.validate_scene():
-			_add(problems, message)
-	else:
-		for message in weapon.validate(context.weapon_animation_player):
-			_add(problems, message)
-
-	for attack in weapon.get_all_attacks():
-		if attack.effect_scene == null:
-			_add(problems, "%s: attack '%s' has no effect_scene (every attack needs its own effect scene)." % [label, attack.id])
-		if attack.effect_scene != null and not attack.effect_scene.can_instantiate():
-			_add(problems, "%s: attack '%s' has an effect_scene that cannot be instantiated." % [label, attack.id])
-		if attack.effect_scene != null and AttackSlash2D.scene_lacks_animation(attack.effect_scene, attack.effect_animation):
-			_add(problems, "%s: attack '%s' needs clip '%s' (effect_animation) in its effect_scene." % [label, attack.id, attack.effect_animation])
-		if attack.release_mode == AttackDefinition2D.ReleaseMode.THRESHOLD and attack.charge_threshold <= 0.0:
-			_add(problems, "%s: attack '%s' uses a THRESHOLD release, which needs charge_threshold > 0." % [label, attack.id])
 	return problems
+
+## The full report for equipping `weapon` on this character: the character-dependent problems and the weapon's own
+## problems and warnings, in one place. Print report.to_text() to read it.
+func get_loadout_report(weapon: WeaponDefinition2D) -> LoadoutReport2D:
+	var report := LoadoutReport2D.for_weapon(weapon, context.weapon_animation_player if context != null else null)
+	report.problems = validate_equip(weapon)
+	return report
 
 ## The mounted weapon must sit directly under the mount (WeaponFacingPivot by default) to be swapped out.
 func _mount_problems(weapon: WeaponDefinition2D) -> Array[String]:

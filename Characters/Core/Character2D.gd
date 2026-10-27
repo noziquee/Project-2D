@@ -25,8 +25,7 @@ signal died
 @export var health_component: HealthComponent2D
 ## Child node named "CharacterStateMachine" (its Idle/Move/Dash/Attack children are the states).
 @export var state_machine: CharacterStateMachine
-## Optional (9.7c-4): a child named "WeaponController2D". Only characters that can swap weapons (the
-## player) have one; the goblin does not. Its starting_weapon is equipped when it is initialized.
+## Optional (9.7c-4): a child named "WeaponController2D". Characters with weapon-owned loadouts have one; its starting_weapon is equipped when initialized.
 @export var weapon_controller: WeaponController2D
 ## Optional (12.4): a child named "StatusController2D". Only characters that can carry statuses (bleed, burn)
 ## have one. A hit that carries statuses still damages a character without one; the statuses are ignored.
@@ -50,6 +49,27 @@ signal died
 ## should follow the aim, or directly under the character if it should not.
 @export var attack_spawn_point: Marker2D
 
+## Optional (P2): where the rig's nodes are, as paths from this character. Empty keeps the names the player and
+## the goblin use today (LayeredRig, PlayerAnim, WeaponFacingPivot and its MainHand, AnimatedSprite2D and its
+## Weapon). A set path wins; one that does not resolve is reported and that reference stays empty.
+@export_group("Rig")
+## The node the facing component mirrors (the layered body, or the sprite). Setting it also selects the
+## player-style defaults for the other rig nodes.
+@export var visual_root_path: NodePath
+## The AnimationPlayer for idle and run.
+@export var locomotion_player_path: NodePath
+## The AnimatedSprite2D, if the rig has one.
+@export var animated_sprite_path: NodePath
+## The node that is mirrored and rotated toward the aim, and under which weapons are mounted.
+@export var weapon_facing_root_path: NodePath
+## The mounted weapon's root. Leave it empty to use the default name, then the first weapon scene found under
+## the facing root.
+@export var weapon_pivot_path: NodePath
+## The locomotion clips (P3), looked up on the locomotion player, or on the sprite's frames when there is none.
+## The states play these instead of fixed names; the defaults are what the player and goblin use.
+@export var idle_clip: StringName = &"idle"
+@export var run_clip: StringName = &"run"
+
 var context: CharacterContext2D
 ## Read-through shim for tests; the attack component owns the value. Health is read from
 ## `health_component` (the Phase 4 `health` / `max_health` shims were removed in Phase 8).
@@ -63,7 +83,9 @@ var attack_definition: AttackDefinition2D:
 			attack_component.set_attack_definition(value)
 
 func _ready() -> void:
-	context = CharacterContext2D.new(self)
+	context = CharacterContext2D.new(self, visual_root_path, locomotion_player_path, animated_sprite_path, weapon_facing_root_path, weapon_pivot_path)
+	context.idle_clip = idle_clip
+	context.run_clip = run_clip
 
 	health_component = _resolve_component(health_component, "HealthComponent2D") as HealthComponent2D
 	if health_component == null:
@@ -242,6 +264,9 @@ func _apply_hit_reaction(hit: HitData) -> void:
 		attack_component.interrupt()
 	if is_instance_valid(skill_component):
 		skill_component.interrupt()
+	# A character with a Stagger state flinches for the length of the stun (P6); one without it shows nothing.
+	if hit.hit_stun > 0.0 and is_instance_valid(state_machine) and state_machine.has_state(&"Stagger"):
+		state_machine.transition_to(&"Stagger")
 
 func is_stunned() -> bool:
 	return context != null and context.hit_stun_remaining > 0.0

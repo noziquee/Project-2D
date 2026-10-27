@@ -1,54 +1,110 @@
 # Project-2D
 
-A top-down 2D action RPG in Godot 4.7. The player fights goblins (and a goblin archer) with a sword or bow. Basic and heavy attacks use weapon data; active skills, mana costs, cooldowns and the HUD are component-driven, with the HUD layout and animations authored as reusable scenes.
+[![checks](https://github.com/noziquee/Project-2D/actions/workflows/checks.yml/badge.svg)](https://github.com/noziquee/Project-2D/actions/workflows/checks.yml)
+
+A top-down 2D action RPG built with Godot 4.7. The player and enemies use data-driven weapons, attacks, projectiles, skills, and combat components. Weapon-specific content is organized under `Weapons/<WeaponName>/`; runtime systems remain under `Characters/Components/`.
 
 ## Controls
 
-- **WASD / Arrow keys:** move
-- **Left mouse button, tap:** light attack toward the cursor. Tap again inside the swing's window to chain the combo.
-- **Left mouse button, hold:** charge the heavy attack, release to swing
-- **Space:** dash
-- **Q:** switch weapon (sword, bow). Refused during a swing or charge. Bind other keys to `weapon_next` in the Input Map. Skill cooldowns continue while switching weapons.
-- **1 / 2 / 3:** use the active skill in the matching slot for the equipped weapon. The slot labels are read from the Input Map and update if bindings change.
-  - **Sword:** 1 Lunge, 2 Sword Spin, 3 Empowerment.
-  - **Bow:** 1 Power Shot, 2 Multi-shot, 3 Empowerment.
-- The HUD shows health, mana, skill icons, cooldown wipes and timers, hotkeys, and mana costs. Skills can be refused when their cost cannot be paid or the character is in a state that blocks skill use.
-- `attack_heavy` is a separate heavy-attack action with no default key; bind one in Project Settings > Input Map if you want it.
+- **WASD / Arrow keys:** move.
+- **Left mouse button, tap:** light attack toward the cursor; tap again during the combo window to chain.
+- **Left mouse button, hold:** charge the equipped weapon's heavy attack, then release to swing when configured for input release.
+- **Space:** dash.
+- **Q:** switch between the player's Sword and Bow loadout. Switching is refused during a swing or charge; skill cooldowns continue while switching.
+- **1 / 2 / 3:** use the active skill in that slot.
+  - **Sword:** Lunge, Sword Spin, Empowerment.
+  - **Bow:** Power Shot, Multi-shot, Empowerment.
+- **`attack_heavy`:** a separate heavy-attack action with no default key; bind it in Project Settings > Input Map if desired.
 
-## Running and testing
+The HUD displays health, mana, skill icons, cooldowns, hotkeys, and mana costs. Skill use can be refused when its cost cannot be paid or the character is in a state that blocks skill use.
 
-- Open the project in Godot 4.7 and run `Main.tscn`.
-- After adding new scripts, run `godot --headless --import --path .` once so new classes are registered.
-- Smoke test: `godot --headless --fixed-fps 60 --path . --script res://tests/smoke_checks.gd`. It prints `SUMMARY passes=N failures=M`. The **last confirmed summary** is `SUMMARY passes=986 failures=0` (headless Godot 4.7 on Linux, Oct 25 2026, after Track P10, see `docs/trackP/P10-notes.md`; after P9 it was 973 / 0, after Track P8 942 / 0; the same run before P1 gave 920 / 0, so Phases 13.3.2 to 14.3 are confirmed, see `docs/trackP/P1-notes.md` and `docs/trackP/P8-notes.md`). It still needs to be repeated on your machine: run the import and smoke-test commands above and replace this line with your own output; do not use an expected count as a result.
+## Run and test
 
-## How it is organised
+1. Open the project in Godot 4.7 and run `Main.tscn`.
+2. After adding scripts or changing global classes, run an import:
 
-- `Characters/`: the shared `Character2D` base, components (movement, dash, health, attack, weapons), states, enemy AI and effects.
-- `Characters/Components/Combat/`: `AttackDefinition2D` (one resource per attack), the attack component, `AttackEffect2D` (base class of effect scenes), the slash effect, the projectile effect and arrow (11.1, 11.2) and the shipped attack `.tres` files.
-- `Characters/Components/Weapons/`: `WeaponDefinition2D` and `WeaponController2D`.
-- `Weapons/` and `Data/Weapons/`: weapon scenes (sprite plus clips) and weapon definitions.
-- `Characters/Components/Skills/` and `Characters/Components/Resources/`: skill definitions and `SkillComponent2D` / `ManaComponent2D`. Skill definitions live in `WeaponDefinition2D.active_skills`; projectile, area, dash and buff behaviors are implemented. Current equipped skills are Lunge, Sword Spin and Empowerment on the sword, and Power Shot, Multi-shot and Empowerment on the bow. Ground Slam remains available as a resource example but is not in the default sword loadout.
-- `Characters/Components/Passives/`: `PassiveDefinition2D` and `PassiveController2D` (14.1). A weapon lists passives in `WeaponDefinition2D.passive_skills`; Rising Strikes (a counter passive), Vampiric Strikes, Serrated Edge and Executioner exist as data and are not on a weapon yet.
-- `UI/HUD/`: scene-based health and mana bars, reusable skill slots and the three-slot skill bar, plus shared styles and placeholder skill icons. GDScript updates visuals; the scene tree defines layout and animations.
-- `docs/`: the combat architecture guide, the roadmap for what is not built yet (`Combat-Roadmap-Step-by-Step-Plan.md`) and the Phase 9 step notes. `IMPLEMENTATION_NOTES.md` describes every system.
+   ```bash
+   godot --headless --import --path .
+   ```
+
+3. Run the smoke suite (or run steps 2 and 3 together with `tools/run_checks.sh`, which saves the log under `tools/logs/`):
+
+   ```bash
+   godot --headless --fixed-fps 60 --path . --script res://tests/smoke_checks.gd
+   ```
+
+Every push and pull request also runs this on GitHub (`.github/workflows/checks.yml`, Godot 4.7.2): a red run means a check failed, or the suite did not finish. The log is attached to the run as the `smoke-log` artifact.
+
+The single status file is `docs/STATUS.md`. The last **confirmed** result is `SUMMARY passes=1109 failures=0` (headless Godot 4.7.2, October 26, 2026; import clean; see `docs/trackW/W9-notes.md`). It covers Track W, P2 to P7 and the retimed bow-cycle checks. The V3 play-test and your own run in the editor are still open.
+
+## Packaging an archive
+
+When you zip the project to share it, **exclude `.godot/`** (the import cache; it is already in `.gitignore` and is rebuilt by an import) and `tools/logs/`. `.git/` is optional: include it only if you want the history to travel with the archive, and say so when you send it.
+
+## Project structure
+
+```text
+Weapons/
+├── Sword/
+│   ├── Sword.tscn
+│   ├── Sword_WeaponDefinition.tres
+│   ├── Attacks/       # Sword_Slash1, Sword_Slash2, Sword_HeavySlash
+│   └── Skills/        # Sword_Lunge, Sword_Spin, Sword_Empower
+├── Bow/
+│   ├── Bow.tscn
+│   ├── Bow_WeaponDefinition.tres
+│   ├── Bow_EnemyWeaponDefinition.tres
+│   ├── bow.gd
+│   ├── Attacks/       # player and enemy arrow attacks
+│   ├── Skills/        # Bow_PowerShot, Bow_MultiShot
+│   └── Projectile/    # Bow_Arrow.tscn
+└── GoblinSword/
+    ├── GoblinSword.tscn
+    ├── GoblinSword_WeaponDefinition.tres
+    └── Attacks/       # GoblinSword_Lunge
+
+Characters/
+├── Core/              # Character2D and CharacterContext2D
+├── Components/        # reusable movement, combat, health, skills, status, passives, weapons
+├── Controllers/       # enemy AI and attack selection
+└── Enemies/           # enemy scenes and behavior profiles
+UI/HUD/                # health/mana bars, skill slots, icons and HUD scenes
+tests/smoke_checks.gd  # headless smoke checks
+tools/run_checks.sh    # import + smoke suite, saves the log
+docs/                  # roadmap, architecture guide, and phase/track notes
+Data/Examples/         # un-equipped example resources
+```
+
+### Ownership rules
+
+- Weapon scenes, definitions, attack resources, skills, and weapon-specific projectiles live under the folder of the weapon that first introduced them.
+- There is deliberately **no `Weapons/Shared/` folder**. When another weapon reuses a resource, it references the original resource in its owning weapon folder.
+- Every weapon-related file includes its weapon name, e.g. `Sword_Slash1.tres`, `Bow_ArrowShot.tres`, and `GoblinSword_Lunge.tres`.
+- Enemy loadouts may use a separate weapon definition while sharing the weapon scene. For example, `Bow_EnemyWeaponDefinition.tres` preserves the goblin archer's enemy arrow settings rather than equipping the player's attacks.
+- Framework scripts and reusable effect base scenes stay in `Characters/Components/`; they are not duplicated per weapon.
+- `Sword_GroundSlam.tres` is an example skill, not in the default loadout. The canonical example copy is `Data/Examples/WeaponSkills/Sword_GroundSlam.tres`.
 
 ## Add an attack
 
-1. In the weapon scene (`Weapons/Sword.tscn`, node `HandAnim`) add a clip with a Call Method key `attack_event("spawn_effect")` where the effect should appear. For combos, add `combo_window_open` and `combo_window_close` keys.
-2. Make an effect scene: right-click `Characters/Components/Combat/AttackSlash2D.tscn` > New Inherited Scene. Keep the node names, or point the `Scene nodes` paths on the root at your own nodes. (Any scene whose root script extends `AttackEffect2D` works as an effect scene.) `AttackSlash2D.tscn` ships two clips, `slash` and `heavy_slash`; an attack picks one with `effect_animation`.
-3. Create an `AttackDefinition2D` resource and fill in its id, damage, timing, clip names, effect scene (required) and hitbox.
-4. Add it to the weapon: `basic_combo` (and link it from the previous attack with `next_attack` or `combo_sequence`) or `heavy_attack`.
-5. Run the game and read the Output panel; every problem names the weapon, attack and clip. Then run the smoke test.
+1. Open the owning weapon scene under `Weapons/<WeaponName>/` and add the required clip to its `HandAnim` animation player. Include the `attack_event(&"spawn_effect")` call at the effect spawn point; add combo-window events for combo attacks.
+2. Create or reuse an effect scene. `Characters/Components/Combat/AttackSlash2D.tscn` is the melee base example; projectile effects can inherit from `ProjectileEffect2D`.
+3. Create an `AttackDefinition2D` resource in that weapon's `Attacks/` folder. Name the file with the weapon prefix and configure its id, damage, timing, clip names, effect scene, hitbox and targeting policy.
+4. Reference the resource from the weapon's `WeaponDefinition2D` in `basic_combo` or `heavy_attack`, or from the relevant skill definition.
+5. Ensure the weapon scene contains every animation clip named by its attack resources. Run the project and the smoke suite; validation should identify the weapon, attack and missing clip when a clip is absent.
 
-**A ranged attack** is the same recipe with a projectile as the effect: use `Characters/Components/Combat/Arrow.tscn` (or a scene whose root extends `ProjectileEffect2D`) as `effect_scene`, set `projectile_speed`, and use `pierce` / `max_targets` for the hit policy. `ArrowAttackDefinition.tres` and `Weapons/Bow.tscn` are the worked example.
-
-**Optional: spawn the effect somewhere other than the character's origin.** Add a `Marker2D` named `AttackSpawnPoint` as a child of the character (or of the weapon pivot, so it follows the aim), or assign any marker to `Attack Spawn Point` on the character. Effects then appear at the marker.
+A cross-weapon shared attack is valid only when each consuming weapon scene provides the required clip name. Shared resources stay in the folder of the weapon that originally owns them.
 
 ## Add a weapon
 
-1. Build a weapon scene: a `Node2D` root, the sprite, and an `AnimationPlayer` named `HandAnim` holding the clips and their `attack_event` keys. Mount it directly under `WeaponFacingPivot` (the keys use the path `../..`).
-2. Create the weapon's attacks as above.
-3. Create a `WeaponDefinition2D` resource: `weapon_id`, `display_name`, `weapon_scene`, `basic_combo`, `heavy_attack`.
-4. Set it as **Starting Weapon** on the player's `WeaponController2D`, or call `equip()` from code. To make it switchable in play, add it to the controller's **Loadout** (the `weapon_next` key cycles through it). `validate_equip()` tells you why a weapon is refused.
+1. Create `Weapons/<WeaponName>/` with a weapon scene, a `<WeaponName>_WeaponDefinition.tres`, and `Attacks/` and/or `Skills/` folders as needed.
+2. Put the weapon sprite and animation player in the scene; author all clips referenced by its attacks. Add a projectile folder when it owns a projectile scene.
+3. Create the attack and skill resources with weapon-prefixed filenames. Reuse an existing resource by reference only when its behavior and required animation-clip contract match.
+4. Configure `weapon_scene`, `basic_combo`, `heavy_attack`, active skills and passives on the weapon definition. For enemy variants, create a separate definition if they need different attack data while reusing the same visual weapon scene.
+5. Equip it through the character's `WeaponController2D`, add it to the player's loadout if it should be switchable, then import and run smoke tests.
 
-See `docs/Combat Architecture Review & Expansion Guide (Updated Oct 2026).md` for the full step-by-step and the design behind it.
+## Documentation
+
+- `IMPLEMENTATION_NOTES.md`: system behavior and implementation details. Earlier phase sections may describe the paths that existed at the time; the current Track W ownership layout above is authoritative for weapon content.
+- `docs/Combat Architecture Review & Expansion Guide (Updated Oct 2026).md`: architecture review and authoring guidance.
+- `docs/Combat-Roadmap-Step-by-Step-Plan.md`: implementation order and completion status.
+- `docs/trackW/`: decisions and step notes for the weapon-folder migration.

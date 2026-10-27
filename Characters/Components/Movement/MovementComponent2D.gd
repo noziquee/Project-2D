@@ -25,5 +25,5 @@ func physics_update(_delta: float) -> void:
 		body.move_and_slide()
 		return
 	var base_velocity: Vector2 = context.dash_velocity if context.is_dashing else context.movement_input * move_speed * context.move_multiplier
-	body.velocity = base_velocity + context.knockback_velocity
+	body.velocity = base_velocity + context.knockback_velocity + context.impulse_velocity
 	body.move_and_slide()

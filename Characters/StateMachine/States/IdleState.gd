@@ -1,7 +1,7 @@
 extends CharacterState
 
 func enter() -> void:
-	context.play_locomotion_animation(&"idle")
+	context.play_locomotion_animation(context.idle_clip)
 
 func physics_update(_delta: float) -> void:
 	if context.is_attacking:
@@ -13,4 +13,4 @@ func physics_update(_delta: float) -> void:
 	else:
 		# Re-assert the clip in case something else replaced it (e.g. the death clip or a swapped animation),
 		# and enter() will not run again while the state stays Idle.
-		context.play_locomotion_animation(&"idle")
+		context.play_locomotion_animation(context.idle_clip)

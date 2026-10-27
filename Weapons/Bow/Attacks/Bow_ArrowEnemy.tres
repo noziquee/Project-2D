@@ -1,13 +1,13 @@
-[gd_resource type="Resource" script_class="AttackDefinition2D" format=3]
+[gd_resource type="Resource" script_class="AttackDefinition2D" format=3 uid="uid://cdpv3cob2frb7"]
 
 [ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="1_definition"]
-[ext_resource type="PackedScene" path="res://Weapons/Bow/Projectile/Bow_Arrow.tscn" id="2_effect"]
+[ext_resource type="PackedScene" uid="uid://cn4kci1dwd8gx" path="res://Weapons/Bow/Projectile/Bow_Arrow.tscn" id="2_effect"]
 [ext_resource type="PackedScene" uid="uid://buuimquyuurcf" path="res://Characters/Effects/HitEffect.tscn" id="3_hit"]
+[ext_resource type="Script" uid="uid://b6wfrpt7lkfob" path="res://Characters/Components/Status/StatusEffectDefinition2D.gd" id="4_43ks0"]
 
 [resource]
 script = ExtResource("1_definition")
 id = &"bow_arrow_enemy"
-damage = 1
 cooldown_duration = 1.2
 interruptible = true
 weapon_animation = &"bow_shoot"

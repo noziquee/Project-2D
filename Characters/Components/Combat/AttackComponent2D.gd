@@ -67,6 +67,10 @@ var definition: AttackDefinition2D
 ## Counts down the definition's cooldown_duration. It starts when the swing ENDS
 ## (recovery clip finished), so the resource value is the real gap between attacks.
 var _cooldown_remaining := 0.0
+var _impulse_direction := Vector2.RIGHT
+var _impulse_speed := 0.0
+var _impulse_total := 0.01
+var _impulse_remaining := 0.0
 var _initialized := false
 ## Effects spawned by the swing in progress. An entry removes itself when its effect
 ## leaves the tree; cancel() frees whatever is still alive.
@@ -511,6 +515,7 @@ func _register_extra_attacks() -> int:
 func physics_update(delta: float) -> void:
 	if _initialized:
 		_cooldown_remaining = maxf(_cooldown_remaining - delta, 0.0)
+		_update_impulse(delta)
 		if _queued_id != &"":
 			_queue_remaining -= delta
 			if _queue_remaining <= 0.0:
@@ -554,8 +559,29 @@ func handle_event(event: StringName) -> void:
 func get_active_effect_count() -> int:
 	return _active_effects.size()
 
+## P7: the forward step of an attack that has one starts when its effect spawns, then fades out linearly.
+func _start_impulse(active: AttackDefinition2D) -> void:
+	if active.forward_impulse <= 0.0:
+		return
+	_impulse_direction = context.attack_direction.normalized()
+	_impulse_speed = active.forward_impulse
+	_impulse_total = maxf(active.impulse_duration, 0.01)
+	_impulse_remaining = _impulse_total
+
+func _update_impulse(delta: float) -> void:
+	if _impulse_remaining <= 0.0:
+		return
+	_impulse_remaining = maxf(_impulse_remaining - delta, 0.0)
+	context.impulse_velocity = _impulse_direction * _impulse_speed * (_impulse_remaining / _impulse_total)
+
+func _clear_impulse() -> void:
+	_impulse_remaining = 0.0
+	if context != null:
+		context.impulse_velocity = Vector2.ZERO
+
 func _spawn_effect() -> void:
 	var active := _active_definition
+	_start_impulse(active)
 	var scene: PackedScene = active.effect_scene
 	if scene == null:
 		push_error("AttackComponent2D: attack '%s' has no effect_scene." % active.id)
@@ -598,6 +624,7 @@ func cancel() -> void:
 	_drawing = false
 	_release_pending = false
 	_clear_queue()
+	_clear_impulse()
 	if context == null:
 		return
 	context.is_attacking = false
@@ -733,6 +760,7 @@ func _chain_from_queue(previous: AttackDefinition2D) -> bool:
 	return true
 
 func _finish_attack() -> void:
+	_clear_impulse()
 	swing_ended.emit(false)
 	context.is_attacking = false
 	context.move_multiplier = 1.0

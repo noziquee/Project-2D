@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bysdgsi3ih8o" path="res://Characters/Controllers/EnemyBehaviorProfile.gd" id="1_profile"]
 [ext_resource type="Script" uid="uid://8y3nwxuiytgq" path="res://Characters/Controllers/AttackChoice2D.gd" id="2_choice"]
-[ext_resource type="Resource" path="res://Weapons/Bow/Attacks/Bow_ArrowEnemy.tres" id="3_arrow"]
+[ext_resource type="Resource" uid="uid://cdpv3cob2frb7" path="res://Weapons/Bow/Attacks/Bow_ArrowEnemy.tres" id="3_arrow"]
 
 [sub_resource type="Resource" id="Resource_arrow_choice"]
 script = ExtResource("2_choice")

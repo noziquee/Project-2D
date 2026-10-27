@@ -1,0 +1,28 @@
+# Errors the smoke suite is allowed to log: the deliberate negative tests. One per line: <times seen>	<message>.
+# Regenerate with: tools/run_checks.sh --record-errors   (review the diff before committing it).
+1	AttackComponent2D needs a character context, an attack_definition, and a weapon AnimationPlayer.
+1	AttackComponent2D rejected attack: attack 'ghost' on 'Player': weapon AnimationPlayer has no clip 'no_such_clip' (weapon_animation).
+1	AttackComponent2D rejected attack: attack 'test_bad_clip' on 'Player': weapon AnimationPlayer has no clip 'no_such_clip' (weapon_animation).
+1	AttackComponent2D rejected definition: attack 'pp_bad' on 'Player': effect_scene has no clip 'no_such_effect_clip' (effect_animation).
+1	AttackComponent2D rejected definition: attack 'qq_no_fx' on 'Player': no effect_scene (every attack needs its own effect scene).
+1	AttackComponent2D rejected definition: attack 'test_bad_recovery' on 'Player': weapon AnimationPlayer has no clip 'no_such_recovery_clip' (recovery_animation).
+1	AttackComponent2D rejected definition: attack 'test_bad_weapon' on 'Player': weapon AnimationPlayer has no clip 'no_such_weapon_clip' (weapon_animation).
+1	AttackComponent2D rejected definition: attack 'test_no_effect' on 'Player': no effect_scene (every attack needs its own effect scene).
+1	AttackComponent2D rejected definition: attack 'ww_bad_scene' on 'Player': no effect_scene (every attack needs its own effect scene).
+1	AttackComponent2D: effect scene for attack 'rr_plain' must have an AttackEffect2D script (such as AttackSlash2D.gd) on its root.
+1	AttackSlash2D requires the animation player 'SlashEffectAnimSpritesheet/AnimationPlayer' to have the animation 'no_such_effect_clip'.
+1	AttackSlash2D: hitbox_path 'Nowhere' does not lead to an Area2D.
+1	Character2D '@CharacterBody2D@3' is missing required component node(s): MovementComponent2D. Add them as children in the scene. The character is disabled.
+1	Character2D '@CharacterBody2D@5' is missing required component node(s): CharacterStateMachine. Add them as children in the scene. The character is disabled.
+1	PassiveController2D rejected passive 'pas_ok': its id is listed more than once.
+1	PassiveController2D rejected passive: passive 'pas_inv': needs a status_effect (the status it applies).
+1	SkillComponent2D rejected skill: skill 'area_no_attack': an area skill needs an attack (AttackDefinition2D).
+1	SkillComponent2D rejected skill: skill 'empower': a buff skill needs a status_effect (StatusEffectDefinition2D).
+1	SkillComponent2D rejected skill: skill 'empower': the status_effect has no duration; it would never start.
+2	SkillComponent2D rejected skill: skill 'ground_slam': the attack's effect_scene root must be an AreaEffect2D (such as AreaEffect2D.tscn), not a melee or projectile effect.
+1	SkillComponent2D rejected skill: skill 'lunge': a dash skill needs max_range above 0 (the distance of the dash).
+1	SkillComponent2D rejected skill: skill 'lunge': the dash strike's effect_scene root must be an AreaEffect2D (such as AreaEffect2D.tscn).
+1	SkillComponent2D rejected skill: skill 'no_attack': a projectile skill needs an attack (AttackDefinition2D).
+1	SkillComponent2D rejected skill: skill 'power_shot': a projectile skill needs targeting AIM_DIRECTION, not SELF.
+1	SkillComponent2D rejected skill: skill 'power_shot': the attack's effect_scene root must be a ProjectileEffect2D (such as Arrow.tscn), not a melee effect.
+1	SkillComponent2D rejected skill: skill (unnamed): id is empty.

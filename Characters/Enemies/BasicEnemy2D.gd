@@ -4,14 +4,15 @@ class_name BasicEnemy2D
 ## and the hit flash, death effect and freeing on death in the ReactionComponent2D child (P1; see
 ## Character2D). Groups ("enemy", "damageable") are set on the scene root in BasicEnemy2D.tscn.
 
-@onready var _animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var _ai_controller: EnemyAIController2D = $EnemyAIController2D
 
 func _ready() -> void:
 	super._ready()
 	_ai_controller.initialize(self)
-	if _animated_sprite.sprite_frames != null and _animated_sprite.sprite_frames.has_animation(&"idle"):
-		_animated_sprite.play(&"idle")
+	# The sprite comes from the context (P2), so a rig whose sprite is not named AnimatedSprite2D still works.
+	var sprite := context.animated_sprite
+	if sprite != null and sprite.sprite_frames != null and sprite.sprite_frames.has_animation(context.idle_clip):
+		sprite.play(context.idle_clip)
 
 func _physics_process(delta: float) -> void:
 	if not is_alive():

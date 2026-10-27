@@ -485,7 +485,7 @@ _data = {
 radius = 6.0
 height = 18.0
 
-[node name="Player" type="CharacterBody2D" unique_id=176143687 node_paths=PackedStringArray("movement_component", "dash_component", "attack_component", "health_component", "state_machine", "status_controller", "mana_component", "skill_component") groups=["damageable", "player"]]
+[node name="Player" type="CharacterBody2D" unique_id=176143687 node_paths=PackedStringArray("movement_component", "dash_component", "attack_component", "health_component", "state_machine", "weapon_controller", "status_controller", "mana_component", "skill_component", "passive_controller", "reaction_component", "facing_component") groups=["damageable", "player"]]
 collision_mask = 7
 script = ExtResource("7_player_script")
 charge_start_time = 0.5
@@ -495,9 +495,13 @@ dash_component = NodePath("DashComponent2D")
 attack_component = NodePath("AttackComponent2D")
 health_component = NodePath("HealthComponent2D")
 state_machine = NodePath("CharacterStateMachine")
+weapon_controller = NodePath("WeaponController2D")
 status_controller = NodePath("StatusController2D")
 mana_component = NodePath("ManaComponent2D")
 skill_component = NodePath("SkillComponent2D")
+passive_controller = NodePath("PassiveController2D")
+reaction_component = NodePath("ReactionComponent2D")
+facing_component = NodePath("FacingComponent2D")
 
 [node name="LayeredRig" type="Node2D" parent="." unique_id=72007712]
 
@@ -543,6 +547,7 @@ position_smoothing_speed = 8.0
 [node name="HealthComponent2D" type="Node" parent="." unique_id=336417400]
 script = ExtResource("9_health")
 max_health = 100
+defense = 20
 
 [node name="MovementComponent2D" type="Node" parent="." unique_id=603665676]
 script = ExtResource("10_move")

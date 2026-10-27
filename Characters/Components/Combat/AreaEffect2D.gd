@@ -134,3 +134,10 @@ func _draw() -> void:
 	var rim := Color(flash_color.r, flash_color.g, flash_color.b, minf(flash_color.a * 3.0, 1.0) * fade)
 	draw_circle(hitbox_offset, get_radius(), fill)
 	draw_arc(hitbox_offset, get_radius(), 0.0, TAU, 40, rim, 1.5)
+
+## Scene problems (H3.2): the hit area and its shape exist.
+func get_scene_problems(_effect_clip: StringName) -> Array[String]:
+	return _hitbox_scene_problems(hitbox_path, collision_shape_path)
+
+func get_scene_warnings() -> Array[String]:
+	return _shape_scene_warnings(collision_shape_path, "CircleShape2D")

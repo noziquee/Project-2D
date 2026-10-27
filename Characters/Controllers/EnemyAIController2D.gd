@@ -3,8 +3,9 @@ class_name EnemyAIController2D
 ## Enemy intent only; the parent Character2D performs shared movement and attacks.
 ##
 ## Targets are found through the enemy's DetectionArea (an Area2D with a CircleShape2D):
-## bodies that enter it, and are in `target_group`, become candidates. Tuning lives in an
-## EnemyBehaviorProfile resource; the swing distance comes from the attack definition.
+## bodies that enter it, and are characters on another team, become candidates (P4: a new faction is just a new
+## team name; an empty team is neutral and is never a target). Tuning lives in an EnemyBehaviorProfile resource;
+## the swing distance comes from the attack definition.
 
 enum Behavior { IDLE, CHASE, ATTACK, RETURN }
 
@@ -17,7 +18,6 @@ signal behavior_changed(previous_behavior: Behavior, current_behavior: Behavior)
 ## Area2D whose CircleShape2D is the detection range. Left empty, the character's child
 ## named "DetectionArea" is used. Set its collision mask to the layers of the targets.
 @export var detection_area: Area2D
-@export var target_group: StringName = &"player"
 
 var behavior: Behavior = Behavior.IDLE
 var _character: Character2D
@@ -206,10 +206,18 @@ func _find_detection_circle() -> CircleShape2D:
 	return shape_node.shape as CircleShape2D if shape_node != null else null
 
 func _on_body_entered(body: Node2D) -> void:
-	if body == _character or not body.is_in_group(target_group):
+	if not _is_hostile(body):
 		return
 	if not _candidates.has(body):
 		_candidates.append(body)
+
+## A character with a team of its own that is not this enemy's team. Neutral (empty team) characters, bodies that
+## are not characters, and the enemy itself are not hostile.
+func _is_hostile(body: Node) -> bool:
+	if body == _character or not body is Character2D:
+		return false
+	var other_team := (body as Character2D).team
+	return other_team != &"" and other_team != _character.team
 
 func _on_body_exited(body: Node2D) -> void:
 	_candidates.erase(body)

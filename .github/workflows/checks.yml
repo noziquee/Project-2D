@@ -1,0 +1,75 @@
+# H4.7: run the headless smoke suite on every push and pull request, so a change that breaks a check is flagged
+# without anyone running it by hand. The suite itself is tools/run_checks.sh (import, then tests/smoke_checks.gd);
+# it exits 1 when a check fails, when the suite does not reach its SUMMARY line, or when Godot exits non-zero.
+name: checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch replaces a run that is still going.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The version the project is developed and checked on (docs/STATUS.md). Change it here and nowhere else.
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache the Godot binary
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux-x86_64
+
+      - name: Download Godot
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot
+          curl -fsSL -o /tmp/godot.zip "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d ~/godot
+
+      - name: Warn when the error baseline is not committed
+        run: |
+          if [ ! -f tests/expected_errors.txt ]; then
+            echo "::warning title=Error gate not armed::tests/expected_errors.txt is not in the repository, so a new unexpected ERROR cannot fail the run. Run tools/run_checks.sh --record-errors once, review the file and commit it."
+          fi
+
+      - name: Import and run the smoke suite
+        run: |
+          GODOT_BIN="$(ls ~/godot/Godot_v*_linux.x86_64 | head -n1)"
+          chmod +x "$GODOT_BIN"
+          GODOT="$GODOT_BIN" bash tools/run_checks.sh
+
+      - name: Write the result into the job summary
+        if: always()
+        run: |
+          LOG="$(ls -t tools/logs/run_*.log 2>/dev/null | head -n1)"
+          {
+            echo "### Smoke suite"
+            if [ -z "$LOG" ]; then
+              echo "No log was written (Godot did not start)."
+            else
+              echo '```'
+              grep -E '^(SUMMARY|PARTIAL RUN|UNEXPECTED ERROR|ERROR GATE|CHECK FAIL)' "$LOG" || echo "No SUMMARY line: the suite did not finish."
+              echo '```'
+              echo "Full log: download the artifact below."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the full log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-log
+          path: tools/logs/
+          if-no-files-found: ignore

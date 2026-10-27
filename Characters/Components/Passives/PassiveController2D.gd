@@ -180,14 +180,14 @@ func _on_attack_hit(target: Node, _damage: int) -> void:
 				_grant(entry) # a late hit (an arrow) after the swing closed
 	_refresh_processing()
 
-## Puts `status` on `target` when it is a live node with a StatusController2D (read by name, like the resolver does).
+## Puts `status` on `target` when it is a live node with a StatusController2D (read through Combatant2D, like the resolver does).
 ## A target without one, a freed one or a dead one is ignored.
 func _apply_status_to(target: Node, status: StatusEffectDefinition2D) -> void:
 	if not is_instance_valid(target) or status == null:
 		return
-	var controller: Variant = target.get("status_controller")
-	if is_instance_valid(controller) and controller is StatusController2D:
-		(controller as StatusController2D).apply_status(status)
+	var controller := Combatant2D.status_controller_of(target)
+	if controller != null:
+		controller.apply_status(status)
 
 ## The product of the DAMAGE_BONUS_LOW_HEALTH multipliers that apply to a hit on the owner of `target_health`: 1 when none
 ## do. CombatResolver2D multiplies this into the wielder's outgoing damage before crit and defense.

@@ -105,3 +105,27 @@ func _get_hit_origin() -> Vector2:
 func _on_animation_finished(animation_name: StringName) -> void:
 	if animation_name == effect_animation:
 		queue_free()
+
+## Scene problems of a slash (H3.2): all four node paths lead somewhere, the hit shape exists, and the effect clip (when
+## given and present) has a track on a CollisionShape2D's `disabled` property. Without that track the hit window never
+## opens (the shape starts disabled), so the slash plays but can never hit anything.
+func get_scene_problems(effect_clip: StringName) -> Array[String]:
+	var found := _hitbox_scene_problems(hitbox_path, collision_shape_path)
+	var player := get_node_or_null(animation_player_path) as AnimationPlayer
+	if player == null:
+		found.append("AttackSlash2D: animation_player_path '%s' does not lead to an AnimationPlayer." % animation_player_path)
+	var origin := get_node_or_null(hitbox_origin_path) as Node2D
+	if origin == null:
+		found.append("AttackSlash2D: hitbox_origin_path '%s' does not lead to a Node2D." % hitbox_origin_path)
+	if player != null and effect_clip != &"" and player.has_animation(effect_clip) and not _clip_opens_hit_window(player.get_animation(effect_clip)):
+		found.append("AttackSlash2D: clip '%s' has no track on a CollisionShape2D 'disabled' property, so its hit window never opens and it can never hit." % effect_clip)
+	return found
+
+func get_scene_warnings() -> Array[String]:
+	return _shape_scene_warnings(collision_shape_path, "RectangleShape2D")
+
+static func _clip_opens_hit_window(clip: Animation) -> bool:
+	for i in clip.get_track_count():
+		if str(clip.track_get_path(i)).ends_with(":disabled"):
+			return true
+	return false
