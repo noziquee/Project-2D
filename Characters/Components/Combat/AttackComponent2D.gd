@@ -344,8 +344,10 @@ func _commit_release(charged: AttackDefinition2D, aim: Vector2) -> void:
 ## Points the charge in progress at `direction` (the live aim while the button is held). The direction the
 ## swing takes is still decided at release; this only keeps `attack_direction` and `aim_direction` current so the
 ## facing and the weapon pivot follow the aim during the charge. Does nothing when not charging or for a zero vector.
+## Once the button has been released (`_release_pending`: the draw is still playing and the shot fires when it ends)
+## the direction is fixed, so an assisted aim chosen at release is not replaced by the live aim (H8.7).
 func update_charge_direction(direction: Vector2) -> void:
-	if _charging_definition == null or direction.length_squared() < 0.0001:
+	if _charging_definition == null or _release_pending or direction.length_squared() < 0.0001:
 		return
 	_charge_direction = direction.normalized()
 	context.attack_direction = _charge_direction
@@ -592,7 +594,7 @@ func _spawn_effect() -> void:
 		push_error("AttackComponent2D: effect scene for attack '%s' must have an AttackEffect2D script (such as AttackSlash2D.gd) on its root." % active.id)
 		node.queue_free()
 		return
-	slash.configure(context.character, active.damage, context.attack_direction, active.hitbox_size, active.hitbox_offset, active.hit_layers, active.knockback, active.hit_stun, active.effect_animation, active.max_targets, active.pierce, active.projectile_speed, active.crit_chance, active.crit_multiplier, active.status_effects)
+	slash.configure(context.character, active.damage, context.attack_direction, active.hitbox_size, active.hitbox_offset, active.hit_layers, active.knockback, active.hit_stun, active.effect_animation, active.max_targets, active.pierce, active.projectile_speed, active.crit_chance, active.crit_multiplier, active.status_effects, active.get_reach())
 	slash.hit_confirmed.connect(_on_slash_hit)
 	# The impact effect belongs to the attack that spawned the slash, which may outlive the swing.
 	slash.hit_contact.connect(_on_slash_contact.bind(active.hit_effect_scene))

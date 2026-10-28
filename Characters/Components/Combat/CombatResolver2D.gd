@@ -48,24 +48,16 @@ static func resolve(hit: HitData, health: HealthComponent2D) -> HitData:
 	return resolved
 
 ## The attacker's outgoing damage multiplier from its StatusController2D (13.3.4); 1 for a source with none, a freed one or null.
-## Duck-typed (the property is read by name) so any node can be a source.
+## Read through Combatant2D, so any node can be a source.
 static func _damage_multiplier(source: Node) -> float:
-	if not is_instance_valid(source):
-		return 1.0
-	var controller: Variant = source.get("status_controller")
-	if is_instance_valid(controller) and controller is StatusController2D:
-		return (controller as StatusController2D).get_damage_multiplier()
-	return 1.0
+	var controller := Combatant2D.status_controller_of(source)
+	return controller.get_damage_multiplier() if controller != null else 1.0
 
 ## The wielder's passive bonus against this target (14.3): 1 for a source with no PassiveController2D, a freed one or null.
 ## Multiplies with the status multiplier above.
 static func _passive_multiplier(source: Node, health: HealthComponent2D) -> float:
-	if not is_instance_valid(source):
-		return 1.0
-	var controller: Variant = source.get("passive_controller")
-	if is_instance_valid(controller) and controller is PassiveController2D:
-		return (controller as PassiveController2D).get_damage_multiplier_against(health)
-	return 1.0
+	var controller := Combatant2D.passive_controller_of(source)
+	return controller.get_damage_multiplier_against(health) if controller != null else 1.0
 
 ## A chance of 0 never rolls and 1 always crits, and neither uses a random number.
 static func _rolls_crit(chance: float) -> bool:

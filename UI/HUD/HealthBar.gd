@@ -17,6 +17,13 @@ const CLIP_CRITICAL := &"critical"
 ## Fill colour by health ratio (constant gradient: low / mid / high).
 @export var color_gradient: Gradient
 @export var dead_color := Color(0.466667, 0.439216, 0.419608, 1.0)
+@export_group("Labels")
+@export var health_icon_text := "♥"
+@export var health_title_text := "VITALITY"
+@export var dead_text := "DEAD"
+@export var dead_icon_text := "×"
+@export var health_icon_color := Color(0.843137, 0.329412, 0.321569, 1.0)
+@export var health_title_color := Color(1.0, 0.760784, 0.243137, 1.0)
 ## At or below this ratio (and above 0) the critical clip pulses the bar.
 @export_range(0.0, 1.0, 0.01) var critical_ratio: float = 0.25
 ## Hidden until the first point of damage is taken (floating enemy bars).
@@ -45,6 +52,12 @@ var _critical: bool = false
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	heart_icon.text = health_icon_text
+	heart_icon.add_theme_color_override("font_color", health_icon_color)
+	var title_label := get_node_or_null("Card/Padding/Content/Header/Title") as Label
+	if title_label != null:
+		title_label.text = health_title_text
+		title_label.add_theme_color_override("font_color", health_title_color)
 	card.resized.connect(_update_card_pivot)
 	_update_card_pivot()
 	damage_timer.timeout.connect(_on_damage_timer_timeout)
@@ -161,8 +174,8 @@ func _on_died() -> void:
 	if hide_on_death:
 		visible = false
 		return
-	_set_counter_text("DEAD")
-	heart_icon.text = "×"
+	_set_counter_text(dead_text)
+	heart_icon.text = dead_icon_text
 	heart_icon.add_theme_color_override("font_color", dead_color)
 	progress_bar.modulate = dead_color
 	progress_bar.value = 0.0

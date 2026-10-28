@@ -1,0 +1,138 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://UI/Touch/MobileControls.gd" id="1_mc"]
+[ext_resource type="Script" path="res://UI/Touch/TouchActionButton.gd" id="2_btn"]
+[ext_resource type="Script" uid="uid://xbtjyt6crdn4" path="res://UI/Touch/VirtualStick.gd" id="3_stick"]
+[ext_resource type="Script" path="res://UI/Touch/TouchSkillFace.gd" id="4_skill_face"]
+
+[node name="MobileControls" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_mc")
+
+[node name="MoveStick" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 30
+offset_top = -210
+offset_right = 210
+offset_bottom = -30
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("3_stick")
+
+[node name="RightCluster" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -343.6044
+offset_top = -269.6044
+offset_right = -30
+offset_bottom = -30
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="Button_attack_light" type="Control" parent="RightCluster"]
+layout_mode = 0
+offset_left = 163.6044
+offset_top = 89.6044
+offset_right = 313.6044
+offset_bottom = 239.6044
+script = ExtResource("2_btn")
+action = &"attack_light"
+caption = "Atk"
+drag_aim = true
+
+[node name="Button_dash" type="Control" parent="RightCluster"]
+layout_mode = 0
+offset_left = 74
+offset_top = 157.9921
+offset_right = 154
+offset_bottom = 237.9921
+script = ExtResource("2_btn")
+action = &"dash"
+caption = "Dash"
+
+[node name="Button_weapon_next" type="Control" parent="RightCluster"]
+layout_mode = 0
+offset_left = 0
+offset_top = 167.9921
+offset_right = 60
+offset_bottom = 227.9921
+script = ExtResource("2_btn")
+action = &"weapon_next"
+caption = "Swap"
+
+[node name="Button_skill_1" type="Control" parent="RightCluster"]
+layout_mode = 0
+offset_left = 81.6907
+offset_top = 70.0867
+offset_right = 161.6907
+offset_bottom = 150.0867
+script = ExtResource("2_btn")
+action = &"skill_1"
+caption = "1"
+mode = 1
+
+[node name="SkillFace" type="Control" parent="RightCluster/Button_skill_1"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_skill_face")
+
+[node name="Button_skill_2" type="Control" parent="RightCluster"]
+layout_mode = 0
+offset_left = 144.0867
+offset_top = 7.6907
+offset_right = 224.0867
+offset_bottom = 87.6907
+script = ExtResource("2_btn")
+action = &"skill_2"
+caption = "2"
+mode = 1
+
+[node name="SkillFace" type="Control" parent="RightCluster/Button_skill_2"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_skill_face")
+
+[node name="Button_skill_3" type="Control" parent="RightCluster"]
+layout_mode = 0
+offset_left = 231.9921
+offset_top = 0
+offset_right = 311.9921
+offset_bottom = 80
+script = ExtResource("2_btn")
+action = &"skill_3"
+caption = "3"
+mode = 1
+
+[node name="SkillFace" type="Control" parent="RightCluster/Button_skill_3"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_skill_face")

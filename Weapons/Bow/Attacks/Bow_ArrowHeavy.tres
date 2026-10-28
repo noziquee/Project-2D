@@ -4,6 +4,13 @@
 [ext_resource type="PackedScene" uid="uid://cn4kci1dwd8gx" path="res://Weapons/Bow/Projectile/Bow_Arrow.tscn" id="2_effect"]
 [ext_resource type="PackedScene" uid="uid://buuimquyuurcf" path="res://Characters/Effects/HitEffect.tscn" id="3_hit"]
 [ext_resource type="Script" uid="uid://b6wfrpt7lkfob" path="res://Characters/Components/Status/StatusEffectDefinition2D.gd" id="4_g2ico"]
+[ext_resource type="Script" uid="uid://bvsx8fpys1wkc" path="res://Characters/Components/Aim/LineAimShape2D.gd" id="aimshape_line"]
+
+[sub_resource type="Resource" id="aim_shape_sub"]
+script = ExtResource("aimshape_line")
+width = 28.0
+style = 1
+max_range = 320.0
 
 [resource]
 script = ExtResource("1_definition")
@@ -22,5 +29,6 @@ hit_effect_scene = ExtResource("3_hit")
 hitbox_size = Vector2(16, 8)
 hitbox_offset = Vector2(8, 0)
 projectile_speed = 600.0
+aim_shape = SubResource("aim_shape_sub")
 input_queue_time = 0.6
 charge_animation = &"bow_charge"

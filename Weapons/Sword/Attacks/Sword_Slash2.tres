@@ -8,6 +8,7 @@
 [resource]
 script = ExtResource("1_definition")
 id = &"sword_slash2"
+attack_range = 70.0
 damage = 5
 weapon_animation = &"sword_slash_2"
 recovery_animation = &""

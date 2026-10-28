@@ -142,7 +142,6 @@ custom_minimum_size = Vector2(76, 76)
 layout_mode = 3
 offset_right = 76.0
 offset_bottom = 76.0
-mouse_filter = 2
 script = ExtResource("1_script")
 
 [node name="Card" type="PanelContainer" parent="."]

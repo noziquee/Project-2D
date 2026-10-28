@@ -39,8 +39,9 @@ enum Targeting { AIM_DIRECTION, SELF }
 @export_range(0.0, 600.0, 0.1) var cooldown: float = 1.0
 ## Seconds between starting the skill and its effect. 0 = instant.
 @export_range(0.0, 10.0, 0.05) var cast_time: float = 0.0
-## Reserved for channel skills (last item of 13.3). Must be 0 until then.
-@export_range(0.0, 30.0, 0.1) var channel_time: float = 0.0
+## Reserved for channel skills. Hidden from the Inspector (H2.3) but still stored, so older resources load, and validate()
+## still rejects anything but 0. Make it an @export_range again when channel skills exist.
+@export_storage var channel_time: float = 0.0
 ## When true a hit that damages the caster during the cast cancels it (cost back, cooldown cleared).
 @export var interruptible: bool = true
 
@@ -55,12 +56,23 @@ enum Targeting { AIM_DIRECTION, SELF }
 ## diameter). Only AREA and DASH use it.
 @export_range(0.0, 500.0, 1.0) var area_radius: float = 0.0
 
+@export_group("Aim shape")
+## What the player aims inside while casting (H8.6): a fan, a line or arrow, or a circle around the caster, and the area
+## target assist looks in. Damage skills (PROJECTILE, AREA, DASH) should have one; BUFF and NONE skills must not (a buff
+## is a tap with no indicator). With targeting SELF only a shape that ignores direction (a circle around the caster) is
+## allowed. The shape's `max_range` should match the skill's own reach (max_range, or area_radius for a circle): the
+## skill owns the real number and validation warns when they drift. It guides aiming only; the real area, projectile and
+## damage rules never change. Reserved: the cast's assist and indicator read it from H8.7 and H8.9; nothing does yet.
+@export var aim_shape: AimShape2D
+
 @export_group("Dash")
 ## Speed of a DASH skill in px/s (13.3.3). The dash lasts max_range / dash_speed seconds. Only DASH uses it.
 @export_range(0.0, 3000.0, 1.0) var dash_speed: float = 700.0
 
 @export_group("Animation + effect")
-## Optional clip on the weapon's AnimationPlayer played when the skill executes. Empty = none.
+## Optional clip on the weapon's AnimationPlayer (H2.2, decision D3: cast, then execute). SkillComponent2D plays it the moment the
+## skill starts; the effect executes when cast_time is over, as before. If the cast is cancelled the clip stops and the weapon
+## returns to its RESET pose. Empty = no clip: the weapon player is left alone. validate() reports a clip the weapon lacks.
 @export var weapon_animation: StringName = &""
 ## The attack a projectile, area or dash skill performs (damage, effect scene, hit policy).
 @export var attack: AttackDefinition2D
@@ -115,7 +127,97 @@ func validate(animation_player: AnimationPlayer = null, slot_count: int = 3) -> 
 		problems.append_array(_dash_problems(label))
 	elif behavior == Behavior.BUFF:
 		problems.append_array(_buff_problems(label))
+	problems.append_array(_aim_shape_problems(label))
 	return problems
+
+## How far from the caster this skill can hit, in pixels (H9.1c): the distance auto-approach closes to before casting and
+## the radius an aim indicator is clipped to. PROJECTILE: `max_range`, or the reach of its `aim_shape` when that is 0.
+## DASH: the dash distance plus the strike's radius. AREA: the placed circle's cast range plus its radius when the
+## `aim_shape` is a placed circle, else the attack's `hitbox_offset` plus the circle's radius (no offset with SELF
+## targeting). BUFF and NONE skills have nothing to hit: 0.
+func get_reach() -> float:
+	match behavior:
+		Behavior.PROJECTILE:
+			if max_range > 0.0:
+				return max_range
+			return aim_shape.max_range if aim_shape != null else 0.0
+		Behavior.DASH:
+			return max_range + (_strike_radius() if attack != null else 0.0)
+		Behavior.AREA:
+			if aim_shape != null and aim_shape.is_placed():
+				return aim_shape.max_range + aim_shape.area_radius()
+			if attack == null:
+				return 0.0
+			var offset := 0.0 if targeting == Targeting.SELF else attack.hitbox_offset.length()
+			return offset + _strike_radius()
+	return 0.0
+
+## Radius of the circle an AREA skill or a DASH strike covers: `area_radius`, or half the attack's hitbox width when that
+## is 0 (the same rule SkillComponent2D uses to build the area).
+func _strike_radius() -> float:
+	if area_radius > 0.0:
+		return area_radius
+	return attack.hitbox_size.x * 0.5 if attack != null else 0.0
+
+## How far a shape's reach may differ from the skill's own reach before validation warns (a fraction of the skill's).
+const SHAPE_RANGE_TOLERANCE := 0.25
+
+## True for a skill that deals damage in a direction or area (PROJECTILE, AREA, DASH with an attack): the ones that
+## should have an aim_shape. BUFF and NONE skills, and a plain dash with no strike, are not.
+func wants_aim_shape() -> bool:
+	return attack != null and (behavior == Behavior.PROJECTILE or behavior == Behavior.AREA or behavior == Behavior.DASH)
+
+## Rules for aim_shape (H8.6): the shape's own values, no shape on a buff or a NONE skill (D16), and only a direction-free
+## shape when targeting is SELF.
+func _aim_shape_problems(label: String) -> Array[String]:
+	var found: Array[String] = []
+	if aim_shape == null:
+		return found
+	for message in aim_shape.validate():
+		found.append("%s: aim_shape: %s." % [label, message])
+	if behavior == Behavior.BUFF or behavior == Behavior.NONE:
+		found.append("%s: aim_shape: a %s skill has no aim shape (a buff is a tap with no indicator); clear it." % [label, Behavior.keys()[behavior]])
+	elif targeting == Targeting.SELF and aim_shape.needs_direction():
+		found.append("%s: aim_shape: targeting SELF needs a shape that ignores direction (a circle around the caster); this one is aimed." % label)
+	return found
+
+## A shape whose reach differs a lot from the skill's own reach would show the player the wrong area. Warning only.
+func _aim_shape_warnings(label: String) -> Array[String]:
+	var found: Array[String] = []
+	if aim_shape == null:
+		return found
+	var reach := 0.0
+	var field := ""
+	if (behavior == Behavior.PROJECTILE or behavior == Behavior.DASH) and max_range > 0.0:
+		reach = max_range
+		field = "max_range"
+	elif behavior == Behavior.AREA and area_radius > 0.0 and aim_shape.get_kind() == AimShape2D.Kind.CIRCLE_SELF:
+		reach = area_radius
+		field = "area_radius"
+	if reach > 0.0 and absf(aim_shape.max_range - reach) > reach * SHAPE_RANGE_TOLERANCE:
+		found.append("%s: aim_shape reaches %s px but %s is %s px; the shape should show the skill's real reach." % [label, aim_shape.max_range, field, reach])
+	return found
+
+## Fields that are set but this skill's behavior never reads (H3.3), as readable messages naming the skill. A warning,
+## never a problem: the skill still works. Empty when nothing is ignored.
+func get_warnings() -> Array[String]:
+	var found: Array[String] = []
+	var label := _label()
+	if behavior != Behavior.BUFF and status_effect != null:
+		found.append("%s: status_effect is only used by BUFF skills; it is ignored here (put statuses on the attack's status_effects instead)." % label)
+	if (behavior == Behavior.BUFF or behavior == Behavior.NONE) and attack != null:
+		found.append("%s: attack is ignored by %s skills." % [label, Behavior.keys()[behavior]])
+	if behavior != Behavior.AREA and behavior != Behavior.DASH and area_radius > 0.0:
+		found.append("%s: area_radius is only used by AREA and DASH skills." % label)
+	if (behavior == Behavior.BUFF or behavior == Behavior.NONE) and max_range > 0.0:
+		found.append("%s: max_range is only used by PROJECTILE and DASH skills." % label)
+	if behavior == Behavior.BUFF and status_effect != null and status_effect.tick_damage > 0:
+		found.append("%s: the buff's status_effect ticks %d damage on the caster; a buff normally does not." % [label, status_effect.tick_damage])
+	if attack != null and (behavior == Behavior.PROJECTILE or behavior == Behavior.AREA or behavior == Behavior.DASH):
+		for message in attack.get_warnings():
+			found.append("%s: %s" % [label, message])
+	found.append_array(_aim_shape_warnings(label))
+	return found
 
 ## What an area skill needs (13.3.2): an attack whose effect scene has an AreaEffect2D root. Either targeting works: SELF
 ## centres the area on the caster, AIM_DIRECTION places it hitbox_offset in front of the caster along the aim.

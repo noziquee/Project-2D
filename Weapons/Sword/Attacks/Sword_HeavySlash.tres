@@ -4,6 +4,12 @@
 [ext_resource type="PackedScene" uid="uid://mdxa2cxspq0g" path="res://Characters/Components/Combat/AttackSlash2D.tscn" id="2_effect"]
 [ext_resource type="PackedScene" uid="uid://buuimquyuurcf" path="res://Characters/Effects/HitEffect.tscn" id="3_hit"]
 [ext_resource type="Script" uid="uid://b6wfrpt7lkfob" path="res://Characters/Components/Status/StatusEffectDefinition2D.gd" id="4_k8ux6"]
+[ext_resource type="Script" uid="uid://hhcnd61aql57" path="res://Characters/Components/Aim/FanAimShape2D.gd" id="aimshape_fan"]
+
+[sub_resource type="Resource" id="aim_shape_sub"]
+script = ExtResource("aimshape_fan")
+angle_degrees = 100.0
+max_range = 100.0
 
 [resource]
 script = ExtResource("1_definition")
@@ -21,4 +27,5 @@ effect_scene = ExtResource("2_effect")
 effect_animation = &"heavy_slash"
 hit_effect_scene = ExtResource("3_hit")
 hitbox_size = Vector2(28, 24)
+aim_shape = SubResource("aim_shape_sub")
 charge_animation = &"sword_charge_heavy_slash"

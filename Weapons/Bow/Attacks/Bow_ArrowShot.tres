@@ -8,6 +8,7 @@
 [resource]
 script = ExtResource("1_definition")
 id = &"bow_arrow_shot"
+attack_range = 240.0
 damage = 4
 weapon_animation = &"bow_shoot"
 draw_animation = &"bow_draw"
@@ -22,5 +23,4 @@ hit_effect_scene = ExtResource("3_hit")
 hitbox_size = Vector2(16, 8)
 hitbox_offset = Vector2(8, 0)
 projectile_speed = 420.0
-ai_attack_range = 180.0
 input_queue_time = 0.45

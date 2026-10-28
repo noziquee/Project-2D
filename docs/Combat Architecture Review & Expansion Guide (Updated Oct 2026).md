@@ -4,7 +4,7 @@
 
 ## 1. Summary
 
-> **Status note (Track W, October 25, 2026):** Sections 4–8 preserve findings and recommendations from the earlier architecture review; some findings in those sections have since been implemented and should be read as historical context, not as the current task list. Track W moved weapon-owned data into `Weapons/Sword/`, `Weapons/Bow/` and `Weapons/GoblinSword/`. The current layout and status are in section 10.6 and `docs/Combat-Roadmap-Step-by-Step-Plan.md`. Track W runtime verification is still pending; expected smoke result 1030 / 0 is not confirmed.
+> **Status note (Track W, October 25, 2026):** Sections 4–8 preserve findings and recommendations from the earlier architecture review; some findings in those sections have since been implemented and should be read as historical context, not as the current task list. Track W moved weapon-owned data into `Weapons/Sword/`, `Weapons/Bow/` and `Weapons/GoblinSword/`. The current layout and status are in section 10.6 and `docs/Combat-Roadmap-Step-by-Step-Plan.md`. Track W was runtime-verified in headless Godot 4.7.2 on Oct 26, 2026 (`SUMMARY passes=1109 failures=0`, `docs/trackW/W9-notes.md`). Current status lives in `docs/STATUS.md`.
 
 The project has moved from "data-driven in theory" to "data-driven in practice". Since the last review you have finished Phases 0 to 8: an attack is now one `AttackDefinition2D` resource, weapon clips fire named events, health and hits are real components, teams and hit layers are data, and components, states, AI detection and the HUD are all nodes or resources you can edit in the Scene dock.
 
@@ -370,7 +370,7 @@ res://
 
 **Ownership conventions:** weapon-specific files use the weapon name in their filename; shared resources stay with their original owning weapon and are referenced by other weapons. A cross-weapon attack can only be shared when each consuming weapon provides the animation clip named in the resource. `Bow_EnemyWeaponDefinition.tres` shares the Bow scene but keeps enemy-specific arrow data. Ground Slam is an example resource, not part of the default loadout; its canonical example location is `Data/Examples/WeaponSkills/Sword_GroundSlam.tres`.
 
-The Track W source changes and checks are prepared, but W4–W7 have not been runtime-verified in Godot. The expected combined smoke summary is `SUMMARY passes=1030 failures=0`; the last confirmed baseline before Track W remains 986 / 0. See `docs/trackW/W0-plan.md` and the per-step notes.
+Track W, including W4–W7, was runtime-verified in headless Godot 4.7.2 on Oct 26, 2026: `SUMMARY passes=1109 failures=0` (the earlier 1030 figure was an expectation, and the pre-Track-W baseline was 986 / 0). See `docs/trackW/W0-plan.md` and the per-step notes.
 
 ### 10.7 Decisions finalized for Track W
 
@@ -396,7 +396,7 @@ These choices preserve one combat framework while keeping content ownership clea
 
 ### 10.9 Guide roadmap against your phases
 
-- **Foundation and weapon data:** implemented, with Track W moving content under `Weapons/Sword/`, `Weapons/Bow/` and `Weapons/GoblinSword/`. Runtime verification of W4–W7 remains pending.
+- **Foundation and weapon data:** implemented, with Track W moving content under `Weapons/Sword/`, `Weapons/Bow/` and `Weapons/GoblinSword/`. Runtime-verified in the Oct 26 headless run (W9).
 - **Heavy attacks and animation ownership:** combo, charge and code-driven return behavior are implemented; see the Phase 9 and Track P notes.
 - **Projectile framework and bow:** implemented; enemy bow data is kept separate from player bow data.
 - **Active skills, mana and HUD:** implemented for projectile, area, dash and buff examples.

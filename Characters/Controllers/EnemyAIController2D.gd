@@ -9,7 +9,7 @@ class_name EnemyAIController2D
 
 enum Behavior { IDLE, CHASE, ATTACK, RETURN }
 
-## Swing distance used when the chosen attack definition's ai_attack_range is 0.
+## Swing distance used when the chosen attack definition's attack_range is 0.
 const FALLBACK_ATTACK_RANGE := 30.0
 
 signal behavior_changed(previous_behavior: Behavior, current_behavior: Behavior)
@@ -81,12 +81,12 @@ func physics_update(delta: float) -> void:
 		_movement_intent = Vector2.ZERO
 		_set_behavior(Behavior.IDLE)
 
-## Distance at which this enemy starts a swing: the chosen attack's ai_attack_range when it
+## Distance at which this enemy starts a swing: the chosen attack's attack_range when it
 ## is above zero, otherwise FALLBACK_ATTACK_RANGE.
 func get_effective_attack_range() -> float:
 	var attack_definition := get_chosen_attack()
-	if attack_definition != null and attack_definition.ai_attack_range > 0.0:
-		return attack_definition.ai_attack_range
+	if attack_definition != null and attack_definition.attack_range > 0.0:
+		return attack_definition.attack_range
 	return FALLBACK_ATTACK_RANGE
 
 ## The attack the AI will use for its next swing. With no usable entry in

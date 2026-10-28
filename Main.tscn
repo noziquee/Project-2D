@@ -1,11 +1,14 @@
 [gd_scene format=3 uid="uid://c1tq6is7ba6qe"]
 
 [ext_resource type="PackedScene" uid="uid://de1o81qynjj3x" path="res://player.tscn" id="1_player"]
-[ext_resource type="PackedScene" uid="uid://dla0du8tgdel1" path="res://Characters/Enemies/BasicEnemy2D.tscn" id="2_enemy"]
 [ext_resource type="PackedScene" path="res://Characters/Enemies/GoblinArcher.tscn" id="2_archer"]
+[ext_resource type="PackedScene" uid="uid://dla0du8tgdel1" path="res://Characters/Enemies/BasicEnemy2D.tscn" id="2_enemy"]
 [ext_resource type="PackedScene" path="res://UI/HUD/HealthBar.tscn" id="3_hud"]
-[ext_resource type="PackedScene" path="res://UI/HUD/ManaBar.tscn" id="4_mana_hud"]
+[ext_resource type="PackedScene" uid="uid://dlfajymndwqof" path="res://UI/HUD/ManaBar.tscn" id="4_mana_hud"]
 [ext_resource type="PackedScene" path="res://UI/HUD/SkillBar.tscn" id="5_skill_bar"]
+[ext_resource type="Script" uid="uid://bchk0perwcupk" path="res://World/CameraBounds2D.gd" id="6_camera_bounds"]
+[ext_resource type="Script" uid="uid://du5r3jcpkpcxu" path="res://Platform/InputModeManager.gd" id="7_input_mode"]
+[ext_resource type="Script" uid="uid://c071efngqo78c" path="res://UI/Touch/MobileControls.gd" id="8_mobile_controls"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_arena_wall"]
 size = Vector2(900, 24)
@@ -49,7 +52,7 @@ position = Vector2(84, -210)
 [node name="BasicEnemy2D10" parent="." unique_id=1687415806 instance=ExtResource("2_enemy")]
 position = Vector2(190, -88)
 
-[node name="GoblinArcher" parent="." instance=ExtResource("2_archer")]
+[node name="GoblinArcher" parent="." unique_id=1164625443 instance=ExtResource("2_archer")]
 position = Vector2(330, 110)
 
 [node name="Effects" type="Node2D" parent="." unique_id=642195045 groups=["effects_root"]]
@@ -98,11 +101,36 @@ offset_right = 362.0
 offset_bottom = 80.0
 health_source = NodePath("../../Player/HealthComponent2D")
 
-[node name="PlayerManaBar" parent="HUD" instance=ExtResource("4_mana_hud")]
+[node name="PlayerManaBar" parent="HUD" unique_id=1043822892 instance=ExtResource("4_mana_hud")]
 offset_left = 6.0
 offset_top = 82.0
 offset_right = 362.0
 offset_bottom = 146.0
 mana_source = NodePath("../../Player/ManaComponent2D")
 
-[node name="PlayerSkillBar" parent="HUD" instance=ExtResource("5_skill_bar")]
+[node name="PlayerSkillBar" parent="HUD" unique_id=409305538 instance=ExtResource("5_skill_bar")]
+anchors_preset = 7
+offset_left = -0.08502197
+offset_right = 0.08496094
+
+[node name="MobileControls" type="Control" parent="HUD" unique_id=1550850423]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("8_mobile_controls")
+stick_size = 300.0
+button_size = 100.0
+small_button_size = 100.0
+attack_button_size = 200.0
+button_gap = 20.0
+
+[node name="CameraBounds" type="Node" parent="." unique_id=2063213719]
+script = ExtResource("6_camera_bounds")
+floor_path = NodePath("../ArenaFloor")
+
+[node name="InputModeManager" type="Node" parent="." unique_id=919111751]
+script = ExtResource("7_input_mode")

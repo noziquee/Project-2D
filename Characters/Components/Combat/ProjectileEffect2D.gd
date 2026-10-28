@@ -130,3 +130,10 @@ func _end() -> void:
 	if _hitbox != null:
 		_hitbox.set_deferred("monitoring", false)
 	queue_free()
+
+## Scene problems (H3.2): the hit area and its shape exist.
+func get_scene_problems(_effect_clip: StringName) -> Array[String]:
+	return _hitbox_scene_problems(hitbox_path, collision_shape_path)
+
+func get_scene_warnings() -> Array[String]:
+	return _shape_scene_warnings(collision_shape_path, "RectangleShape2D")

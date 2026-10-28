@@ -6,6 +6,12 @@
 [ext_resource type="Script" uid="uid://b6wfrpt7lkfob" path="res://Characters/Components/Status/StatusEffectDefinition2D.gd" id="4_0jmdj"]
 [ext_resource type="PackedScene" uid="uid://buuimquyuurcf" path="res://Characters/Effects/HitEffect.tscn" id="4_hit"]
 [ext_resource type="Texture2D" uid="uid://bsemymnihpce3" path="res://UI/HUD/Icons/MultiShotIcon.tres" id="5_icon"]
+[ext_resource type="Script" uid="uid://hhcnd61aql57" path="res://Characters/Components/Aim/FanAimShape2D.gd" id="aimshape_fan"]
+
+[sub_resource type="Resource" id="aim_shape_sub"]
+script = ExtResource("aimshape_fan")
+angle_degrees = 40.0
+max_range = 300.0
 
 [sub_resource type="Resource" id="Resource_multi_shot_attack"]
 script = ExtResource("2_attack")
@@ -31,6 +37,7 @@ cost_resource = 1
 cost_amount = 25.0
 cooldown = 6.5
 max_range = 300.0
+aim_shape = SubResource("aim_shape_sub")
 attack = SubResource("Resource_multi_shot_attack")
 projectile_count = 3
 spread_degrees = 24.0

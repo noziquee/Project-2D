@@ -27,11 +27,34 @@ var _last_casting := false
 var _last_unaffordable := false
 var _last_refusal := ""
 
+## Emitted when the slot is clicked with the left mouse button (or tapped, which Godot turns into a click). The
+## SkillBar decides whether a click casts; the slot only reports it.
+signal clicked
+
+## HUD controls in this group take the pointer: the player does not attack or re-aim with a click or cursor that is
+## over them (see player.gd).
+const POINTER_BLOCK_GROUP := &"hud_pointer_block"
+
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The slot itself takes the click; everything inside it lets the click through to the slot.
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	add_to_group(POINTER_BLOCK_GROUP)
+	for child in find_children("*", "Control", true, false):
+		(child as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.resized.connect(_update_card_pivot)
 	_update_card_pivot()
 	_show_empty()
+
+func _gui_input(event: InputEvent) -> void:
+	var click := event as InputEventMouseButton
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		clicked.emit()
+		accept_event()
+
+## Pointing hand while clicking casts, plain arrow when the bar has click-to-cast switched off.
+func set_clickable(enabled: bool) -> void:
+	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if enabled else Control.CURSOR_ARROW
 
 ## Binds a skill to this slot. Passing null displays the empty frame without labels or an icon.
 func bind(skill_component: SkillComponent2D, skill: SkillDefinition2D, hotkey_text: String = "") -> void:

@@ -25,6 +25,7 @@
 [ext_resource type="Resource" uid="uid://xrvcsh4tu5qs" path="res://Weapons/Sword/Attacks/Sword_Slash1.tres" id="27_slash1"]
 [ext_resource type="Resource" uid="uid://d2pkc8vgmu0kt" path="res://Weapons/Sword/Attacks/Sword_Slash2.tres" id="28_slash2"]
 [ext_resource type="Resource" path="res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres" id="29_lunge"]
+[ext_resource type="Script" uid="uid://bfs2fvu842o76" path="res://Characters/Components/Status/StatusController2D.gd" id="30_status"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_goblin_0"]
 atlas = ExtResource("2_goblin")
@@ -298,3 +299,6 @@ script = ExtResource("16_dash")
 
 [node name="Attack" type="Node" parent="CharacterStateMachine" unique_id=1331931781]
 script = ExtResource("17_attack")
+
+[node name="StatusController2D" type="Node" parent="."]
+script = ExtResource("30_status")

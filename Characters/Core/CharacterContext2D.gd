@@ -44,6 +44,10 @@ var movement_facing_direction: Vector2 = Vector2.RIGHT
 ## Current visible facing. Temporarily follows attack direction during an attack.
 var facing_direction: Vector2 = Vector2.RIGHT
 var aim_direction: Vector2 = Vector2.RIGHT
+## The last aim the character really used: a stick or mouse aim, a manual drag, or the direction of a picked target
+## (H8.4). Zero until there is one. Unlike `aim_direction`, nothing rewrites it every frame, so an aimed action with
+## nothing to aim at can fall back to it. The last non-zero facing is `facing_direction`, which is never zero.
+var last_aim_direction: Vector2 = Vector2.ZERO
 var attack_direction: Vector2 = Vector2.RIGHT
 var is_attacking: bool = false
 var is_dashing: bool = false

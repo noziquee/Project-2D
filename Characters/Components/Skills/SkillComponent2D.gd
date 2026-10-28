@@ -22,6 +22,9 @@ class_name SkillComponent2D
 ## caster for the length of the dash. BUFF is built (13.3.4): it puts the skill's status_effect on the caster through its
 ## StatusController2D; a caster with none is refused by can_use() before anything is spent.
 ##
+## SKILL CLIP (H2.2, decision D3): a skill that names a weapon_animation plays that clip when it starts, then executes after
+## its cast time; a cancelled cast stops the clip. See _play_clip().
+##
 ## HUD signals (13.4.1): cooldown_started / cooldown_finished, skill_refused and skills_changed let a skill bar react to
 ## events instead of polling. The bar still reads get_cooldown_remaining(), get_cooldown_duration() and get_cast_progress()
 ## every frame for the wipe itself.
@@ -64,6 +67,9 @@ var _cooldown_durations: Dictionary = {}
 var _casting: SkillDefinition2D
 var _cast_remaining := 0.0
 var _cast_direction := Vector2.RIGHT
+## H2.2: the weapon AnimationPlayer this component listens to for the end of a skill clip, and the clip playing now (or &"").
+var _watched_player: AnimationPlayer
+var _clip_playing: StringName = &""
 
 func _ready() -> void:
 	set_physics_process(false)
@@ -166,6 +172,7 @@ func try_use_skill(skill_id: StringName, direction: Vector2 = Vector2.ZERO) -> b
 	_start_cooldown(skill)
 	var aim := _resolve_direction(direction, skill)
 	skill_started.emit(skill)
+	_play_clip(skill)
 	if skill.cast_time <= 0.0:
 		_execute(skill, aim)
 	else:
@@ -284,9 +291,57 @@ func _end_cooldown(skill_id: StringName) -> void:
 func _cancel_cast() -> void:
 	var skill := _casting
 	_finish_cast()
+	_stop_clip()
 	_refund(skill)
 	_end_cooldown(skill.id)
 	skill_cancelled.emit(skill)
+
+## H2.2 (decision D3, cast then execute): a skill that names a weapon_animation plays that clip when it starts. The effect
+## still executes after cast_time (at once for an instant skill), so a clip is the visible cast. A skill with no clip, or
+## one the weapon lacks (validate() reports it), leaves the weapon player alone.
+func _play_clip(skill: SkillDefinition2D) -> void:
+	if skill.weapon_animation == &"" or context == null or not is_instance_valid(context.weapon_animation_player):
+		return
+	var player := context.weapon_animation_player
+	if not player.has_animation(skill.weapon_animation):
+		return
+	_watch_player(player)
+	_clip_playing = skill.weapon_animation
+	player.play(skill.weapon_animation)
+
+## Listens to the weapon player now in use; the weapon (and its player) can change when the character equips another one.
+func _watch_player(player: AnimationPlayer) -> void:
+	if is_instance_valid(_watched_player) and _watched_player != player and _watched_player.animation_finished.is_connected(_on_clip_finished):
+		_watched_player.animation_finished.disconnect(_on_clip_finished)
+	if not player.animation_finished.is_connected(_on_clip_finished):
+		player.animation_finished.connect(_on_clip_finished)
+	_watched_player = player
+
+## The skill's clip ran to its end: the weapon returns to rest, unless an attack has taken the weapon over meanwhile.
+func _on_clip_finished(animation_name: StringName) -> void:
+	if _clip_playing == &"" or animation_name != _clip_playing:
+		return
+	_clip_playing = &""
+	if context != null and not context.is_attacking:
+		_rest_weapon_pose()
+
+## A cancelled cast stops its clip, the way a cancelled attack does.
+func _stop_clip() -> void:
+	if _clip_playing == &"":
+		return
+	_clip_playing = &""
+	if context != null and not context.is_attacking:
+		_rest_weapon_pose()
+
+## Stops the weapon clip and puts the weapon back to its RESET pose, as AttackComponent2D does when a swing is cancelled.
+## A listener that settles the hand itself (FacingComponent2D sets context.hand_settling) keeps the pose it has instead.
+func _rest_weapon_pose() -> void:
+	var player := context.weapon_animation_player
+	if not is_instance_valid(player):
+		return
+	player.stop(context.hand_settling)
+	if not context.hand_settling and player.has_animation(&"RESET"):
+		player.play(&"RESET")
 
 func _finish_cast() -> void:
 	_casting = null
@@ -433,5 +488,7 @@ func _resolve_direction(direction: Vector2, skill: SkillDefinition2D) -> Vector2
 	return aim
 
 func _exit_tree() -> void:
+	if is_instance_valid(_watched_player) and _watched_player.animation_finished.is_connected(_on_clip_finished):
+		_watched_player.animation_finished.disconnect(_on_clip_finished)
 	if _casting != null:
 		_finish_cast()

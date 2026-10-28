@@ -38,6 +38,12 @@ func load_main(keep_archer: bool = false) -> Node:
 	var tuned_player := main.get_node_or_null("Player")
 	if tuned_player != null and "charge_start_time" in tuned_player:
 		tuned_player.charge_start_time = 0.1
+	# The player's defense is balance tuned in player.tscn (20 at the time of writing). The damage and health-bar checks
+	# are written for 0, so every test arena pins it; the scene keeps its value. BBB's checks set their own defense.
+	if tuned_player != null:
+		var tuned_health := tuned_player.get_node_or_null("HealthComponent2D")
+		if tuned_health != null:
+			tuned_health.defense = 0
 	return main
 
 func fresh() -> Node:
@@ -322,8 +328,15 @@ func fire_projectile(main: Node, shooter: Node2D, origin: Vector2, dir: Vector2,
 	return arrow
 
 ## A goblin parked far from the arena with its AI off, to be hit by a projectile (11.1).
-func parked_goblin(main: Node, at: Vector2) -> Character2D:
+## By default the shipped StatusController2D (added in H2.1) is removed, so a check can rely on a goblin that cannot carry
+## statuses, or attach its own controller. Pass keep_statuses = true to get the goblin exactly as shipped.
+func parked_goblin(main: Node, at: Vector2, keep_statuses: bool = false) -> Character2D:
 	var goblin := (load("res://Characters/Enemies/BasicEnemy2D.tscn") as PackedScene).instantiate() as Character2D
+	if not keep_statuses:
+		var shipped := goblin.get_node_or_null("StatusController2D")
+		if shipped != null:
+			goblin.remove_child(shipped)
+			shipped.free()
 	main.add_child(goblin)
 	goblin.global_position = at
 	goblin.set_physics_process(false)
@@ -474,13 +487,212 @@ func _set_goblin_sword_return_clips(clips: bool) -> void:
 				library.remove_animation(clip_name)
 	instance.free()
 
-func _initialize() -> void:
+## The error gate (H4.4): where the allowed errors are recorded, and how to record them.
+const ERROR_BASELINE_PATH := "res://tests/expected_errors.txt"
+var error_gate: ErrorGate
+
+## The runnable parts (H4.5a), in the order a full run executes them. name -> the method that runs it.
+## Every method starts from a fresh arena and leaves the shared resources as it found them (P10 flips the
+## clip-return mode and puts it back), so a part can run alone or in any order.
+## A new run_*_checks() group MUST be listed here; H4-26 and H4-27 fail the run when one is missing.
+const PARTS := {
+	"core_basics": &"run_core_basics_checks",
+	"core_phase2_5": &"run_core_phase2_5_checks",
+	"core_phase6_8": &"run_core_phase6_8_checks",
+	"core_phase9_attacks": &"run_core_phase9_attacks_checks",
+	"core_phase9_weapons": &"run_core_phase9_weapons_checks",
+	"core_phase10_11": &"run_core_phase10_11_checks",
+	"core_phase12": &"run_core_phase12_checks",
+	"core_phase13_skills": &"run_core_phase13_skills_checks",
+	"core_phase13_hud": &"run_core_phase13_hud_checks",
+	"core_phase14_p": &"run_core_phase14_p_checks",
+	"p9": &"run_p9_checks",
+	"p10": &"run_p10_checks",
+	"bow_cycle": &"run_bow_cycle_checks",
+	"track_w": &"run_track_w_checks",
+	"weapon_mount": &"run_weapon_mount_checks",
+	"goblin_sword": &"run_goblin_sword_checks",
+	"goblin_sword_wiring": &"run_goblin_sword_wiring_checks",
+	"goblin_archer_bow": &"run_goblin_archer_bow_checks",
+	"track_w7": &"run_track_w7_checks",
+	"p2": &"run_p2_checks",
+	"p3": &"run_p3_checks",
+	"p4": &"run_p4_checks",
+	"p5": &"run_p5_checks",
+	"p6": &"run_p6_checks",
+	"p7": &"run_p7_checks",
+	"h2": &"run_h2_checks",
+	"h2_skill_clip": &"run_h2_skill_clip_checks",
+	"h3": &"run_h3_checks",
+	"h3_table": &"run_h3_table_checks",
+	"h3_scene": &"run_h3_scene_checks",
+	"h3_report": &"run_h3_report_checks",
+	"h4_equip": &"run_h4_equip_checks",
+	"h4_rules": &"run_h4_rules_checks",
+	"h4_determinism": &"run_h4_determinism_checks",
+	"h7_input": &"run_h7_input_checks",
+	"h7_display": &"run_h7_display_checks",
+	"h7_hotbar": &"run_h7_hotbar_checks",
+	"h7_device": &"run_h7_device_checks",
+	"h7_touch": &"run_h7_touch_checks",
+	"h7_prompts": &"run_h7_prompts_checks",
+	"h7_matrix": &"run_h7_matrix_checks",
+	"h8_aim": &"run_h8_aim_checks",
+	"h8_aim_state": &"run_h8_aim_state_checks",
+	"h8_touch": &"run_h8_touch_checks",
+	"h8_indicator": &"run_h8_indicator_checks",
+	"h8_ground": &"run_h8_ground_checks",
+	"h8_layout": &"run_h8_layout_checks",
+	"h8_skillface": &"run_h8_skillface_checks",
+	"h9_visuals": &"run_h9_visual_checks",
+}
+## Check groups that are not parts: the gate's own checks and the registry checks run after every run.
+const NON_PART_GROUPS: Array[StringName] = [&"run_error_gate_checks", &"run_part_registry_checks"]
+
+## Part names asked for with --only=a,b (empty = all). Set in _initialize().
+var only_parts: Array[String] = []
+
+## Every random source in a run starts from this value (H4.6): the crit rolls at the start of each part, and each
+## EnemyAIController2D (its weighted attack choice) the moment it enters the tree. Two runs then give identical output.
+## A test that wants its own stream still sets its own seed after that, as V and CC already do.
+const TEST_SEED := 20261027
+
+## Puts the process-wide state a part could inherit from the one before it back to a known value (H4.6).
+## Called before every part, so a part gives the same result alone as inside the full run.
+func reset_global_state() -> void:
+	CombatResolver2D.seed_rng(TEST_SEED)
 	set_clip_returns(true)
+	for action in InputMap.get_actions():
+		Input.action_release(action)
+	Input.flush_buffered_events()
+
+func _seed_added_node(node: Node) -> void:
+	if node is EnemyAIController2D:
+		(node as EnemyAIController2D).rng.seed = TEST_SEED
+
+func _initialize() -> void:
+	var args := OS.get_cmdline_user_args()
+	var record_errors := args.has("--record-errors")
+	if args.has("--list"):
+		print("PARTS " + " ".join(PARTS.keys()))
+		quit(0)
+		return
+	var unknown: Array[String] = []
+	for arg in args:
+		if arg.begins_with("--only="):
+			for part_name in arg.trim_prefix("--only=").split(",", false):
+				if PARTS.has(part_name):
+					only_parts.append(part_name)
+				else:
+					unknown.append(part_name)
+	if not unknown.is_empty() or (record_errors and not only_parts.is_empty()):
+		# A typo must not quietly run nothing, and a partial run must never overwrite the full-run error baseline.
+		if not unknown.is_empty():
+			print("ERROR: unknown part(s) %s; --list shows the names" % ", ".join(unknown))
+		else:
+			print("ERROR: --record-errors needs a full run (do not combine it with --only)")
+		quit(2)
+		return
+	error_gate = ErrorGate.new()
+	error_gate.load_baseline(ERROR_BASELINE_PATH)
+	OS.add_logger(error_gate)
+	set_clip_returns(true)
+	node_added.connect(_seed_added_node)
 	await _run()
+	OS.remove_logger(error_gate)
+	run_part_registry_checks()
+	run_error_gate_checks(record_errors)
+	if not only_parts.is_empty():
+		print("PARTIAL RUN: only %s. Not comparable to the full total in docs/STATUS.md." % ", ".join(only_parts))
 	print("SUMMARY passes=%d failures=%d" % [passes, failures])
 	quit(1 if failures > 0 else 0)
 
+## Runs the chosen parts (all by default), printing each part's own pass and failure counts.
 func _run() -> void:
+	for part_name in PARTS:
+		if not only_parts.is_empty() and not only_parts.has(part_name):
+			continue
+		reset_global_state()
+		var passes_before := passes
+		var failures_before := failures
+		await call(PARTS[part_name])
+		print("PART %s passes=%d failures=%d" % [part_name, passes - passes_before, failures - failures_before])
+
+## H4-26 / H4-27: the registry and the code agree, so a check group can never be silently left out of a run.
+func run_part_registry_checks() -> void:
+	var missing_methods: Array = []
+	for part_name in PARTS:
+		if not has_method(PARTS[part_name]):
+			missing_methods.append(part_name)
+	check(missing_methods.is_empty(), "H4-26 every part in the registry names a method that exists (missing: %s)" % ", ".join(missing_methods))
+	var unregistered: Array = []
+	for method in get_method_list():
+		var method_name := StringName(method["name"])
+		if str(method_name).begins_with("run_") and str(method_name).ends_with("_checks") and not NON_PART_GROUPS.has(method_name) and not PARTS.values().has(method_name):
+			unregistered.append(method_name)
+	check(unregistered.is_empty(), "H4-27 every run_*_checks group is a registered part, so a full run cannot skip one (unregistered: %s)" % ", ".join(unregistered))
+
+## A test that provokes an error on purpose declares it BEFORE the call and confirms it AFTER with check_expected_errors().
+func expect_error(pattern: String, count: int = -1) -> void:
+	error_gate.expect(pattern, count)
+
+func check_expected_errors(label: String) -> void:
+	var unmet := error_gate.take_unmet_expectations()
+	check(unmet.is_empty(), "%s: every declared error happened (%s)" % [label, "; ".join(unmet)])
+
+## The gate's own checks (they feed messages straight into a separate gate, so nothing is really logged), then the verdict
+## on every error this run logged.
+func run_error_gate_checks(record_errors: bool) -> void:
+	var g := ErrorGate.new()
+	g.baseline = {"known problem": true}
+	g.armed = true
+	g.expect("rejected skill", 1)
+	g.handle_error("SkillComponent2D rejected skill: bad slot")
+	g.handle_error("known problem")
+	check(g.unexpected.is_empty() and g.take_unmet_expectations().is_empty(), "H4-20 a declared error and a baseline error are both accepted, and the declaration was met")
+
+	g.handle_error("a brand new problem 12345678")
+	check(g.unexpected.size() == 1 and g.unexpected_report()[0].contains("brand new problem #"), "H4-21 an error that is neither declared nor in the baseline is recorded as unexpected, with long numbers normalized")
+
+	g.expect("never happens")
+	g.expect("twice", 2)
+	g.handle_error("it happened twice? no, once")
+	var unmet := g.take_unmet_expectations()
+	check(unmet.size() == 2 and unmet[0].contains("none was logged") and unmet[1].contains("expected 2"), "H4-22 a declared error that never happens, or happens the wrong number of times, is reported")
+
+	var saved := ErrorGate.new()
+	saved.handle_error("first error 11112222")
+	saved.handle_error("first error 33334444")
+	saved.handle_error("second error")
+	var round_trip := ErrorGate.new()
+	var wrote := saved.save_baseline("user://h4_gate_baseline.txt")
+	var loaded := round_trip.load_baseline("user://h4_gate_baseline.txt")
+	check(wrote and loaded and round_trip.armed and round_trip.baseline.size() == 2 and round_trip.baseline.has("first error #") and saved.observed["first error #"] == 2, "H4-23 a recorded baseline loads back, and the same error with different ids counts as one message")
+
+	var probe := ErrorGate.new()
+	error_gate.suspended = true
+	OS.add_logger(probe)
+	push_error("H4.4 hookup probe")
+	push_warning("H4.4 warning probe")
+	OS.remove_logger(probe)
+	error_gate.suspended = false
+	var probe_errors: Array = probe.observed.keys().filter(func(k): return str(k).contains("hookup probe"))
+	var probe_warning_as_error: Array = probe.observed.keys().filter(func(k): return str(k).contains("warning probe"))
+	check(probe_errors.size() == 1 and probe.warnings_seen >= 1 and probe_warning_as_error.is_empty(), "H4-24 the engine really delivers push_error to a Logger, and warnings are counted apart from errors")
+
+	if record_errors:
+		var recorded := error_gate.save_baseline(ERROR_BASELINE_PATH)
+		print("ERROR GATE: recorded %d distinct error message(s) to %s" % [error_gate.observed.size(), ERROR_BASELINE_PATH])
+		check(recorded, "H4-25 the error baseline was written (record mode: nothing is gated this run)")
+	elif not error_gate.armed:
+		print("ERROR GATE: no baseline found. Run `tools/run_checks.sh --record-errors` once, review tests/expected_errors.txt and commit it; from then on a new error fails the run.")
+		check(true, "H4-25 no error baseline yet (nothing is gated until you record one)")
+	else:
+		for line in error_gate.unexpected_report():
+			print(line)
+		check(error_gate.unexpected.is_empty(), "H4-25 every error logged this run is in the baseline or declared by its test (%d distinct unexpected)" % error_gate.unexpected.size())
+
+func run_core_basics_checks() -> void:
 	# ---------- A. structure ----------
 	var main := await fresh()
 	var p = main.get_node("Player")
@@ -611,6 +823,12 @@ func _run() -> void:
 	await check_attack_rate("H-goblin ", e)
 	await cleanup(main)
 
+
+func run_core_phase2_5_checks() -> void:
+	# Declared here because the part starts with its own arena; every section assigns them before use.
+	var main: Node
+	var p
+	var e
 	# ---------- I. one resource per attack (Phase 2) ----------
 	# I1-I3: shipped definitions are complete.
 	main = await fresh()
@@ -619,7 +837,7 @@ func _run() -> void:
 	var ai: EnemyAIController2D = e.get_node("EnemyAIController2D")
 	check(p.attack_definition.weapon_animation == &"sword_slash_1" and p.attack_definition.recovery_animation == &"sword_slash_return_1", "I1 player definition names its weapon and recovery clips")
 	check(p.attack_definition.effect_scene != null and e.attack_definition.effect_scene != null, "I2 both shipped definitions carry their own effect scene")
-	check(e.attack_definition.ai_attack_range > 0.0 and is_equal_approx(ai.get_effective_attack_range(), e.attack_definition.ai_attack_range), "I3 goblin AI takes its range from the definition (%.0f)" % ai.get_effective_attack_range())
+	check(e.attack_definition.attack_range > 0.0 and is_equal_approx(ai.get_effective_attack_range(), e.attack_definition.attack_range), "I3 goblin AI takes its range from the definition (%.0f)" % ai.get_effective_attack_range())
 	await cleanup(main)
 
 	# I4-I6: a definition with different clip names plays correctly.
@@ -691,7 +909,7 @@ func _run() -> void:
 	p.set_physics_process(false)
 	set_detection_radius(e, 180.0)
 	var wide := definition_variant(e.attack_definition, &"test_wide")
-	wide.ai_attack_range = 100.0
+	wide.attack_range = 100.0
 	e.attack_definition = wide
 	e.global_position = p.global_position + Vector2(90, 0) # inside detection, far beyond the controller's own 30
 	await phys(10)
@@ -705,7 +923,7 @@ func _run() -> void:
 	p.set_physics_process(false)
 	set_detection_radius(e, 180.0)
 	var fallback := definition_variant(e.attack_definition, &"test_fallback")
-	fallback.ai_attack_range = 0.0
+	fallback.attack_range = 0.0
 	e.attack_definition = fallback
 	e.global_position = p.global_position + Vector2(90, 0)
 	await phys(10)
@@ -716,14 +934,14 @@ func _run() -> void:
 	main = await fresh()
 	p = main.get_node("Player")
 	e = main.get_node("BasicEnemy2D")
-	var reach: float = e.attack_definition.ai_attack_range
+	var reach: float = e.attack_definition.attack_range
 	e.global_position = Vector2.ZERO
 	p.global_position = Vector2(reach, 0)
 	p.set_physics_process(false)
 	e.set_physics_process(false)
 	e.attack_component.try_start(true, Vector2.RIGHT)
 	await phys(70)
-	check(p.health_component.health < p.health_component.max_health, "I20 a goblin swing connects with a target at its ai_attack_range (%.0f px)" % reach)
+	check(p.health_component.health < p.health_component.max_health, "I20 a goblin swing connects with a target at its attack_range (%.0f px)" % reach)
 	await cleanup(main)
 
 	# I21-I25: movement_multiplier scales walking during the swing and always resets.
@@ -1032,6 +1250,14 @@ func _run() -> void:
 	check(p.attack_component.is_on_cooldown() and not p.attack_component.try_start(true, Vector2.RIGHT), "L17 an interrupted attack starts its cooldown")
 	await cleanup(main)
 
+
+func run_core_phase6_8_checks() -> void:
+	# Declared here because the part starts with its own arena; every section assigns them before use.
+	var main: Node
+	var p
+	var e
+	var ai: EnemyAIController2D
+	var ke: Character2D
 	# ---------- M. Phase 6a: components are scene nodes ----------
 	for scene_path in ["res://player.tscn", "res://Characters/Enemies/BasicEnemy2D.tscn"]:
 		var paths := scene_node_paths(scene_path)
@@ -1471,6 +1697,12 @@ func _run() -> void:
 	check(ebar.get_node("Card/Padding/Content/BarStack/BarLabel").text == expected_counter, "R26 the hidden on-bar label still tracks the same counter")
 	await cleanup(main)
 
+
+func run_core_phase9_attacks_checks() -> void:
+	# Declared here because the part starts with its own arena; every section assigns them before use.
+	var main: Node
+	var p
+	var e
 	# ---------- S. Phase 9.1: attacks array and try_start_attack ----------
 	main = await fresh()
 	p = main.get_node("Player")
@@ -1554,7 +1786,7 @@ func _run() -> void:
 	p = main.get_node("Player")
 	e = main.get_node("BasicEnemy2D")
 	e.set_physics_process(false)
-	e.global_position = p.global_position + Vector2(200, 0)
+	e.global_position = p.global_position + Vector2(5000, 0) # off screen: a target in view out of reach would start an auto-approach (H9.4)
 	var t_none: Array[AttackDefinition2D] = []
 	p.attack_component.set_attacks(t_none) # these checks predate the heavy attack
 	var t_id: StringName = p.get_default_attack_id()
@@ -1605,7 +1837,7 @@ func _run() -> void:
 	p = main.get_node("Player")
 	e = main.get_node("BasicEnemy2D")
 	e.set_physics_process(false)
-	e.global_position = p.global_position + Vector2(200, 0)
+	e.global_position = p.global_position + Vector2(5000, 0) # off screen: a target in view out of reach would start an auto-approach (H9.4)
 	var u_none: Array[AttackDefinition2D] = []
 	p.attack_component.set_attacks(u_none) # U4-U5 test the no-heavy path
 	var u_light_id: StringName = p.get_default_attack_id()
@@ -1614,7 +1846,11 @@ func _run() -> void:
 		if ev is InputEventMouseButton and (ev as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 			u_has_mouse = true
 	check(u_has_mouse and not InputMap.has_action(&"attack"), "U1 attack_light is the left mouse button and the old 'attack' action is gone")
-	check(InputMap.has_action(&"attack_heavy") and InputMap.action_get_events(&"attack_heavy").is_empty(), "U2 attack_heavy exists with no default binding")
+	var u2_keyboard_or_mouse := 0
+	for u2_event in InputMap.action_get_events(&"attack_heavy"):
+		if u2_event is InputEventKey or u2_event is InputEventMouseButton:
+			u2_keyboard_or_mouse += 1
+	check(InputMap.has_action(&"attack_heavy") and u2_keyboard_or_mouse == 0, "U2 attack_heavy exists with no keyboard or mouse binding (H7.4: a controller button is bound; holding the left mouse button charges the heavy attack on PC)")
 	check(p.heavy_attack_id == &"" and p.get_heavy_attack_id() == &"sword_heavy_slash" and is_equal_approx(p.charge_start_time, 0.1) and p.light_attack_id == &"", "U3 default exports (changed in 9.7d-1): both id overrides empty, the heavy id comes from the equipped sword (sword_heavy_slash), charge starts after 0.1 s (pinned by load_main since V5)")
 	# U4: no heavy attack registered yet -> light fires on press, attack_heavy is dropped.
 	Input.action_press("attack_heavy")
@@ -1688,21 +1924,21 @@ func _run() -> void:
 	e.set_physics_process(false)
 	var v_ai: EnemyAIController2D = e._ai_controller
 	var v_default_id: StringName = e.get_default_attack_id()
-	var v_default_range: float = e.attack_definition.ai_attack_range
+	var v_default_range: float = e.attack_definition.attack_range
 	check(load("res://Characters/Controllers/GoblinBehaviorProfile.tres").attack_choices.size() == 2 and AttackChoice2D.new().weight == 1.0, "V1 the shipped goblin profile offers two weighted choices; a new choice defaults to weight 1")
 	check(v_ai.get_chosen_attack_id() == v_default_id and is_equal_approx(v_ai.get_effective_attack_range(), v_default_range), "V2 with no choices the AI uses the default attack and its range (%s, %.0f)" % [str(v_default_id), v_default_range])
 	v_ai.profile = v_ai.profile.duplicate() # the shipped profile is a shared resource
 	var v_base: AttackDefinition2D = load("res://Weapons/Sword/Attacks/Sword_Slash1.tres")
 	var v_short := definition_variant(v_base, &"v_short")
-	v_short.ai_attack_range = 20.0
+	v_short.attack_range = 20.0
 	var v_long := definition_variant(v_base, &"v_long")
-	v_long.ai_attack_range = 80.0
+	v_long.attack_range = 80.0
 	var v_extra: Array[AttackDefinition2D] = [v_short, v_long]
 	check(e.attack_component.set_attacks(v_extra) == 2, "V3 the two test attacks register on the goblin")
 	var v_choices: Array[AttackChoice2D] = [attack_choice(v_short)]
 	v_ai.profile.attack_choices = v_choices
 	v_ai.reset_attack_choice()
-	check(v_ai.get_chosen_attack_id() == &"v_short" and is_equal_approx(v_ai.get_effective_attack_range(), 20.0), "V4 a single choice is used, and its ai_attack_range becomes the swing distance")
+	check(v_ai.get_chosen_attack_id() == &"v_short" and is_equal_approx(v_ai.get_effective_attack_range(), 20.0), "V4 a single choice is used, and its attack_range becomes the swing distance")
 	var v_picks: Array[StringName] = []
 	v_choices = [attack_choice(v_short, 0.0), attack_choice(v_long, 1.0)]
 	v_ai.profile.attack_choices = v_choices
@@ -1753,9 +1989,9 @@ func _run() -> void:
 	v_ai.profile = v_ai.profile.duplicate()
 	v_base = load("res://Weapons/Sword/Attacks/Sword_Slash1.tres")
 	v_short = definition_variant(v_base, &"v_short")
-	v_short.ai_attack_range = 20.0
+	v_short.attack_range = 20.0
 	v_long = definition_variant(v_base, &"v_long")
-	v_long.ai_attack_range = 80.0
+	v_long.attack_range = 80.0
 	v_extra = [v_short, v_long]
 	e.attack_component.set_attacks(v_extra)
 	v_choices = [attack_choice(v_long, 1.0)]
@@ -1763,7 +1999,7 @@ func _run() -> void:
 	v_ai.reset_attack_choice()
 	var v_started: Array[StringName] = []
 	e.attack_component.attack_started.connect(func(_direction: Vector2) -> void: v_started.append(e.attack_component.get_active_attack_id()))
-	e.global_position = p.global_position + Vector2(70, 0)
+	e.global_position = p.global_position + Vector2(76, 0) # beyond the default attack's 70 px (D19), inside v_long's 80
 	await phys(15)
 	check(not v_started.is_empty() and v_started[0] == &"v_long" and e.global_position.distance_to(p.global_position) > v_default_range, "V12 the goblin swings with the chosen attack from beyond the default range (%s, %.0f px)" % [str(v_started), e.global_position.distance_to(p.global_position)])
 	v_choices = [attack_choice(v_short, 1.0)]
@@ -2014,7 +2250,7 @@ func _run() -> void:
 	var cc_lunge: AttackDefinition2D = cc_ac.get_attack(&"goblin_sword_lunge")
 	var cc_ap: AnimationPlayer = e.context.weapon_animation_player
 	check(cc_lunge != null and cc_ac.validate_combo_links().is_empty() and cc_ap.has_animation(&"lunge") and cc_lunge.weapon_animation == &"lunge" and cc_ai.profile.attack_choices.size() == 2, "CC1 the goblin has a registered lunge with its clip, and its profile offers two weighted choices")
-	check(cc_lunge.movement_multiplier < 1.0 and cc_lunge.ai_attack_range > cc_slash.ai_attack_range and cc_lunge.damage == cc_slash.damage and cc_lunge.interruptible, "CC2 the lunge slows the goblin, reaches further, shares the sword slash damage and can be interrupted")
+	check(cc_lunge.movement_multiplier < 1.0 and cc_lunge.attack_range > cc_slash.attack_range and cc_lunge.damage == cc_slash.damage and cc_lunge.interruptible, "CC2 the lunge slows the goblin, reaches further, shares the sword slash damage and can be interrupted")
 	cc_ai.rng.seed = 7
 	var cc_lunges := 0
 	for i in 400:
@@ -2474,6 +2710,12 @@ func _run() -> void:
 	await phys(3)
 	await cleanup(main)
 
+
+func run_core_phase9_weapons_checks() -> void:
+	# Declared here because the part starts with its own arena; every section assigns them before use.
+	var main: Node
+	var p
+	var e
 	# ---------- II. Phase 9.7a: WeaponDefinition2D (data and validation only, nothing equips it yet) ----------
 	main = await fresh()
 	p = main.get_node("Player")
@@ -3127,6 +3369,12 @@ func _run() -> void:
 	check(not is_instance_valid(pp_missing) or pp_missing.is_queued_for_deletion(), "PP6 an effect told to play a clip it lacks logs an error and removes itself")
 	await cleanup(main)
 
+
+func run_core_phase10_11_checks() -> void:
+	# Declared here because the part starts with its own arena; every section assigns them before use.
+	var main: Node
+	var p
+	var e
 	# ---------- QQ. No legacy slash scene: every attack carries its own effect_scene (10.1) ----------
 	# Expected in the Output log (not failures): "rejected definition" errors naming qq_no_fx, and the
 	# "needs a character context, an attack_definition" error from the bare component (QQ6).
@@ -3724,8 +3972,11 @@ func _run() -> void:
 	var yy_ctl: WeaponController2D = p.weapon_controller
 	var yy_sword := load(SWORD_WEAPON_PATH) as WeaponDefinition2D
 	var yy_bow := load(BOW_WEAPON_PATH) as WeaponDefinition2D
-	var yy_events := InputMap.action_get_events(&"weapon_next") if InputMap.has_action(&"weapon_next") else []
-	check(InputMap.has_action(&"weapon_next") and yy_events.size() == 1 and yy_events[0] is InputEventKey, "YY1 the weapon_next input action exists with a key bound")
+	var yy_keys := 0
+	for yy_event in (InputMap.action_get_events(&"weapon_next") if InputMap.has_action(&"weapon_next") else []):
+		if yy_event is InputEventKey:
+			yy_keys += 1
+	check(InputMap.has_action(&"weapon_next") and yy_keys == 1, "YY1 the weapon_next input action exists with exactly one key bound (H7.4 adds a controller button besides it)")
 	check(yy_ctl.loadout.size() == 2 and yy_ctl.loadout[0].weapon_id == &"sword" and yy_ctl.loadout[1].weapon_id == &"bow" and yy_ctl.get_equipped_weapon().weapon_id == &"sword", "YY2 the player's loadout is sword then bow and the sword is equipped at the start")
 	check(p.get_light_attack_id() == &"sword_slash1" and p.get_heavy_attack_id() == &"sword_heavy_slash", "YY3 with the sword the light and heavy ids are the sword's")
 	check(yy_ctl.equip_next() and yy_ctl.get_equipped_weapon().weapon_id == &"bow" and p.context.weapon_pivot.scene_file_path == BOW_SCENE_PATH, "YY4 equip_next() switches sword to bow and mounts the bow scene")
@@ -3846,6 +4097,12 @@ func _run() -> void:
 	check(hp_of(zz_a) == zz_hp - 4, "ZZ11 the archer takes damage through apply_hit like any character")
 	await cleanup(main)
 
+
+func run_core_phase12_checks() -> void:
+	# Declared here because the part starts with its own arena; every section assigns them before use.
+	var main: Node
+	var p
+	var e
 	# ---------- AAA. 12.1 combat resolver ----------
 	# The resolver is a pass-through for now: every check proves a damage source reaches it and nothing changes.
 	var aaa_hit := HitData.new(3, null, Vector2.LEFT, 40.0, 0.2)
@@ -3920,7 +4177,7 @@ func _run() -> void:
 	e = main.get_node("BasicEnemy2D")
 	e.set_physics_process(false)
 	e.global_position = p.global_position + Vector2(0, 150)
-	check(p.health_component.defense == 0 and e.health_component.defense == 0, "BBB1 the shipped characters have no defense")
+	check(p.health_component.defense == 0 and e.health_component.defense == 0, "BBB1 both sides start the test arena with no defense (the goblin ships with 0; load_main pins the player's tuned value to 0)")
 	var bbb_hit := HitData.new(5)
 	var bbb_comp := HealthComponent2D.new()
 	bbb_comp.max_health = 50
@@ -4105,16 +4362,14 @@ func _run() -> void:
 	# A definition applies a status on hit with no new script. The character has a StatusController2D child.
 	var ddd_bleed_def := load(BLEED_PATH) as StatusEffectDefinition2D
 	check(ddd_bleed_def != null and ddd_bleed_def.id == &"bleed" and ddd_bleed_def.stack_rule == StatusEffectDefinition2D.StackRule.STACK and ddd_bleed_def.max_stacks == 3 and ddd_bleed_def.tick_damage == 1, "DDD14 the shipped BleedStatusDefinition.tres loads: id bleed, stacks up to 3, 1 damage a second")
-	check(p.status_controller != null and p.status_controller.get_active_ids().is_empty() and e.status_controller == null, "DDD15 the shipped player has a StatusController2D with nothing running (added in 13.4.2); the goblin has none")
+	check(p.status_controller != null and p.status_controller.get_active_ids().is_empty() and e.status_controller != null and e.status_controller.get_active_ids().is_empty(), "DDD15 the shipped player (13.4.2) and the shipped goblin (H2.1) each have a StatusController2D with nothing running")
 	var ddd_target := (load("res://Characters/Enemies/BasicEnemy2D.tscn") as PackedScene).instantiate() as Character2D
-	var ddd_ctl := StatusController2D.new()
-	ddd_ctl.name = "StatusController2D"
-	ddd_target.add_child(ddd_ctl)
+	var ddd_ctl := ddd_target.get_node("StatusController2D") as StatusController2D
 	main.add_child(ddd_target)
 	ddd_target.global_position = p.global_position + Vector2(-90, 0)
 	ddd_target.set_physics_process(false)
 	await phys(2)
-	check(ddd_target.status_controller == ddd_ctl, "DDD16 Character2D finds a child named StatusController2D and initializes it")
+	check(ddd_target.status_controller == ddd_ctl, "DDD16 Character2D finds the goblin's shipped child named StatusController2D and initializes it")
 	var ddd_def := (load(ARROW_LIGHT_PATH) as AttackDefinition2D).duplicate() as AttackDefinition2D
 	var ddd_list: Array[StatusEffectDefinition2D] = [ddd_bleed_def]
 	ddd_def.status_effects = ddd_list
@@ -4140,6 +4395,12 @@ func _run() -> void:
 	check(ddd_plain.status_controller == null and ddd_plain.apply_hit(ddd_carry) == 3 and hp_of(ddd_plain) == ddd_plain_hp - 3, "DDD20 a character with no StatusController2D takes the damage and ignores the status")
 	await cleanup(main)
 
+
+func run_core_phase13_skills_checks() -> void:
+	# Declared here because the part starts with its own arena; every section assigns them before use.
+	var main: Node
+	var p
+	var e
 	# ---------- EEE. 13.1 / 13.2 active skills ----------
 	main = await fresh()
 	p = main.get_node("Player")
@@ -4196,7 +4457,9 @@ func _run() -> void:
 	var eee_mana: ManaComponent2D = eee_rig["mana"]
 	var eee_sk: SkillComponent2D = eee_rig["skills"]
 	var eee_heal := make_skill(&"heal", 1, 1.0, 0.5, 40.0)
+	expect_error("SkillComponent2D rejected skill")
 	var eee_accepted := eee_sk.set_skills([eee_fire, eee_heal, make_skill(&"fireball", 2), make_skill(&"other", 0), make_skill(&"", 2), null])
+	check_expected_errors("EEE a skill with an empty id is rejected with an error")
 	check(eee_accepted == 2 and eee_sk.has_skill(&"fireball") and eee_sk.has_skill(&"heal") and not eee_sk.has_skill(&"other") and eee_sk.get_skill_in_slot(1) == eee_heal and eee_sk.get_skill_in_slot(2) == null, "EEE11 set_skills keeps the valid skills and skips a duplicate id, a taken slot, an invalid skill and an empty entry")
 	var eee_done: Array = []
 	var eee_started: Array = []
@@ -4712,6 +4975,7 @@ func _run() -> void:
 	eee5_self.id = &"self_dash"
 	eee5_self.cooldown = 0.0
 	eee5_self.targeting = SkillDefinition2D.Targeting.SELF
+	eee5_self.aim_shape = null # a SELF skill has no aim (H8.6 rejects an aimed shape on it)
 	eee5_sk.set_skills([eee5_self])
 	p.context.movement_input = Vector2(0, 1)
 	var eee5_self_used := eee5_sk.try_use_skill(&"self_dash")
@@ -4998,13 +5262,14 @@ func _run() -> void:
 	var ggg_mana := p.get_node_or_null("ManaComponent2D") as ManaComponent2D
 	var ggg_skills := p.get_node_or_null("SkillComponent2D") as SkillComponent2D
 	var ggg_status := p.get_node_or_null("StatusController2D") as StatusController2D
-	check(ggg_mana != null and ggg_skills != null and ggg_status != null and p.mana_component == ggg_mana and p.skill_component == ggg_skills and p.status_controller == ggg_status and ggg_skills.is_initialized() and e.mana_component == null and e.skill_component == null and e.status_controller == null, "GGG1 player.tscn has children named ManaComponent2D, SkillComponent2D and StatusController2D, Character2D found and initialized them, and the goblin has none")
+	check(ggg_mana != null and ggg_skills != null and ggg_status != null and p.mana_component == ggg_mana and p.skill_component == ggg_skills and p.status_controller == ggg_status and ggg_skills.is_initialized() and e.mana_component == null and e.skill_component == null and e.status_controller != null, "GGG1 player.tscn has children named ManaComponent2D, SkillComponent2D and StatusController2D, Character2D found and initialized them, and the goblin has a StatusController2D but no mana or skills")
 	check(is_equal_approx(ggg_mana.max_mana, 100.0) and is_equal_approx(ggg_mana.mana, 100.0) and is_equal_approx(ggg_mana.regen_per_second, 5.0), "GGG2 the player's mana pool uses the defaults: 100 mana, full, 5 per second")
 	var ggg_codes: Array = []
 	for action in [&"skill_1", &"skill_2", &"skill_3"]:
 		var ggg_events := InputMap.action_get_events(action) if InputMap.has_action(action) else []
-		ggg_codes.append(ggg_events[0].physical_keycode if ggg_events.size() == 1 and ggg_events[0] is InputEventKey else -1)
-	check(ggg_codes == [KEY_1, KEY_2, KEY_3] and InputMap.has_action(&"weapon_next") and InputMap.has_action(&"attack_light") and InputMap.has_action(&"attack_heavy") and InputMap.has_action(&"dash"), "GGG3 skill_1 to skill_3 are one key each, 1 to 3, and the existing actions are still there")
+		var ggg_key_events: Array = ggg_events.filter(func(event): return event is InputEventKey)
+		ggg_codes.append(ggg_key_events[0].physical_keycode if ggg_key_events.size() == 1 else -1)
+	check(ggg_codes == [KEY_1, KEY_2, KEY_3] and InputMap.has_action(&"weapon_next") and InputMap.has_action(&"attack_light") and InputMap.has_action(&"attack_heavy") and InputMap.has_action(&"dash"), "GGG3 skill_1 to skill_3 are one key each, 1 to 3 (a controller button besides, H7.4), and the existing actions are still there")
 	check(p.weapon_controller.skill_component == ggg_skills, "GGG4 the weapon controller hands the equipped weapon's skills to the player's SkillComponent2D")
 
 	var ggg_log: Array = []
@@ -5180,6 +5445,12 @@ func _run() -> void:
 	check(hhh_back and hhh_sk.get_skill_in_slot(2) == hhh_empower and hhh_sk.get_cooldown_remaining(&"empower") > 8.0 and not hhh_sk.is_ready(&"empower") and has_problem([hhh_sk.can_use(&"empower")], "cooldown"), "HHH9 Empowerment is slot 2 on both weapons, and switching from the bow to the sword does not reset its cooldown")
 	await cleanup(main)
 
+
+func run_core_phase13_hud_checks() -> void:
+	# Declared here because the part starts with its own arena; every section assigns them before use.
+	var main: Node
+	var p
+	var e
 	# ---------- MMM (13.4.4). Scene-based mana HUD ----------
 	main = await fresh()
 	p = main.get_node("Player")
@@ -5348,6 +5619,13 @@ func _run() -> void:
 	check(uuu_each_target_hit_once, "UUU7 each arrow hits its target once through the shared damage path")
 	await cleanup(main)
 
+
+func run_core_phase14_p_checks() -> void:
+	# Declared here because the part starts with its own arena; every section assigns them before use.
+	var main: Node
+	var p
+	var e
+	var ke: Character2D
 	# ---------- PAS. Phase 14 passives (14.0 to 14.2) ----------
 	main = await fresh()
 	p = main.get_node("Player")
@@ -5586,10 +5864,7 @@ func _run() -> void:
 	var evt_started: bool = await real_swing(p)
 	check(evt_equipped and evt_started and p.health_component.health == 23 and e.health_component.health < 400, "EVT9 a real swing that lands heals the player by the passive's amount")
 
-	var evt_e_ctl := StatusController2D.new()
-	e.add_child(evt_e_ctl)
-	e.status_controller = evt_e_ctl
-	evt_e_ctl.initialize(e.health_component)
+	var evt_e_ctl: StatusController2D = e.status_controller
 	var evt_long_bleed := StatusEffectDefinition2D.new()
 	evt_long_bleed.id = &"evt_long_bleed"
 	evt_long_bleed.duration = 30.0
@@ -5770,23 +6045,6 @@ func _run() -> void:
 	fc_bare.update_weapon_aim()
 	check(is_zero_approx(fc_pivot.rotation), "FC10 a component with no context does nothing, and one with no attack component puts the pivot at rest")
 	await cleanup(main)
-
-	await run_p9_checks()
-	await run_p10_checks()
-	await run_bow_cycle_checks()
-	await run_track_w_checks()
-	await run_weapon_mount_checks()
-	await run_goblin_sword_checks()
-	await run_goblin_sword_wiring_checks()
-	await run_goblin_archer_bow_checks()
-	await run_track_w7_checks()
-	await run_p2_checks()
-	await run_p3_checks()
-	await run_p4_checks()
-	await run_p5_checks()
-	await run_p6_checks()
-	await run_p7_checks()
-
 
 ## ---------- Bow cycle: draw > shot > draw > shot > return, and draw > charge > heavy shot ----------
 
@@ -6705,7 +6963,7 @@ func run_goblin_sword_checks() -> void:
 	gw_ctrl.equip(gw_weapon)
 	var gl_lunge: AttackDefinition2D = gw_weapon.heavy_attack
 	var gl_skill_attack: AttackDefinition2D = (load(LUNGE_PATH) as SkillDefinition2D).attack
-	check(gl_lunge != null and gl_lunge.id == &"goblin_sword_lunge" and gl_lunge.weapon_animation == &"lunge" and gl_lunge.damage == gl_skill_attack.damage and is_equal_approx(gl_lunge.knockback, gl_skill_attack.knockback) and is_equal_approx(gl_lunge.hit_stun, gl_skill_attack.hit_stun) and is_equal_approx(gl_lunge.ai_attack_range, 75.0), "GL1 the goblin lunge takes the sword Lunge's damage, knockback and hit stun (Q1), keeps the lunge clip and its 75 px AI range")
+	check(gl_lunge != null and gl_lunge.id == &"goblin_sword_lunge" and gl_lunge.weapon_animation == &"lunge" and gl_lunge.damage == gl_skill_attack.damage and is_equal_approx(gl_lunge.knockback, gl_skill_attack.knockback) and is_equal_approx(gl_lunge.hit_stun, gl_skill_attack.hit_stun) and is_equal_approx(gl_lunge.attack_range, 75.0), "GL1 the goblin lunge takes the sword Lunge's damage, knockback and hit stun (Q1), keeps the lunge clip and its 75 px AI range")
 	check(gw_weapon.heavy_attack == gl_lunge and gw_weapon.get_extra_attacks().size() == 2 and gw_weapon.get_extra_attacks()[1] == gl_lunge, "GL2 the lunge is registered on the goblin sword in the heavy_attack slot, as the last of the extra attacks")
 	check(e.attack_component.has_attack(&"goblin_sword_lunge") and e.attack_component.try_start_attack(&"goblin_sword_lunge", Vector2.RIGHT) and e.context.weapon_animation_player.current_animation == &"lunge", "GL3 the goblin that equipped the goblin sword starts the lunge by id and plays the lunge clip (clip %s)" % str(e.context.weapon_animation_player.current_animation))
 	await cleanup(main)
@@ -7072,3 +7330,1724 @@ func run_p7_checks() -> void:
 	check(slash_watch.peak == 0.0, "P7f an attack with no forward impulse leaves the step at zero")
 	goblin.free()
 	await cleanup(main)
+
+
+## ---------- H2.1: enemies can carry statuses ----------
+
+func run_h2_checks() -> void:
+	var main: Node = await fresh_far()
+	var goblin := parked_goblin(main, Vector2(1500, 1500), true)
+	var archer_scene := load("res://Characters/Enemies/GoblinArcher.tscn") as PackedScene
+	var archer := archer_scene.instantiate() as Character2D
+	main.add_child(archer)
+	archer.global_position = Vector2(1500, 1700)
+	archer.set_physics_process(false)
+	await phys(2)
+	check(goblin.status_controller != null and goblin.status_controller.get_active_ids().is_empty() and goblin.status_controller.get_parent() == goblin, "H2-1 the shipped goblin has a StatusController2D child, Character2D found it, and nothing is running")
+	check(archer.status_controller != null and archer.status_controller.get_active_ids().is_empty(), "H2-2 the shipped goblin archer inherits the StatusController2D from the goblin scene")
+
+	var bleed := load(BLEED_PATH) as StatusEffectDefinition2D
+	var carry := HitData.new(3)
+	carry.statuses = [bleed]
+	var hp_before := hp_of(goblin)
+	var dealt := goblin.apply_hit(carry)
+	var hp_after_hit := hp_of(goblin)
+	check(dealt == 3 and hp_after_hit == hp_before - 3 and goblin.status_controller.has_status(&"bleed"), "H2-3 a hit that lists bleed damages the shipped goblin and starts the status on it")
+	await phys(130)
+	check(hp_of(goblin) <= hp_after_hit - 2, "H2-4 the bleed ticks on the shipped goblin (health %d -> %d)" % [hp_after_hit, hp_of(goblin)])
+
+	var archer_hp := hp_of(archer)
+	archer.apply_hit(carry)
+	check(archer.status_controller.has_status(&"bleed") and hp_of(archer) == archer_hp - 3, "H2-5 the same hit starts bleed on the archer too")
+
+	var buff := StatusEffectDefinition2D.new()
+	buff.id = &"h2_buff"
+	buff.duration = 5.0
+	buff.tick_interval = 0.0
+	buff.tick_damage = 0
+	buff.damage_multiplier = 1.5
+	var base_mult := goblin.status_controller.get_damage_multiplier()
+	goblin.status_controller.apply_status(buff)
+	check(is_equal_approx(base_mult, 1.0) and is_equal_approx(goblin.status_controller.get_damage_multiplier(), 1.5), "H2-6 a damage-multiplier status on the goblin raises its outgoing multiplier from 1 to 1.5")
+
+	# ---------- H2.4: Combatant2D accessors ----------
+	var player: Character2D = main.get_node("Player")
+	check(Combatant2D.team_of(goblin) == &"enemy" and Combatant2D.team_of(player) == player.team and Combatant2D.status_controller_of(goblin) == goblin.status_controller and Combatant2D.status_controller_of(player) == player.status_controller, "H2-7 a character answers team and status controller from its own fields")
+	check(Combatant2D.passive_controller_of(player) == player.passive_controller and Combatant2D.passive_controller_of(player) != null and Combatant2D.passive_controller_of(goblin) == null, "H2-8 the passive controller is the player's, and the goblin has none")
+	check(Combatant2D.health_of(goblin) == goblin.health_component and Combatant2D.health_of(goblin.health_component) == goblin.health_component and Combatant2D.health_of(Node.new()) == null, "H2-9 health_of finds a character's health, a health component itself, and nothing on a bare node")
+
+	var gone := Node.new()
+	gone.free()
+	var bare := Node.new()
+	var arrow := (load(ARROW_SCENE_PATH) as PackedScene).instantiate()
+	check(Combatant2D.team_of(null) == &"" and Combatant2D.team_of(gone) == &"" and Combatant2D.team_of(bare) == &"" and Combatant2D.team_of(arrow) == &"", "H2-10 team_of gives the neutral team for null, a freed node, a bare node and a projectile")
+	check(Combatant2D.status_controller_of(null) == null and Combatant2D.status_controller_of(gone) == null and Combatant2D.status_controller_of(bare) == null and Combatant2D.status_controller_of(arrow) == null and Combatant2D.passive_controller_of(null) == null and Combatant2D.passive_controller_of(gone) == null and Combatant2D.passive_controller_of(bare) == null and Combatant2D.health_of(null) == null and Combatant2D.health_of(gone) == null, "H2-11 the controller and health helpers return null for null, a freed node, a bare node and a projectile")
+
+	var double_script := GDScript.new()
+	double_script.source_code = "extends Node\nvar team = &\"double_team\"\nvar status_controller = null\nvar passive_controller = null\n"
+	double_script.reload()
+	var double := Node.new()
+	double.set_script(double_script)
+	double.set("status_controller", goblin.status_controller)
+	check(Combatant2D.team_of(double) == &"double_team" and Combatant2D.status_controller_of(double) == goblin.status_controller and Combatant2D.passive_controller_of(double) == null, "H2-12 a non-character node with the right property names is still read (test doubles keep working)")
+
+	var helper_free := true
+	for path in ["res://Characters/Components/Combat/CombatResolver2D.gd", "res://Characters/Components/Combat/AttackEffect2D.gd", "res://Characters/Components/Passives/PassiveController2D.gd"]:
+		var src := FileAccess.get_file_as_string(path)
+		if src.contains(".get(\"team\")") or src.contains(".get(\"status_controller\")") or src.contains(".get(\"passive_controller\")"):
+			helper_free = false
+	check(helper_free, "H2-13 no combat script reads team, status_controller or passive_controller by string name outside Combatant2D")
+
+	# ---------- H2.3: channel_time is hidden but still validated ----------
+	var channel_hidden := false
+	for prop in (load("res://Weapons/Sword/Skills/Sword_Spin.tres") as SkillDefinition2D).get_property_list():
+		if prop["name"] == "channel_time":
+			channel_hidden = (int(prop["usage"]) & PROPERTY_USAGE_EDITOR) == 0 and (int(prop["usage"]) & PROPERTY_USAGE_STORAGE) != 0
+	check(channel_hidden, "H2-14 channel_time is stored but not shown in the Inspector")
+	var channel_def := (load("res://Weapons/Sword/Skills/Sword_Spin.tres") as SkillDefinition2D).duplicate() as SkillDefinition2D
+	channel_def.channel_time = 1.0
+	check(has_problem(channel_def.validate(), "channel_time"), "H2-15 a skill with channel_time above 0 is still rejected by validation")
+	bare.free()
+	arrow.free()
+	double.free()
+	await cleanup(main)
+
+
+## ---------- H3.5: a bad skill loadout is refused when the weapon is equipped ----------
+
+func run_h3_checks() -> void:
+	var main: Node = await fresh_far()
+	var player: Character2D = main.get_node("Player")
+	var controller: WeaponController2D = player.weapon_controller
+	var skills: SkillComponent2D = player.skill_component
+	var equipped_before := controller.get_equipped_weapon()
+	var skills_before := skills.get_skills().map(func(s): return s.id)
+
+	var clash := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	clash.weapon_id = &"h3_slot_clash"
+	var clash_skills: Array[SkillDefinition2D] = [make_skill(&"h3_a", 0), make_skill(&"h3_b", 1), make_skill(&"h3_c", 1)]
+	clash.active_skills = clash_skills
+	var clash_problems := controller.validate_equip(clash)
+	check(has_problem(clash_problems, "both use slot 1") and has_problem(clash_problems, "h3_b") and has_problem(clash_problems, "h3_c"), "H3-1 two skills in one slot are reported by the equip dry run, naming both skills and the slot")
+	check(not controller.equip(clash) and controller.get_equipped_weapon() == equipped_before and skills.get_skills().map(func(s): return s.id) == skills_before, "H3-2 a weapon whose skills share a slot is refused, and the old weapon and its skills stay")
+
+	var dup := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	dup.weapon_id = &"h3_dup_id"
+	var dup_skills: Array[SkillDefinition2D] = [make_skill(&"h3_same", 0), make_skill(&"h3_same", 1)]
+	dup.active_skills = dup_skills
+	check(has_problem(controller.validate_equip(dup), "skill id 'h3_same' is listed more than once") and not controller.equip(dup) and controller.get_equipped_weapon() == equipped_before, "H3-3 a weapon that lists one skill id twice is refused with the id in the message, and the old weapon stays")
+
+	# The runtime component stays forgiving when called directly: it keeps the first skill and skips the clash.
+	var loose := SkillComponent2D.new()
+	var accepted := loose.set_skills(clash_skills)
+	check(accepted == 2 and loose.has_skill(&"h3_a") and loose.has_skill(&"h3_b") and not loose.has_skill(&"h3_c"), "H3-4 set_skills called directly keeps the first skill of a slot clash and skips the rest; equip is the strict gate")
+	loose.free()
+	await cleanup(main)
+
+
+## ---------- H3.3 / H3.4: ignored-field warnings and one validation row per skill behavior ----------
+
+## Gives `skill` its own copy of its status_effect and returns it. duplicate(true) copies a skill's inline attack but not an
+## external .tres such as the shared Empowered status, so a check that changes the status must never edit the shared one.
+func h3_own_status(skill: SkillDefinition2D) -> StatusEffectDefinition2D:
+	skill.status_effect = skill.status_effect.duplicate() as StatusEffectDefinition2D
+	return skill.status_effect
+
+## Each row: a valid skill (a shipped one, deep-copied so a mutation never leaks), what breaks it (mutation, expected
+## problem text) and what only earns a warning (mutation, expected warning text). Adding a Behavior without a row fails H3-5.
+func skill_behavior_table() -> Dictionary:
+	var arrow_scene := load(ARROW_SCENE_PATH) as PackedScene
+	var area_scene := load("res://Characters/Components/Combat/AreaEffect2D.tscn") as PackedScene
+	var bleed := load(BLEED_PATH) as StatusEffectDefinition2D
+	var shot_attack := (load(POWER_SHOT_PATH) as SkillDefinition2D).attack
+	return {
+		"PROJECTILE": {
+			"base": func(): return (load(POWER_SHOT_PATH) as SkillDefinition2D).duplicate(true),
+			"breaks": [
+				[func(s): s.attack = null, "needs an attack"],
+				[func(s): s.targeting = SkillDefinition2D.Targeting.SELF, "AIM_DIRECTION"],
+				[func(s): s.attack.effect_scene = area_scene, "must be a ProjectileEffect2D"],
+				[func(s): s.id = &"", "id is empty"],
+				[func(s): s.cost_resource = SkillDefinition2D.CostResource.NONE, "cost_resource is NONE"],
+			],
+			"warns": [
+				[func(s): s.status_effect = bleed, "status_effect is only used by BUFF"],
+				[func(s): s.area_radius = 20.0, "area_radius is only used"],
+				[func(s): s.attack.effect_animation = &"heavy_slash", "effect_animation"],
+				[func(s): s.attack.charge_threshold = 1.0, "charge_animation is empty"],
+			],
+		},
+		"AREA": {
+			"base": func(): return (load(SPIN_PATH) as SkillDefinition2D).duplicate(true),
+			"breaks": [
+				[func(s): s.attack = null, "needs an attack"],
+				[func(s): s.max_range = 50.0, "max_range does nothing"],
+				[func(s): s.attack.effect_scene = arrow_scene, "must be an AreaEffect2D"],
+				[func(s): s.id = &"", "id is empty"],
+				[func(s): s.cost_resource = SkillDefinition2D.CostResource.NONE, "cost_resource is NONE"],
+			],
+			"warns": [
+				[func(s): s.status_effect = bleed, "status_effect is only used by BUFF"],
+				[func(s): s.attack.effect_animation = &"heavy_slash", "effect_animation"],
+				[func(s): s.attack.charge_threshold = 1.0, "charge_animation is empty"],
+			],
+		},
+		"DASH": {
+			"base": func(): return (load(LUNGE_PATH) as SkillDefinition2D).duplicate(true),
+			"breaks": [
+				[func(s): s.max_range = 0.0, "max_range above 0"],
+				[func(s): s.dash_speed = 0.0, "dash_speed above 0"],
+				[func(s): s.attack.effect_scene = arrow_scene, "dash strike"],
+				[func(s): s.id = &"", "id is empty"],
+				[func(s): s.cost_amount = 5.0, "cost_resource is NONE"],
+			],
+			"warns": [
+				[func(s): s.status_effect = bleed, "status_effect is only used by BUFF"],
+				[func(s): s.attack.effect_animation = &"heavy_slash", "effect_animation"],
+			],
+		},
+		"BUFF": {
+			"base": func(): return (load(EMPOWER_PATH) as SkillDefinition2D).duplicate(true),
+			"breaks": [
+				[func(s): s.status_effect = null, "needs a status_effect"],
+				[func(s): h3_own_status(s).duration = 0.0, "no duration"],
+				[func(s): s.id = &"", "id is empty"],
+				[func(s): s.cost_resource = SkillDefinition2D.CostResource.NONE, "cost_resource is NONE"],
+			],
+			"warns": [
+				[func(s): s.attack = shot_attack, "attack is ignored"],
+				[func(s): h3_own_status(s).tick_damage = 2, "ticks 2 damage"],
+				[func(s): s.max_range = 100.0, "max_range is only used"],
+				[func(s): s.area_radius = 20.0, "area_radius is only used"],
+			],
+		},
+		"NONE": {
+			"base": func(): return make_skill(&"h3_none", 0),
+			"breaks": [
+				[func(s): s.id = &"", "id is empty"],
+				[func(s): s.cost_amount = 5.0, "cost_resource is NONE"],
+				[func(s): s.slot = 5, "outside the weapon's"],
+			],
+			"warns": [
+				[func(s): s.attack = shot_attack, "attack is ignored"],
+				[func(s): s.status_effect = bleed, "status_effect is only used by BUFF"],
+			],
+		},
+	}
+
+func run_h3_table_checks() -> void:
+	var rows := skill_behavior_table()
+	var behavior_names: Array = SkillDefinition2D.Behavior.keys()
+	var missing: Array = behavior_names.filter(func(n): return not rows.has(n))
+	check(missing.is_empty() and rows.size() == behavior_names.size(), "H3-5 every skill behavior has a validation row (missing: %s)" % str(missing))
+	for behavior_name in rows:
+		var row: Dictionary = rows[behavior_name]
+		var base: SkillDefinition2D = row["base"].call()
+		check(base.behavior == SkillDefinition2D.Behavior[behavior_name] and base.validate().is_empty() and base.get_warnings().is_empty(), "H3-6 the %s base skill is valid and has no warnings (problems: %s; warnings: %s)" % [behavior_name, str(base.validate()), str(base.get_warnings())])
+		var missed_breaks: Array = []
+		for pair in row["breaks"]:
+			var broken: SkillDefinition2D = row["base"].call()
+			pair[0].call(broken)
+			if not has_problem(broken.validate(), pair[1]):
+				missed_breaks.append(pair[1])
+		check(missed_breaks.is_empty(), "H3-7 every %s break is reported by validate() (not reported: %s)" % [behavior_name, str(missed_breaks)])
+		var missed_warns: Array = []
+		for pair in row["warns"]:
+			var odd: SkillDefinition2D = row["base"].call()
+			pair[0].call(odd)
+			if not has_problem(odd.get_warnings(), pair[1]):
+				missed_warns.append(pair[1])
+		check(missed_warns.is_empty(), "H3-8 every %s ignored field earns a warning (no warning for: %s)" % [behavior_name, str(missed_warns)])
+
+	# Warnings never block: a skill that only warns still validates, and a weapon that only warns still reports clean.
+	var warned := (load(EMPOWER_PATH) as SkillDefinition2D).duplicate(true) as SkillDefinition2D
+	warned.max_range = 100.0
+	check(warned.validate().is_empty() and not warned.get_warnings().is_empty(), "H3-9 a skill that only earns warnings still validates")
+	var shipped_clean := true
+	for path in [SWORD_WEAPON_PATH, BOW_WEAPON_PATH, GOBLIN_SWORD_PATH, "res://Weapons/Bow/Bow_EnemyWeaponDefinition.tres"]:
+		var weapon := load(path) as WeaponDefinition2D
+		if not weapon.get_warnings().is_empty():
+			shipped_clean = false
+			print("  H3-10 warnings on %s: %s" % [path, str(weapon.get_warnings())])
+	check(shipped_clean, "H3-10 the four shipped weapon definitions have no warnings")
+	var noisy := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	noisy.weapon_id = &"h3_noisy"
+	var noisy_skill := (load(EMPOWER_PATH) as SkillDefinition2D).duplicate(true) as SkillDefinition2D
+	noisy_skill.area_radius = 10.0
+	var noisy_list: Array[SkillDefinition2D] = [noisy_skill]
+	noisy.active_skills = noisy_list
+	check(has_problem(noisy.get_warnings(), "weapon 'h3_noisy'") and has_problem(noisy.get_warnings(), "area_radius") and noisy.validate().is_empty(), "H3-11 a weapon's warnings name the weapon and the skill, and do not make it invalid")
+
+
+## ---------- H3.2: effect scene validators ----------
+
+const SLASH_SCENE_PATH := "res://Characters/Components/Combat/AttackSlash2D.tscn"
+const PROJECTILE_SCENE_PATH := "res://Characters/Components/Combat/ProjectileEffect2D.tscn"
+
+## Instantiates the scene at `path`, lets `mutate` change the instance, and packs it again. Never edits the shared scene.
+func h3_pack_with(path: String, mutate: Callable) -> PackedScene:
+	var instance := (load(path) as PackedScene).instantiate()
+	mutate.call(instance)
+	var packed := PackedScene.new()
+	var result := packed.pack(instance)
+	instance.free()
+	return packed if result == OK else null
+
+## Gives the slash's AnimationPlayer its own library whose "slash" clip has no tracks (the shared library is untouched).
+func h3_strip_slash_tracks(root: Node) -> void:
+	var player := root.get_node("SlashEffectAnimSpritesheet/AnimationPlayer") as AnimationPlayer
+	var library := AnimationLibrary.new()
+	library.add_animation(&"slash", Animation.new())
+	if player.has_animation_library(&""):
+		player.remove_animation_library(&"")
+	player.add_animation_library(&"", library)
+
+## Points two of the slash's node paths at nothing.
+func h3_break_slash_paths(root: Node) -> void:
+	root.set("animation_player_path", ^"Nope")
+	root.set("hitbox_origin_path", ^"Nowhere")
+
+func run_h3_scene_checks() -> void:
+	var shipped_ok := true
+	for path in [SLASH_SCENE_PATH, AREA_SCENE_PATH, PROJECTILE_SCENE_PATH, "res://Characters/Components/Combat/Arrow.tscn", ARROW_SCENE_PATH]:
+		var problems := AttackEffect2D.validate_scene(load(path) as PackedScene, &"slash")
+		if not problems.is_empty():
+			shipped_ok = false
+			print("  H3-12 problems in %s: %s" % [path, str(problems)])
+	check(shipped_ok, "H3-12 every shipped effect scene passes validate_scene (slash with its own clip)")
+	var heavy_ok := AttackEffect2D.validate_scene(load(SLASH_SCENE_PATH) as PackedScene, &"heavy_slash").is_empty()
+	var arrow_warnings := AttackEffect2D.scene_warnings(load(ARROW_SCENE_PATH) as PackedScene)
+	check(heavy_ok and AttackEffect2D.scene_warnings(load(SLASH_SCENE_PATH) as PackedScene).is_empty() and AttackEffect2D.scene_warnings(load(AREA_SCENE_PATH) as PackedScene).is_empty() and AttackEffect2D.scene_warnings(load(PROJECTILE_SCENE_PATH) as PackedScene).is_empty() and has_problem(arrow_warnings, "CapsuleShape2D"), "H3-13 the shipped slash, area and projectile scenes have no warnings, the heavy clip opens its hit window, and the bow arrow's capsule shape earns the 'not resized' warning")
+
+	var no_area := h3_pack_with(SLASH_SCENE_PATH, func(n): n.get_node("HitboxOrigin/HitboxMotion/Area2D").free())
+	var no_area_problems := AttackEffect2D.validate_scene(no_area, &"slash")
+	check(has_problem(no_area_problems, "hitbox_path") and has_problem(no_area_problems, "collision_shape_path"), "H3-14 a slash scene whose hit area is gone reports the hitbox and shape paths")
+
+	var no_track := h3_pack_with(SLASH_SCENE_PATH, h3_strip_slash_tracks)
+	check(has_problem(AttackEffect2D.validate_scene(no_track, &"slash"), "hit window never opens") and AttackEffect2D.validate_scene(no_track).is_empty(), "H3-15 a slash clip with no 'disabled' track is reported (and only when the clip is named)")
+
+	var bad_paths := h3_pack_with(SLASH_SCENE_PATH, h3_break_slash_paths)
+	var bad_path_problems := AttackEffect2D.validate_scene(bad_paths, &"slash")
+	check(has_problem(bad_path_problems, "animation_player_path 'Nope'") and has_problem(bad_path_problems, "hitbox_origin_path 'Nowhere'"), "H3-16 slash node paths that lead nowhere are reported by property name")
+
+	var no_shape := h3_pack_with(AREA_SCENE_PATH, func(n): (n.get_node("Hitbox/CollisionShape2D") as CollisionShape2D).shape = null)
+	var rect_area := h3_pack_with(AREA_SCENE_PATH, func(n): (n.get_node("Hitbox/CollisionShape2D") as CollisionShape2D).shape = RectangleShape2D.new())
+	check(has_problem(AttackEffect2D.validate_scene(no_shape), "has no shape") and AttackEffect2D.validate_scene(rect_area).is_empty() and has_problem(AttackEffect2D.scene_warnings(rect_area), "CircleShape2D is resized"), "H3-17 an area scene with no shape is a problem; a rectangle shape is only a warning")
+
+	var bad_hitbox := h3_pack_with(PROJECTILE_SCENE_PATH, func(n): n.hitbox_path = ^"Nope")
+	var plain := PackedScene.new()
+	var plain_node := Node2D.new()
+	plain.pack(plain_node)
+	plain_node.free()
+	check(has_problem(AttackEffect2D.validate_scene(bad_hitbox), "hitbox_path 'Nope'") and has_problem(AttackEffect2D.validate_scene(plain), "must be an AttackEffect2D") and AttackEffect2D.validate_scene(null).is_empty(), "H3-18 a projectile with a bad hitbox path and a root that is not an effect are reported; a null scene is left to the attack check")
+
+	# The equip dry run uses them, for a weapon's attacks and for its skills' attacks.
+	var main: Node = await fresh_far()
+	var player: Character2D = main.get_node("Player")
+	var controller: WeaponController2D = player.weapon_controller
+	var equipped_before := controller.get_equipped_weapon()
+	var bad_attack := (load("res://Weapons/Sword/Attacks/Sword_Slash1.tres") as AttackDefinition2D).duplicate() as AttackDefinition2D
+	bad_attack.id = &"h3_bad_fx"
+	bad_attack.effect_scene = no_area
+	var bad_weapon := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	bad_weapon.weapon_id = &"h3_bad_fx_weapon"
+	bad_weapon.heavy_attack = bad_attack
+	var bad_weapon_problems := controller.validate_equip(bad_weapon)
+	check(has_problem(bad_weapon_problems, "attack 'h3_bad_fx'") and has_problem(bad_weapon_problems, "hitbox_path") and not controller.equip(bad_weapon) and controller.get_equipped_weapon() == equipped_before, "H3-19 a weapon whose attack spawns a broken effect scene is refused with the attack and the path named, and the old weapon stays")
+
+	var bad_skill := (load(SPIN_PATH) as SkillDefinition2D).duplicate(true) as SkillDefinition2D
+	bad_skill.attack.effect_scene = no_shape
+	var skill_weapon := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	skill_weapon.weapon_id = &"h3_bad_skill_weapon"
+	var skill_list: Array[SkillDefinition2D] = [bad_skill]
+	skill_weapon.active_skills = skill_list
+	var skill_problems := controller.validate_equip(skill_weapon)
+	check(has_problem(skill_problems, "skill 'sword_spin'") and has_problem(skill_problems, "has no shape") and not controller.can_equip(skill_weapon), "H3-20 a skill whose attack spawns a broken effect scene is refused too, naming the skill")
+	check(controller.validate_equip(load(SWORD_WEAPON_PATH) as WeaponDefinition2D).is_empty() and controller.validate_equip(load(BOW_WEAPON_PATH) as WeaponDefinition2D).is_empty(), "H3-21 the shipped sword and bow still pass the equip dry run with the new scene checks")
+	await cleanup(main)
+
+
+## ---------- H3.1: one loadout report listing everything at once ----------
+
+func h3_find_weapon_definitions(dir_path: String) -> Array[String]:
+	var found: Array[String] = []
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return found
+	for sub in dir.get_directories():
+		found.append_array(h3_find_weapon_definitions(dir_path.path_join(sub)))
+	for file in dir.get_files():
+		if file.ends_with("WeaponDefinition.tres"): # no leading underscore: Bow_EnemyWeaponDefinition.tres is one too
+			found.append(dir_path.path_join(file))
+	return found
+
+func run_h3_report_checks() -> void:
+	# Every weapon definition under Weapons/ is valid and warning-free.
+	var paths := h3_find_weapon_definitions("res://Weapons")
+	var audit_ok := paths.size() >= 4
+	for path in paths:
+		var report := LoadoutReport2D.for_weapon(load(path) as WeaponDefinition2D)
+		if not report.is_valid() or not report.warnings.is_empty():
+			audit_ok = false
+			print(report.to_text())
+	check(audit_ok, "H3-22 every shipped weapon definition (%d found under Weapons/) has a loadout report with no problems and no warnings" % paths.size())
+
+	# A deliberately broken weapon: every problem in one pass.
+	var broken_scene := h3_pack_with(SLASH_SCENE_PATH, func(n): n.get_node("HitboxOrigin/HitboxMotion/Area2D").free())
+	var broken_attack := (load("res://Weapons/Sword/Attacks/Sword_Slash1.tres") as AttackDefinition2D).duplicate() as AttackDefinition2D
+	broken_attack.id = &"h3_broken_attack"
+	broken_attack.weapon_animation = &"nope_clip"
+	broken_attack.effect_scene = broken_scene
+	var empty_status := StatusEffectDefinition2D.new()
+	empty_status.id = &""
+	empty_status.duration = 0.0
+	var tickless := StatusEffectDefinition2D.new()
+	tickless.id = &"h3_tickless"
+	tickless.duration = 2.0
+	tickless.tick_damage = 3
+	tickless.tick_interval = 0.0
+	var broken_statuses: Array[StatusEffectDefinition2D] = [empty_status, tickless]
+	broken_attack.status_effects = broken_statuses
+	var broken := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	broken.weapon_id = &"h3_broken"
+	broken.heavy_attack = broken_attack
+	var broken_skills: Array[SkillDefinition2D] = [make_skill(&"h3_a", 1), make_skill(&"h3_b", 1), make_skill(&"h3_a", 2)]
+	broken.active_skills = broken_skills
+	var broken_report := LoadoutReport2D.for_weapon(broken)
+	var missing_needles: Array = []
+	for needle in ["nope_clip", "hitbox_path", "empty id", "duration above 0", "never ticks", "both use slot 1", "listed more than once"]:
+		if not has_problem(broken_report.problems, needle):
+			missing_needles.append(needle)
+	var text := broken_report.to_text()
+	check(missing_needles.is_empty() and not broken_report.is_valid() and text.contains("weapon 'h3_broken'") and text.contains("problem(s)") and text.contains("  problem: "), "H3-23 a deliberately broken weapon lists all of its problems in one report (not found: %s)" % str(missing_needles))
+
+	# A clip that never spawns its effect is only a warning.
+	var quiet_attack := (load("res://Weapons/Sword/Attacks/Sword_Slash1.tres") as AttackDefinition2D).duplicate() as AttackDefinition2D
+	quiet_attack.id = &"h3_quiet_attack"
+	quiet_attack.weapon_animation = &"idle"
+	var quiet := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	quiet.weapon_id = &"h3_quiet"
+	quiet.heavy_attack = quiet_attack
+	var quiet_report := LoadoutReport2D.for_weapon(quiet)
+	check(quiet_report.is_valid() and has_problem(quiet_report.warnings, "never spawns its effect") and has_problem(quiet_report.warnings, "h3_quiet_attack"), "H3-24 an attack clip with no spawn_effect key is a warning naming the attack; the weapon stays valid")
+
+	# The controller's report adds the character-dependent checks and agrees with equip.
+	var main: Node = await fresh_far()
+	var player: Character2D = main.get_node("Player")
+	var controller: WeaponController2D = player.weapon_controller
+	var bad_report := controller.get_loadout_report(broken)
+	var good_report := controller.get_loadout_report(load(SWORD_WEAPON_PATH) as WeaponDefinition2D)
+	check(bad_report.problems == controller.validate_equip(broken) and not bad_report.is_valid() and good_report.is_valid() and good_report.to_text().contains("0 problem(s)") and not controller.equip(broken), "H3-25 the controller's loadout report matches its equip dry run, and the broken weapon is refused")
+	await cleanup(main)
+
+
+## ---------- H4.1: equip is a transaction ----------
+## A refused or failed equip must leave the old weapon exactly as it was: the same mounted node in the same place, the
+## same animation player, the same attacks, skills and passives, and a swing that still finishes (the attack component
+## still listens to the old player).
+
+func h4_state(p: Character2D) -> Dictionary:
+	var pivot: Node2D = p.context.weapon_pivot
+	if not is_instance_valid(pivot):
+		return {"mount": null}
+	return {
+		"weapon": p.weapon_controller.get_equipped_weapon(),
+		"mount": pivot,
+		"mount_index": pivot.get_index(),
+		"mount_name": pivot.name,
+		"mount_siblings": pivot.get_parent().get_child_count(),
+		"animation_player": p.context.weapon_animation_player,
+		"default_attack": p.attack_component.definition.id,
+		"attack_ids": p.attack_component.get_attack_ids().duplicate(),
+		"skill_ids": p.skill_component.get_skills().map(func(s): return s.id),
+		"passive_ids": p.passive_controller.get_passive_ids().duplicate(),
+	}
+
+## The names of the parts of `after` that differ from `before` (empty = the old weapon is fully intact).
+func h4_differences(before: Dictionary, after: Dictionary) -> Array:
+	var diffs: Array = []
+	if not is_instance_valid(before["mount"]) or not before["mount"].is_inside_tree():
+		return ["mount_alive"]
+	if not after.has("weapon"):
+		return ["mount_missing"]
+	for key in before:
+		if before[key] != after[key]:
+			diffs.append(key)
+	return diffs
+
+## Starts a swing and waits for it to finish: proves the attack component still listens to the mounted weapon's player.
+func h4_swing_finishes(p: Character2D) -> bool:
+	if not p.attack_component.try_start(true, Vector2.RIGHT):
+		return false
+	var guard := 0
+	while p.context.is_attacking and guard < 240:
+		await phys(1)
+		guard += 1
+	var finished := not p.context.is_attacking and guard < 240
+	await phys(10)
+	return finished
+
+func run_h4_equip_checks() -> void:
+	var main: Node = await fresh_far()
+	var p: Character2D = main.get_node("Player")
+	var controller: WeaponController2D = p.weapon_controller
+	var before := h4_state(p)
+	var bow := load(BOW_WEAPON_PATH) as WeaponDefinition2D
+	var failures_seen: Array = []
+	controller.equip_failed.connect(func(_w, problems): failures_seen.append(problems))
+	check(controller.validate_equip(bow).is_empty() and before["skill_ids"].size() > 0, "H4-0 the shipped bow is a valid weapon to swap to, and the sword starts with skills (so the failure checks below have something to lose)")
+
+	# H4-1: the new weapon's scene is invalid (no AnimationPlayer). Refused before anything is touched.
+	var plain_scene := PackedScene.new()
+	var plain_node := Node2D.new()
+	plain_scene.pack(plain_node)
+	plain_node.free()
+	var no_player := bow.duplicate() as WeaponDefinition2D
+	no_player.weapon_id = &"h4_no_player"
+	no_player.weapon_scene = plain_scene
+	failures_seen.clear()
+	var refused_scene := not controller.equip(no_player)
+	var intact_scene: bool = h4_differences(before, h4_state(p)).is_empty() and await h4_swing_finishes(p)
+	check(refused_scene and failures_seen.size() == 1 and has_problem(failures_seen[0], "no AnimationPlayer") and intact_scene, "H4-1 an invalid weapon scene is refused with equip_failed, and the old weapon, attacks, skills, passives and swing are intact")
+
+	# H4-2: an attack names a clip the weapon scene does not have.
+	var missing_clip_attack := (load("res://Weapons/Bow/Attacks/Bow_ArrowShot.tres") as AttackDefinition2D).duplicate() as AttackDefinition2D
+	missing_clip_attack.weapon_animation = &"h4_missing_clip"
+	var missing_combo: Array[AttackDefinition2D] = [missing_clip_attack]
+	var missing_clip := bow.duplicate() as WeaponDefinition2D
+	missing_clip.weapon_id = &"h4_missing_clip"
+	missing_clip.basic_combo = missing_combo
+	failures_seen.clear()
+	var refused_clip := not controller.equip(missing_clip)
+	var intact_clip: bool = h4_differences(before, h4_state(p)).is_empty() and await h4_swing_finishes(p)
+	check(refused_clip and failures_seen.size() == 1 and has_problem(failures_seen[0], "h4_missing_clip") and intact_clip, "H4-2 a missing clip is refused naming the clip, and the old weapon is intact")
+
+	# H4-3: the attack component rejects the new attacks AFTER the weapon was swapped in; the old weapon must come back.
+	var stub = FailingApplyController.new()
+	p.add_child(stub)
+	stub.initialize(p.context, p.attack_component)
+	stub.equip_failed.connect(func(_w, problems): failures_seen.append(problems))
+	failures_seen.clear()
+	var refused_attacks: bool = not stub.equip(bow)
+	var intact_attacks: bool = h4_differences(before, h4_state(p)).is_empty() and await h4_swing_finishes(p)
+	check(refused_attacks and failures_seen.size() == 1 and has_problem(failures_seen[0], "attack component rejected") and intact_attacks, "H4-3 a rejected attack list after the swap puts the old weapon back (same node, same place) and frees the new one")
+	stub.queue_free()
+
+	# H4-4: the new weapon cannot be bound after it was mounted: its scene removes its own AnimationPlayer when it enters the tree.
+	var breaker := GDScript.new()
+	breaker.source_code = "extends Node2D\nfunc _ready() -> void:\n\tfor child in get_children():\n\t\tif child is AnimationPlayer:\n\t\t\tremove_child(child)\n\t\t\tchild.free()\n"
+	var breaker_ok := breaker.reload() == OK
+	var breaking_scene := h3_pack_with("res://Weapons/Bow/Bow.tscn", func(n): n.set_script(breaker))
+	var unbindable := bow.duplicate() as WeaponDefinition2D
+	unbindable.weapon_id = &"h4_unbindable"
+	unbindable.weapon_scene = breaking_scene
+	failures_seen.clear()
+	var valid_on_paper := controller.validate_equip(unbindable).is_empty()
+	var refused_bind := not controller.equip(unbindable)
+	var intact_bind: bool = h4_differences(before, h4_state(p)).is_empty() and await h4_swing_finishes(p)
+	check(breaker_ok and breaking_scene != null and valid_on_paper and refused_bind and failures_seen.size() == 1 and has_problem(failures_seen[0], "could not be bound") and intact_bind, "H4-4 a weapon that passes validation but cannot be bound is refused, and the old weapon is back in place with its player connected")
+
+	# H4-5: none of that damaged the machinery: a valid swap to the bow and back still works and restores the loadout.
+	var swapped := controller.equip(bow)
+	var bow_state := h4_state(p)
+	var back := controller.equip(load(SWORD_WEAPON_PATH) as WeaponDefinition2D)
+	var after := h4_state(p)
+	var restored := true
+	for key in ["weapon", "default_attack", "attack_ids", "skill_ids", "passive_ids", "mount_siblings"]:
+		if before[key] != after[key]:
+			restored = false
+	check(swapped and back and bow_state["weapon"] == bow and bow_state["skill_ids"] != before["skill_ids"] and restored, "H4-5 after the four failed equips a valid swap to the bow and back to the sword still works and restores the sword's attacks, skills and passives")
+	await cleanup(main)
+
+
+## ---------- H4.2 / H4.3: the status maths (D5) and the cooldown rule (D4), pinned ----------
+##
+## Damage a character deals, in order (CombatResolver2D, StatusController2D):
+##   multiplier = (1 + sum over running statuses of (damage_multiplier - 1) x stacks, never below 0) x (product of the
+##                wielder's passive multipliers that apply to this target)
+##   damage     = round(base x multiplier), at least 1 unless the multiplier is 0
+##   crit       = round(damage x crit_multiplier) on the already rounded damage
+##   defense    = max(damage - defense, 1)
+## Status bonuses ADD to each other; the passive multiplier then MULTIPLIES the sum; the product is rounded once. A tick
+## (periodic hit) skips all of it.
+
+func h4_buff(id: StringName, multiplier: float, rule: StatusEffectDefinition2D.StackRule = StatusEffectDefinition2D.StackRule.REFRESH, max_stacks: int = 1) -> StatusEffectDefinition2D:
+	var status := StatusEffectDefinition2D.new()
+	status.id = id
+	status.duration = 10.0
+	status.tick_interval = 0.0
+	status.tick_damage = 0
+	status.damage_multiplier = multiplier
+	status.stack_rule = rule
+	status.max_stacks = max_stacks
+	return status
+
+## A stand-in for a character: a plain node with the two properties the resolver reads through Combatant2D.
+func h4_attacker(ctl: StatusController2D, passives: Array = []) -> Node:
+	var double_script := GDScript.new()
+	double_script.source_code = "extends Node\nvar status_controller = null\nvar passive_controller = null\n"
+	double_script.reload()
+	var node := Node.new()
+	node.set_script(double_script)
+	node.set("status_controller", ctl)
+	if not passives.is_empty():
+		var passive_ctl := PassiveController2D.new()
+		node.add_child(passive_ctl)
+		passive_ctl.set_passives(passives)
+		node.set("passive_controller", passive_ctl)
+	return node
+
+## The hit CombatResolver2D would apply for `base` damage from `attacker` onto a fresh 100-hp target.
+func h4_resolved(attacker: Node, base: int, crit_multiplier: float = 0.0, defense: int = 0, target_health: int = 100) -> HitData:
+	var target := HealthComponent2D.new()
+	target.max_health = 100
+	target.defense = defense
+	target.health = target_health
+	var hit := HitData.new(base, attacker)
+	if crit_multiplier > 0.0:
+		hit.crit_chance = 1.0
+		hit.crit_multiplier = crit_multiplier
+	var resolved := CombatResolver2D.resolve(hit, target)
+	target.free()
+	return resolved
+
+## A status controller (with its health) carrying `statuses`, applied in order.
+func h4_carrier(main: Node, statuses: Array) -> StatusController2D:
+	var rig := status_rig(main)
+	for status in statuses:
+		rig["ctl"].apply_status(status)
+	return rig["ctl"]
+
+func run_h4_rules_checks() -> void:
+	var main: Node = await fresh_far()
+
+	# --- H4.2: status maths ---
+	var plain := h4_attacker(h4_carrier(main, []))
+	var single := h4_attacker(h4_carrier(main, [h4_buff(&"a", 1.5)]))
+	main.add_child(plain)
+	main.add_child(single)
+	check(h4_resolved(plain, 10).damage == 10 and h4_resolved(single, 10).damage == 15 and h4_resolved(single, 5).damage == 8, "H4-6 no status leaves damage alone; a 1.5 buff makes 10 into 15; 5 x 1.5 = 7.5 rounds up to 8")
+
+	var two_buffs := h4_attacker(h4_carrier(main, [h4_buff(&"a", 1.5), h4_buff(&"b", 1.25)]))
+	var equal_buffs := h4_attacker(h4_carrier(main, [h4_buff(&"a", 1.5), h4_buff(&"b", 1.5)]))
+	main.add_child(two_buffs)
+	main.add_child(equal_buffs)
+	check(h4_resolved(two_buffs, 8).damage == 14 and h4_resolved(equal_buffs, 10).damage == 20, "H4-7 two different buffs ADD their bonuses: 1.5 and 1.25 give 1.75 (8 -> 14), 1.5 and 1.5 give 2.0 (10 -> 20), not 2.25")
+
+	var stack_ctl := h4_carrier(main, [])
+	var stack_def := h4_buff(&"stack", 1.25, StatusEffectDefinition2D.StackRule.STACK, 3)
+	for i in 3:
+		stack_ctl.apply_status(stack_def)
+	var stacks_at_three := stack_ctl.get_stacks(&"stack")
+	var stack_attacker := h4_attacker(stack_ctl)
+	main.add_child(stack_attacker)
+	var damage_at_three := h4_resolved(stack_attacker, 8).damage
+	stack_ctl.apply_status(stack_def)
+	stack_ctl.apply_status(stack_def)
+	check(stacks_at_three == 3 and damage_at_three == 14 and stack_ctl.get_stacks(&"stack") == 3 and h4_resolved(stack_attacker, 8).damage == 14, "H4-8 each STACK adds (1.25 - 1) once: three stacks give 1.75 (8 -> 14), and more applications stay capped at max_stacks 3")
+
+	var refresh_ctl := h4_carrier(main, [])
+	var refresh_def := h4_buff(&"refresh", 1.25)
+	refresh_ctl.apply_status(refresh_def)
+	refresh_ctl.apply_status(refresh_def)
+	var refresh_attacker := h4_attacker(refresh_ctl)
+	main.add_child(refresh_attacker)
+	check(refresh_ctl.get_stacks(&"refresh") == 1 and h4_resolved(refresh_attacker, 8).damage == 10, "H4-9 REFRESH never stacks: applying 1.25 twice still gives one stack (8 -> 10)")
+
+	var timer_rig := status_rig(main)
+	var ignore_def := h4_buff(&"ignore", 1.5, StatusEffectDefinition2D.StackRule.IGNORE)
+	var refresh_timer_def := h4_buff(&"refresh_timer", 1.5)
+	timer_rig["ctl"].apply_status(ignore_def)
+	timer_rig["ctl"].apply_status(refresh_timer_def)
+	await phys(30)
+	var ignore_left: float = timer_rig["ctl"].get_remaining(&"ignore")
+	var ignored: bool = not timer_rig["ctl"].apply_status(ignore_def)
+	var refreshed: bool = timer_rig["ctl"].apply_status(refresh_timer_def)
+	check(ignored and timer_rig["ctl"].get_remaining(&"ignore") == ignore_left and ignore_left < 9.7 and refreshed and timer_rig["ctl"].get_remaining(&"refresh_timer") > 9.99, "H4-10 IGNORE leaves the running status and its timer alone; REFRESH puts the timer back to the full duration")
+
+	var debuff_one := h4_attacker(h4_carrier(main, [h4_buff(&"d1", 0.5)]))
+	var debuff_two := h4_attacker(h4_carrier(main, [h4_buff(&"d1", 0.5), h4_buff(&"d2", 0.5)]))
+	var debuff_three := h4_attacker(h4_carrier(main, [h4_buff(&"d1", 0.5), h4_buff(&"d2", 0.5), h4_buff(&"d3", 0.5)]))
+	main.add_child(debuff_one)
+	main.add_child(debuff_two)
+	main.add_child(debuff_three)
+	check(h4_resolved(debuff_one, 10).damage == 5 and h4_resolved(debuff_two, 10).damage == 0 and h4_resolved(debuff_three, 10).damage == 0, "H4-11 a 0.5 debuff halves damage; two take it to 0; a third cannot push it below 0")
+
+	var exec_list: Array[PassiveDefinition2D] = [make_event_passive(&"h4_exec", PassiveDefinition2D.Effect.DAMAGE_BONUS_LOW_HEALTH, 0, 0.5, 2.0)]
+	var combined := h4_attacker(h4_carrier(main, [h4_buff(&"a", 1.5)]), exec_list)
+	main.add_child(combined)
+	check(h4_resolved(combined, 3, 0.0, 0, 50).damage == 9 and h4_resolved(combined, 3, 0.0, 0, 100).damage == 5, "H4-12 the status sum and the passive MULTIPLY and round once: 3 x 1.5 x 2.0 = 9 at 50% health (not 10), and 3 x 1.5 = 4.5 rounds to 5 above the threshold")
+
+	var crit_hit := h4_resolved(single, 5, 2.0)
+	check(crit_hit.is_crit and crit_hit.damage == 16, "H4-13 a crit multiplies the already rounded buffed damage: 5 x 1.5 = 8, then x 2 = 16 (not 15)")
+
+	var halved := h4_attacker(h4_carrier(main, [h4_buff(&"d1", 0.5)]))
+	main.add_child(halved)
+	check(h4_resolved(single, 5, 2.0, 3).damage == 13 and h4_resolved(halved, 2, 0.0, 5).damage == 1, "H4-14 defense comes last: 16 - 3 = 13, and a hit never drops below the minimum of 1")
+
+	var periodic := HitData.new(10, single)
+	periodic.is_periodic = true
+	var periodic_target := HealthComponent2D.new()
+	periodic_target.max_health = 100
+	periodic_target.health = 100
+	var periodic_out := CombatResolver2D.resolve(periodic, periodic_target)
+	periodic_target.free()
+	var expiring_ctl := h4_carrier(main, [h4_buff(&"gone", 2.0)])
+	var expiring := h4_attacker(expiring_ctl)
+	main.add_child(expiring)
+	var buffed_damage := h4_resolved(expiring, 10).damage
+	expiring_ctl.remove_status(&"gone")
+	check(periodic_out == periodic and periodic_out.damage == 10 and buffed_damage == 20 and is_equal_approx(expiring_ctl.get_damage_multiplier(), 1.0) and h4_resolved(expiring, 10).damage == 10, "H4-15 a status tick skips all of it, and the bonus ends the moment the status does")
+	await cleanup(main)
+
+	# --- H4.3: the cooldown rule (D4): cooldowns belong to the character and are keyed by skill id ---
+	main = await fresh_far()
+	var p: Character2D = main.get_node("Player")
+	var controller: WeaponController2D = p.weapon_controller
+	var skills: SkillComponent2D = p.skill_component
+	var weapon_a := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	weapon_a.weapon_id = &"h4_weapon_a"
+	var a_skills: Array[SkillDefinition2D] = [make_skill(&"h4_cd_a", 0, 1.0), make_skill(&"h4_shared", 1, 6.0)]
+	weapon_a.active_skills = a_skills
+	var weapon_b := (load(BOW_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
+	weapon_b.weapon_id = &"h4_weapon_b"
+	var b_skills: Array[SkillDefinition2D] = [make_skill(&"h4_cd_b", 0, 1.0), make_skill(&"h4_shared", 2, 6.0)]
+	weapon_b.active_skills = b_skills
+	var finished_ids: Array = []
+	skills.cooldown_finished.connect(func(id): finished_ids.append(id))
+
+	var started: bool = controller.equip(weapon_a) and skills.try_use_slot(0, Vector2.RIGHT)
+	await phys(2)
+	var left_at_start := skills.get_cooldown_remaining(&"h4_cd_a")
+	var to_b: bool = controller.equip(weapon_b)
+	await phys(30)
+	var left_away := skills.get_cooldown_remaining(&"h4_cd_a")
+	check(started and to_b and left_at_start > 0.9 and is_equal_approx(skills.get_cooldown_duration(&"h4_cd_a"), 1.0) and not skills.has_skill(&"h4_cd_a") and left_away > 0.0 and left_away < left_at_start - 0.3 and not skills.is_ready(&"h4_cd_a"), "H4-16 swapping away keeps a running cooldown, and it keeps counting down while its skill is not equipped")
+
+	var back_to_a: bool = controller.equip(weapon_a)
+	var blocked: bool = not skills.try_use_slot(0, Vector2.RIGHT)
+	check(back_to_a and blocked and skills.can_use(&"h4_cd_a") != "" and skills.get_cooldown_remaining(&"h4_cd_a") > 0.0, "H4-17 swapping back finds the same cooldown still running: the skill cannot be used yet")
+
+	var used_shared: bool = skills.try_use_slot(1, Vector2.RIGHT)
+	await phys(3)
+	var to_b_again: bool = controller.equip(weapon_b)
+	check(used_shared and to_b_again and skills.get_skill_in_slot(2) != null and skills.get_skill_in_slot(2).id == &"h4_shared" and skills.get_cooldown_remaining(&"h4_shared") > 5.0 and not skills.is_ready(&"h4_shared") and not skills.try_use_slot(2, Vector2.RIGHT), "H4-18 two weapons that list the same skill id share one cooldown, even in different slots")
+
+	await phys(40)
+	var back_again: bool = controller.equip(weapon_a)
+	check(finished_ids.has(&"h4_cd_a") and skills.get_cooldown_remaining(&"h4_cd_a") == 0.0 and skills.get_cooldown_duration(&"h4_cd_a") == 0.0 and back_again and skills.is_ready(&"h4_cd_a") and skills.get_cooldown_remaining(&"h4_shared") > 3.0, "H4-19 a cooldown of a skill that is not equipped still ends (and is announced), so the skill is ready when its weapon returns; the long shared one is still running")
+	await cleanup(main)
+
+
+## ---------- H4.6: every random source is seeded, and a part starts from known global state ----------
+
+func run_h4_determinism_checks() -> void:
+	# Crit rolls: resetting the global state restarts the stream, so a part never inherits the one before it.
+	reset_global_state()
+	var first: Array = []
+	for i in 24:
+		first.append(CombatResolver2D._rolls_crit(0.5))
+	reset_global_state()
+	var second: Array = []
+	for i in 24:
+		second.append(CombatResolver2D._rolls_crit(0.5))
+	check(first == second and first.has(true) and first.has(false), "H4-28 the crit generator restarts from the test seed at the start of every part (24 rolls repeat, with both outcomes)")
+
+	# AI choices: every EnemyAIController2D that enters the tree starts from the test seed, however the enemy was made.
+	var main := await fresh_shipped()
+	var extra := (load("res://Characters/Enemies/BasicEnemy2D.tscn") as PackedScene).instantiate() as Character2D
+	main.add_child(extra)
+	var controllers := main.find_children("*", "EnemyAIController2D", true, false)
+	var all_seeded := controllers.size() >= 2
+	for controller in controllers:
+		all_seeded = all_seeded and (controller as EnemyAIController2D).rng.seed == TEST_SEED
+	check(all_seeded, "H4-29 every enemy AI controller in the arena starts from the test seed (%d found), including one added after the arena loaded" % controllers.size())
+	await cleanup(main)
+
+
+## ---------- H2.2: a skill that names a clip plays it, then executes (decision D3) ----------
+
+func run_h2_skill_clip_checks() -> void:
+	var main := await fresh()
+	var p: Character2D = main.get_node("Player")
+	var e: Node2D = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(0, 300)
+	var skills: SkillComponent2D = p.skill_component
+	var player: AnimationPlayer = p.context.weapon_animation_player
+	var clip := &"sword_slash_1"
+	var clip_frames := int(ceil(player.get_animation(clip).length * 60.0)) + 12
+	var fired: Array = []
+	skills.skill_executed.connect(func(_skill, _direction): fired.append(1))
+
+	# A cast skill with a clip: the clip plays at once, the effect comes after the cast time.
+	var with_clip := make_skill(&"h2_clip", 0, 0.5, 0.3)
+	with_clip.weapon_animation = clip
+	var listed: Array[SkillDefinition2D] = [with_clip]
+	skills.set_skills(listed)
+	check(skills.try_use_skill(&"h2_clip", Vector2.RIGHT) and player.is_playing() and player.current_animation == clip and fired.is_empty(), "H2-7 a skill that names a clip plays it the moment it starts, before the effect executes")
+	await phys(30)
+	check(fired.size() == 1 and not skills.is_casting(), "H2-8 the effect executes once, after the cast time, with the clip as the visible cast")
+	await phys(clip_frames)
+	check(player.current_animation != clip and not skills.is_casting(), "H2-9 when the clip ends the weapon leaves it (back to its RESET pose)")
+
+	# A cancelled cast stops its clip.
+	await phys(30) # the cooldown of the first use
+	var long_cast := make_skill(&"h2_long", 0, 0.5, 0.6)
+	long_cast.weapon_animation = clip
+	long_cast.interruptible = true
+	listed = [long_cast]
+	skills.set_skills(listed)
+	var fired_before := fired.size()
+	var started := skills.try_use_skill(&"h2_long", Vector2.RIGHT)
+	await phys(3)
+	var playing_during := player.current_animation == clip
+	var cancelled := skills.interrupt()
+	await phys(2)
+	check(started and playing_during and cancelled and player.current_animation != clip and fired.size() == fired_before, "H2-10 a cast cancelled before it executes stops its clip, and nothing executes")
+
+	# No clip: the weapon player is left alone.
+	await phys(40)
+	var no_clip := make_skill(&"h2_plain", 0, 0.5, 0.0)
+	listed = [no_clip]
+	skills.set_skills(listed)
+	var was_playing := player.is_playing()
+	var was_animation := player.current_animation
+	fired_before = fired.size()
+	var used := skills.try_use_skill(&"h2_plain", Vector2.RIGHT)
+	await phys(3)
+	check(used and fired.size() == fired_before + 1 and player.is_playing() == was_playing and player.current_animation == was_animation, "H2-11 a skill with no clip does not touch the weapon animation player")
+
+	# A clip the weapon lacks (validate() reports it for a weapon): playing does nothing and the skill still runs.
+	await phys(40)
+	var ghost := make_skill(&"h2_ghost", 0, 0.5, 0.0)
+	ghost.weapon_animation = &"h2_no_such_clip"
+	listed = [ghost]
+	skills.set_skills(listed)
+	fired_before = fired.size()
+	was_playing = player.is_playing()
+	was_animation = player.current_animation
+	used = skills.try_use_skill(&"h2_ghost", Vector2.RIGHT)
+	await phys(3)
+	check(used and fired.size() == fired_before + 1 and player.is_playing() == was_playing and player.current_animation == was_animation, "H2-12 a clip the weapon lacks plays nothing and the skill still executes")
+	await cleanup(main)
+
+
+## ---------- H7.4: controller bindings and the right stick aim ----------
+
+func run_h7_input_checks() -> void:
+	reset_global_state()
+	var combat_actions: Array[StringName] = [&"move_left", &"move_right", &"move_up", &"move_down", &"dash", &"attack_light", &"attack_heavy", &"weapon_next", &"skill_1", &"skill_2", &"skill_3"]
+	var aim_actions: Array[StringName] = [&"aim_left", &"aim_right", &"aim_up", &"aim_down"]
+
+	# The map: every combat action and every aim action has a controller binding, and no two actions share one.
+	var missing_pad: Array[String] = []
+	var seen: Dictionary = {}
+	var shared: Array[String] = []
+	for action in combat_actions + aim_actions:
+		if not InputMap.has_action(action):
+			missing_pad.append(String(action) + " (no such action)")
+			continue
+		var has_pad := false
+		for event in InputMap.action_get_events(action):
+			var key := ""
+			if event is InputEventJoypadButton:
+				key = "button %d" % (event as InputEventJoypadButton).button_index
+			elif event is InputEventJoypadMotion:
+				var motion := event as InputEventJoypadMotion
+				key = "axis %d %s" % [motion.axis, "+" if motion.axis_value > 0.0 else "-"]
+			if key != "":
+				has_pad = true
+				if seen.has(key):
+					shared.append("%s on %s and %s" % [key, seen[key], action])
+				seen[key] = String(action)
+		if not has_pad:
+			missing_pad.append(String(action))
+	check(missing_pad.is_empty(), "H7-1 every combat action and every aim action has a controller binding (missing: %s)" % ", ".join(missing_pad))
+	check(shared.is_empty(), "H7-2 no controller button or stick direction is bound to two actions (%s)" % ", ".join(shared))
+
+	# Keyboard and mouse are exactly what they were: the actions that had one still have it.
+	var keyboard_kept := true
+	for action in [&"move_left", &"move_right", &"move_up", &"move_down", &"weapon_next", &"skill_1", &"skill_2", &"skill_3"]:
+		var found := false
+		for event in InputMap.action_get_events(action):
+			found = found or event is InputEventKey
+		keyboard_kept = keyboard_kept and found
+	var mouse_kept := false
+	for event in InputMap.action_get_events(&"attack_light"):
+		mouse_kept = mouse_kept or (event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT)
+	check(keyboard_kept and mouse_kept, "H7-3 keyboard bindings and the left mouse button for attack_light are unchanged")
+
+	var main := await fresh()
+	var p: Character2D = main.get_node("Player")
+	p.global_position = Vector2(500, 500)
+	await phys(2)
+	var mouse_dir := (p.get_global_mouse_position() - p.global_position).normalized()
+	check(p._get_aim_direction().is_equal_approx(mouse_dir), "H7-4 with no stick the aim is still the direction to the mouse")
+
+	# A stick inside its dead zone does nothing.
+	Input.action_press(&"aim_right", 0.1)
+	check(p._get_aim_direction().is_equal_approx(mouse_dir), "H7-5 a stick pushed less than the dead zone does not move the aim")
+	Input.action_release(&"aim_right")
+
+	# A pushed stick aims; pick the direction furthest from the mouse so the two cannot be confused.
+	var sx := -1.0 if mouse_dir.x >= 0.0 else 1.0
+	var sy := -1.0 if mouse_dir.y >= 0.0 else 1.0
+	Input.action_press(&"aim_right" if sx > 0.0 else &"aim_left", 1.0)
+	Input.action_press(&"aim_down" if sy > 0.0 else &"aim_up", 1.0)
+	var stick_dir := Vector2(sx, sy).normalized()
+	check(p._get_aim_direction().is_equal_approx(stick_dir), "H7-6 a pushed right stick sets the aim direction (got %s, expected %s)" % [p._get_aim_direction(), stick_dir])
+
+	# Letting go keeps the last direction; it does not snap back to a mouse that has not moved.
+	Input.action_release(&"aim_right")
+	Input.action_release(&"aim_left")
+	Input.action_release(&"aim_up")
+	Input.action_release(&"aim_down")
+	check(p._get_aim_direction().is_equal_approx(stick_dir), "H7-7 releasing the stick keeps the last aim direction instead of snapping back to the mouse")
+
+	# Moving the mouse hands the aim back to it.
+	p._input(InputEventMouseMotion.new())
+	check(p._get_aim_direction().is_equal_approx(mouse_dir), "H7-8 moving the mouse hands the aim back to the mouse")
+
+	# A dead player ignores the stick.
+	Input.action_press(&"aim_right", 1.0)
+	p.take_damage(100000)
+	await phys(2)
+	check(not p.is_alive() and p._get_aim_direction().is_equal_approx(p.context.facing_direction), "H7-9 a dead player keeps its facing and ignores the stick")
+	Input.action_release(&"aim_right")
+	await cleanup(main)
+
+
+## ---------- H7.2 and H7.3: display settings and camera bounds ----------
+
+## The world a window of this width / height shape shows with stretch aspect `expand`: the base height stays 720 on
+## a wider window and the base width stays 1280 on a taller one. Divided by the camera zoom, it is the world on screen.
+func visible_world_for(aspect: float, base: Vector2, zoom: float) -> Vector2:
+	var base_aspect := base.x / base.y
+	var size := Vector2(base.y * aspect, base.y) if aspect >= base_aspect else Vector2(base.x, base.x / aspect)
+	return size / zoom
+
+func run_h7_display_checks() -> void:
+	reset_global_state()
+	# H7.2: the settings of the guide's baseline (D9).
+	var base := Vector2(float(ProjectSettings.get_setting("display/window/size/viewport_width")), float(ProjectSettings.get_setting("display/window/size/viewport_height")))
+	check(base == Vector2(1280, 720), "H7-10 the base viewport is 1280 x 720 (got %s)" % base)
+	check(ProjectSettings.get_setting("display/window/stretch/mode") == "canvas_items" and ProjectSettings.get_setting("display/window/stretch/aspect") == "expand", "H7-11 the stretch mode is canvas_items with aspect expand (got %s, %s)" % [ProjectSettings.get_setting("display/window/stretch/mode"), ProjectSettings.get_setting("display/window/stretch/aspect")])
+	check(int(ProjectSettings.get_setting("display/window/handheld/orientation")) == 0, "H7-12 the handheld orientation is landscape (D10)")
+
+	# H7.3: the camera keeps its zoom and is limited to the arena floor.
+	var main := await fresh_shipped()
+	var p: Character2D = main.get_node("Player")
+	var camera := p.get_node("Camera2D") as Camera2D
+	var floor_polygon := main.get_node("ArenaFloor") as Polygon2D
+	var bounds := CameraBounds2D.rect_of(floor_polygon)
+	check(camera.zoom == Vector2(3, 3), "H7-13 the camera zoom is still 3 (it is not changed to fill the screen)")
+	check(camera.limit_left == int(bounds.position.x) and camera.limit_top == int(bounds.position.y) and camera.limit_right == int(bounds.end.x) and camera.limit_bottom == int(bounds.end.y) and bounds.size == Vector2(1000, 640), "H7-14 the camera limits are the arena floor's bounds (got %d, %d, %d, %d)" % [camera.limit_left, camera.limit_top, camera.limit_right, camera.limit_bottom])
+
+	# Every supported window shape shows a world that fits inside the floor, so no ratio shows past the edge.
+	var shapes := {"16:9": 16.0 / 9.0, "21:9": 21.0 / 9.0, "32:9": 32.0 / 9.0, "16:10": 16.0 / 10.0, "4:3": 4.0 / 3.0, "5:4": 5.0 / 4.0, "1:1": 1.0}
+	var too_big: Array[String] = []
+	for shape in shapes:
+		var seen := visible_world_for(float(shapes[shape]), base, camera.zoom.x)
+		if seen.x > bounds.size.x or seen.y > bounds.size.y:
+			too_big.append("%s shows %s" % [shape, seen])
+	check(too_big.is_empty(), "H7-15 the world on screen fits inside the arena at 16:9, 21:9, 32:9, 16:10, 4:3, 5:4 and 1:1 (%s)" % ", ".join(too_big))
+	var portrait := visible_world_for(9.0 / 16.0, base, camera.zoom.x)
+	check(portrait.y > bounds.size.y, "H7-16 a 9:16 portrait window would show more than the arena (%s): the known limit behind D10, landscape only" % portrait)
+
+	# rect_of follows the polygon's own transform.
+	var shifted := Polygon2D.new()
+	shifted.polygon = PackedVector2Array([Vector2(-10, -5), Vector2(30, -5), Vector2(30, 15), Vector2(-10, 15)])
+	shifted.position = Vector2(100, 200)
+	check(CameraBounds2D.rect_of(shifted) == Rect2(90, 195, 40, 20), "H7-17 CameraBounds2D.rect_of includes the polygon's position")
+	shifted.free()
+	await cleanup(main)
+
+
+## ---------- Hotbar: clickable skill slots with a toggle ----------
+
+func click_event(button: MouseButton) -> InputEventMouseButton:
+	var event := InputEventMouseButton.new()
+	event.button_index = button
+	event.pressed = true
+	return event
+
+func run_h7_hotbar_checks() -> void:
+	reset_global_state()
+	var main := await fresh()
+	var p: Character2D = main.get_node("Player")
+	var bar := main.get_node("HUD/PlayerSkillBar") as SkillBar
+	var skills: SkillComponent2D = p.skill_component
+	var started: Array = []
+	skills.skill_started.connect(func(skill): started.append(skill.id))
+	check(bar.get_slot(0).mouse_filter == Control.MOUSE_FILTER_STOP and bar.get_slot(0).is_in_group(SkillSlot.POINTER_BLOCK_GROUP) and bar.get_slot(0).card.mouse_filter == Control.MOUSE_FILTER_IGNORE, "H7-18 a hotbar slot takes the click itself, lets its contents through, and is in the HUD pointer group")
+	check(bar.is_click_to_cast() and not p._pointer_over_hud(), "H7-19 click-to-cast is on by default, and with nothing hovered the player's pointer is not over the HUD")
+
+	# A left click casts the skill in that slot, like its key.
+	var slot_one_skill: SkillDefinition2D = bar.get_slot(0).get_bound_skill()
+	bar.get_slot(0)._gui_input(click_event(MOUSE_BUTTON_LEFT))
+	await phys(2)
+	check(slot_one_skill != null and started.has(slot_one_skill.id), "H7-20 a left click on slot 1 casts its skill")
+
+	# Another mouse button does not.
+	var before := started.size()
+	bar.get_slot(1)._gui_input(click_event(MOUSE_BUTTON_RIGHT))
+	await phys(2)
+	check(started.size() == before, "H7-21 a right click on a slot does not cast")
+
+	# Toggled off: the click does nothing. Toggled on again: it casts.
+	var toggles: Array = []
+	bar.click_to_cast_changed.connect(func(enabled): toggles.append(enabled))
+	bar.set_click_to_cast(false)
+	bar.get_slot(1)._gui_input(click_event(MOUSE_BUTTON_LEFT))
+	await phys(2)
+	check(not bar.is_click_to_cast() and started.size() == before and toggles == [false], "H7-22 with click-to-cast off a click on a slot casts nothing")
+	bar.set_click_to_cast(true)
+	await phys(60) # the skill cast by the first click must be over: a second skill is refused during a dash
+	bar.get_slot(1)._gui_input(click_event(MOUSE_BUTTON_LEFT))
+	await phys(2)
+	check(bar.is_click_to_cast() and started.size() == before + 1 and toggles == [false, true], "H7-23 switched back on, a click casts again")
+
+	# The key toggles it, and the key for each slot still casts while it is off.
+	check(InputMap.has_action(&"toggle_click_cast"), "H7-24 the toggle_click_cast action exists")
+	var press := InputEventAction.new()
+	press.action = &"toggle_click_cast"
+	press.pressed = true
+	bar._unhandled_input(press)
+	check(not bar.is_click_to_cast() and toggles == [false, true, false], "H7-25 the toggle key switches click-to-cast off")
+	bar._unhandled_input(press)
+	check(bar.is_click_to_cast() and toggles == [false, true, false, true], "H7-26 and on again")
+
+	# Keys are unaffected by the toggle.
+	bar.set_click_to_cast(false)
+	await phys(40)
+	var key_before := started.size()
+	Input.action_press(&"skill_3")
+	await phys(2)
+	Input.action_release(&"skill_3")
+	await phys(2)
+	check(started.size() == key_before + 1, "H7-27 the skill keys still cast with click-to-cast off")
+	await cleanup(main)
+
+
+## ---------- H7.5: the active input device ----------
+
+func run_h7_device_checks() -> void:
+	reset_global_state()
+	var Device := InputModeManager.Device
+	var desktop: Array[String] = ["windows", "linux", "macos", "web"]
+	var android_features: Array[String] = ["android"]
+	var ios_features: Array[String] = ["ios"]
+	var web_phone: Array[String] = ["web", "web_android"]
+	check(InputModeManager.default_device_for(desktop) == Device.KEYBOARD_MOUSE and InputModeManager.default_device_for(android_features) == Device.TOUCH and InputModeManager.default_device_for(ios_features) == Device.TOUCH and InputModeManager.default_device_for(web_phone) == Device.TOUCH, "H7-28 the start mode is TOUCH on Android, iOS and web on a phone, and KEYBOARD_MOUSE on a desktop")
+
+	var main := await fresh()
+	var manager := main.get_node_or_null("InputModeManager") as InputModeManager
+	check(manager != null and manager.is_in_group(InputModeManager.GROUP) and manager.active_device == Device.KEYBOARD_MOUSE, "H7-29 the manager is in the arena and starts as KEYBOARD_MOUSE on a desktop, whether or not a controller is connected (controller connected: %s)" % (manager != null and manager.has_controller()))
+	var changes: Array = []
+	manager.device_changed.connect(func(device): changes.append(device))
+
+	var pad := InputEventJoypadButton.new()
+	pad.pressed = true
+	manager._input(pad)
+	check(manager.active_device == Device.CONTROLLER and manager.is_controller() and changes == [Device.CONTROLLER], "H7-30 a controller button press makes the controller the active device and announces it")
+
+	var key := InputEventKey.new()
+	key.pressed = true
+	manager._input(key)
+	check(manager.active_device == Device.KEYBOARD_MOUSE and changes == [Device.CONTROLLER, Device.KEYBOARD_MOUSE], "H7-31 a key press switches back to KEYBOARD_MOUSE")
+
+	var touch := InputEventScreenTouch.new()
+	touch.pressed = true
+	manager._input(touch)
+	check(manager.active_device == Device.TOUCH and manager.is_touch(), "H7-32 a touch makes TOUCH the active device")
+
+	# A mouse event Godot makes from a touch is not the mouse.
+	var emulated := InputEventMouseButton.new()
+	emulated.pressed = true
+	emulated.device = InputEvent.DEVICE_ID_EMULATION
+	manager._input(emulated)
+	check(manager.active_device == Device.TOUCH, "H7-33 a mouse click made from a touch (emulated device) does not leave TOUCH")
+
+	var real_click := InputEventMouseButton.new()
+	real_click.pressed = true
+	manager._input(real_click)
+	check(manager.active_device == Device.KEYBOARD_MOUSE, "H7-34 a real mouse click switches to KEYBOARD_MOUSE")
+
+	# Drift and releases do not switch the device.
+	var count_before := changes.size()
+	var drift := InputEventJoypadMotion.new()
+	drift.axis = JOY_AXIS_RIGHT_X
+	drift.axis_value = 0.1
+	manager._input(drift)
+	var key_up := InputEventKey.new()
+	key_up.pressed = false
+	manager._input(key_up)
+	var still := InputEventMouseMotion.new()
+	manager._input(still)
+	var pad_up := InputEventJoypadButton.new()
+	pad_up.pressed = false
+	manager._input(pad_up)
+	check(manager.active_device == Device.KEYBOARD_MOUSE and changes.size() == count_before, "H7-35 stick drift, key and button releases and a mouse event that did not move change nothing")
+	drift.axis_value = 0.9
+	manager._input(drift)
+	check(manager.active_device == Device.CONTROLLER, "H7-36 a stick pushed past the threshold switches to CONTROLLER")
+
+	# The same device twice announces once.
+	count_before = changes.size()
+	manager._input(pad)
+	manager._input(drift)
+	check(changes.size() == count_before, "H7-37 more input from the active device does not announce it again")
+
+	# Unplugging the controller falls back to the platform's start mode.
+	manager._on_joy_connection_changed(0, false)
+	check(manager.active_device == Device.KEYBOARD_MOUSE or manager.has_controller(), "H7-38 when the last controller is unplugged the mode falls back to the platform default")
+	manager.set_device(Device.TOUCH)
+	check(manager.active_device == Device.TOUCH and changes.back() == Device.TOUCH, "H7-39 set_device() switches the mode and announces it")
+	await cleanup(main)
+
+
+## ---------- H7.6: the touch overlay ----------
+func touch_event(position: Vector2, pressed: bool, index: int = 0) -> InputEventScreenTouch:
+	var event := InputEventScreenTouch.new()
+	event.position = position
+	event.pressed = pressed
+	event.index = index
+	return event
+
+func drag_event(position: Vector2, index: int = 0) -> InputEventScreenDrag:
+	var event := InputEventScreenDrag.new()
+	event.position = position
+	event.index = index
+	return event
+
+func run_h7_touch_checks() -> void:
+	reset_global_state()
+	var Device := InputModeManager.Device
+	# Godot would turn every touch into a left mouse click, and attack_light is bound to it.
+	check(ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch", true) == false, "H7-40 touches are not turned into mouse clicks (a stick touch would otherwise also swing the weapon)")
+
+	var main := await fresh()
+	var p: Character2D = main.get_node("Player")
+	var manager := main.get_node("InputModeManager") as InputModeManager
+	var controls := main.get_node_or_null("HUD/MobileControls") as MobileControls
+	check(controls != null and controls.is_in_group(MobileControls.GROUP) and not controls.visible, "H7-41 the overlay is in the HUD and is hidden on a desktop start")
+	var needed: Array[StringName] = [&"attack_light", &"dash", &"weapon_next", &"skill_1", &"skill_2", &"skill_3"]
+	var missing: Array[String] = []
+	for action in needed:
+		if controls.get_button(action) == null:
+			missing.append(String(action))
+	var unmapped: Array[String] = []
+	for action in controls.get_actions():
+		if not InputMap.has_action(action):
+			unmapped.append(String(action))
+	check(controls.get_move_stick() != null and missing.is_empty() and unmapped.is_empty(), "H7-42 a move stick and a button for each touch combat action (the heavy attack is a hold on the attack button), all on existing input actions (missing: %s, not in the InputMap: %s)" % [", ".join(missing), ", ".join(unmapped)])
+	check(controls.get_move_stick().action_left == &"move_left" and controls.get_button(&"attack_heavy") == null, "H7-43 the left stick drives move_*, and there is no separate heavy button (D13, D15)")
+
+	# Shown on touch only; forced on by the debug switch.
+	manager.set_device(Device.TOUCH)
+	check(controls.visible, "H7-44 the overlay shows when the player is on touch")
+	manager.set_device(Device.CONTROLLER)
+	check(not controls.visible, "H7-45 it hides when a controller is in use")
+	manager.set_device(Device.KEYBOARD_MOUSE)
+	check(not controls.visible, "H7-46 and on keyboard and mouse")
+	controls.debug_force_visible = true
+	check(controls.visible, "H7-47 the debug switch forces it on")
+	controls.debug_force_visible = false
+	check(not controls.visible, "H7-48 and off again")
+	manager.set_device(Device.TOUCH)
+	await phys(2)
+
+	# Move stick: the finger sets the move_* strengths, and the player reads them.
+	var move := controls.get_move_stick()
+	var move_centre := move.get_global_rect().get_center()
+	var move_radius := move.size.x * 0.5
+	check(move_radius > 0.0, "H7-49 the move stick has a size (%s)" % move.size)
+	Input.action_press(&"move_left") # a key held on another device: the stick must never let it go
+	move._input(touch_event(move_centre, true, 0))
+	move._input(drag_event(move_centre + Vector2(move_radius * 0.5, 0), 0))
+	check(absf(Input.get_action_strength(&"move_right") - 0.5) < 0.01 and move.is_active(), "H7-50 half a push to the right presses move_right at half strength (got %s)" % Input.get_action_strength(&"move_right"))
+	move._input(drag_event(move_centre + Vector2(move_radius * 3.0, 0), 0))
+	check(absf(Input.get_action_strength(&"move_right") - 1.0) < 0.001 and move.value.length() <= 1.0001, "H7-51 dragging past the edge is full strength and no more")
+	Input.action_release(&"move_left")
+	check(p._get_movement_input().x > 0.9, "H7-52 the player's movement input is read from the stick (got %s)" % p._get_movement_input())
+	Input.action_press(&"move_left")
+	move._input(touch_event(move_centre, false, 0))
+	check(Input.get_action_strength(&"move_right") == 0.0 and not move.is_active() and move.value == Vector2.ZERO, "H7-53 lifting the finger releases the stick")
+	check(Input.is_action_pressed(&"move_left"), "H7-54 the stick lets go only of what it pressed, not of a key held elsewhere")
+	Input.action_release(&"move_left")
+
+	# Two thumbs at once, and a finger belongs to the control it landed on.
+	move._input(touch_event(move_centre, true, 0))
+	move._input(drag_event(move_centre + Vector2(-move_radius, 0), 0))
+	var attack_button := controls.get_button(&"attack_light")
+	var attack_centre := attack_button.get_global_rect().get_center()
+	check(attack_button.size.x > 0.0, "H7-57 the attack button has a size (%s)" % attack_button.size)
+	attack_button._input(touch_event(attack_centre, true, 1))
+	check(Input.is_action_pressed(&"attack_light") and attack_button.is_held() and Input.get_action_strength(&"move_left") > 0.99, "H7-58 a button and the stick work at the same time, one finger each")
+	move._input(drag_event(move_centre + Vector2(move_radius, 0), 1)) # finger 1 belongs to the button
+	check(Input.get_action_strength(&"move_left") > 0.99 and Input.get_action_strength(&"move_right") == 0.0, "H7-59 a drag by a finger that did not start on the stick does not move it")
+	move._input(touch_event(move_centre, true, 2)) # a second finger on an owned stick
+	check(move.is_active() and Input.get_action_strength(&"move_left") > 0.99, "H7-60 a second finger on a stick that is held changes nothing")
+	attack_button._input(touch_event(attack_centre, false, 1))
+	check(not Input.is_action_pressed(&"attack_light") and not attack_button.is_held() and Input.get_action_strength(&"move_left") > 0.99, "H7-61 lifting the button's finger releases attack_light and leaves the stick held")
+
+	# Hiding the overlay lets go of everything held, and a hidden overlay ignores touches.
+	attack_button._input(touch_event(attack_centre, true, 3))
+	manager.set_device(Device.KEYBOARD_MOUSE)
+	check(not Input.is_action_pressed(&"attack_light") and Input.get_action_strength(&"move_left") == 0.0 and not move.is_active() and not attack_button.is_held(), "H7-62 hiding the overlay releases every action it held")
+	attack_button._input(touch_event(attack_centre, true, 4))
+	move._input(touch_event(move_centre, true, 5))
+	check(not Input.is_action_pressed(&"attack_light") and not move.is_active(), "H7-63 a hidden overlay ignores touches")
+	manager.set_device(Device.TOUCH)
+	await phys(2)
+
+	# Buttons press the same actions as the keys, so the same gameplay runs.
+	var skills: SkillComponent2D = p.skill_component
+	var started: Array = []
+	skills.skill_started.connect(func(skill): started.append(skill.id))
+	var slot_one_skill := skills.get_skill_in_slot(0)
+	var skill_button := controls.get_button(&"skill_1")
+	var skill_centre := skill_button.get_global_rect().get_center()
+	await phys(60) # the light attack tapped on the attack button above must be over: a skill is refused during a swing
+	skill_button._input(touch_event(skill_centre, true, 0))
+	await phys(2)
+	skill_button._input(touch_event(skill_centre, false, 0))
+	await phys(4) # an aimed skill casts when the finger lifts, which the player sees a frame or two later
+	check(slot_one_skill != null and started.has(slot_one_skill.id), "H7-64 the skill 1 button casts the skill in slot 1, like its key")
+	await phys(60) # the skill above must be over: a weapon switch is refused during a cast
+	var weapon_before := p.weapon_controller.get_equipped_weapon().weapon_id
+	var swap_button := controls.get_button(&"weapon_next")
+	var swap_centre := swap_button.get_global_rect().get_center()
+	swap_button._input(touch_event(swap_centre, true, 0))
+	await phys(2)
+	swap_button._input(touch_event(swap_centre, false, 0))
+	await phys(2)
+	check(p.weapon_controller.get_equipped_weapon().weapon_id != weapon_before, "H7-65 the swap button switches weapon, like its key")
+
+	# Layout: the right-hand cluster starts clear of the skill bar at the 1280 base width.
+	var cluster := controls.get_node("RightCluster") as Control
+	var bar := main.get_node("HUD/PlayerSkillBar") as Control
+	var base_width := float(ProjectSettings.get_setting("display/window/size/viewport_width"))
+	var cluster_left := base_width + cluster.offset_left
+	var bar_right := base_width * bar.anchor_right + bar.offset_right
+	check(cluster.anchor_left == 1.0 and cluster.anchor_right == 1.0 and cluster.anchor_bottom == 1.0 and controls.get_move_stick().anchor_left == 0.0 and controls.get_move_stick().anchor_bottom == 1.0, "H7-66 the sticks and buttons are pinned to the bottom corners by anchors, not fixed screen positions")
+	check(cluster_left >= bar_right, "H7-67 the right-hand cluster (from x = %s) does not cover the skill bar (to x = %s) at the base width" % [cluster_left, bar_right])
+	await cleanup(main)
+
+
+## ---------- H7.7: prompts follow the active device ----------
+func run_h7_prompts_checks() -> void:
+	reset_global_state()
+	var Device := InputModeManager.Device
+	var main := await fresh()
+	var manager := main.get_node("InputModeManager") as InputModeManager
+	var bar := main.get_node("HUD/PlayerSkillBar") as SkillBar
+	var keys := [bar.get_slot(0).hotkey_label.text, bar.get_slot(1).hotkey_label.text, bar.get_slot(2).hotkey_label.text]
+	check(keys == ["1", "2", "3"], "H7-68 on keyboard and mouse the slots show the number keys (got %s)" % [keys])
+	manager.set_device(Device.CONTROLLER)
+	await phys(2)
+	var pad := [bar.get_slot(0).hotkey_label.text, bar.get_slot(1).hotkey_label.text, bar.get_slot(2).hotkey_label.text]
+	check(pad == ["X", "Y", "B"], "H7-69 with a controller in use the slots show its buttons for skill_1 to skill_3 (got %s)" % [pad])
+	manager.set_device(Device.TOUCH)
+	await phys(2)
+	var touch := [bar.get_slot(0).hotkey_label.text, bar.get_slot(1).hotkey_label.text, bar.get_slot(2).hotkey_label.text]
+	check(touch == ["", "", ""], "H7-70 on touch the slots show no key (the overlay's buttons carry the prompt) (got %s)" % [touch])
+	manager.set_device(Device.KEYBOARD_MOUSE)
+	await phys(2)
+	check(bar.get_slot(0).hotkey_label.text == "1" and bar.get_slot(2).hotkey_label.text == "3", "H7-71 back on keyboard the number keys return")
+	await cleanup(main)
+
+
+## ---------- H7.8: the same gameplay from every input source ----------
+## Presses or releases an action the way the given source does: "action" is what a key or a controller button does (the
+## binding itself is pinned by H7-1 to H7-3), "touch" is a finger on the overlay's button for that action.
+func matrix_set(main: Node, source: String, action: StringName, down: bool) -> void:
+	if source == "action":
+		if down:
+			Input.action_press(action)
+		else:
+			Input.action_release(action)
+		return
+	var button := (main.get_node("HUD/MobileControls") as MobileControls).get_button(action)
+	button._input(touch_event(button.get_global_rect().get_center(), down, 7))
+
+## Runs dash, a light tap, a heavy hold and the three skill slots from one source and returns what the game did.
+func matrix_run(source: String) -> Dictionary:
+	var Device := InputModeManager.Device
+	var main := await fresh()
+	var p: Character2D = main.get_node("Player")
+	if source == "touch":
+		(main.get_node("InputModeManager") as InputModeManager).set_device(Device.TOUCH)
+		await phys(2)
+	var started: Array = []
+	var dashes := [0]
+	var swings := [0]
+	p.skill_component.skill_started.connect(func(skill): started.append(skill.id))
+	p.dash_component.dash_started.connect(func(_direction): dashes[0] += 1)
+	p.attack_component.attack_started.connect(func(_direction): swings[0] += 1)
+
+	matrix_set(main, source, &"dash", true)
+	await phys(2)
+	matrix_set(main, source, &"dash", false)
+	await phys(60)
+	var dash_presses: int = dashes[0] # before the skills: Lunge is a dash skill and emits dash_started too
+	matrix_set(main, source, &"attack_light", true)
+	await phys(2)
+	matrix_set(main, source, &"attack_light", false)
+	await phys(2)
+	var tap_swings: int = swings[0]
+	await phys(100)
+	# A hold past charge_start_time charges the heavy attack; the release lets it go (same timing as U9, U10).
+	matrix_set(main, source, &"attack_light", true)
+	await phys(22)
+	var charging := p.attack_component.is_charging()
+	matrix_set(main, source, &"attack_light", false)
+	await phys(2)
+	var heavy := str(p.attack_component.get_active_attack_id())
+	await phys(120)
+	for action in [&"skill_1", &"skill_2", &"skill_3"]:
+		p.mana_component.restore(100.0)
+		matrix_set(main, source, action, true)
+		await phys(2)
+		matrix_set(main, source, action, false)
+		await phys(60)
+	var result := {"dashes": dash_presses, "tap_swings": tap_swings, "charging": charging, "heavy": heavy, "skills": started.duplicate()}
+	await cleanup(main)
+	return result
+
+func run_h7_matrix_checks() -> void:
+	reset_global_state()
+	var Device := InputModeManager.Device
+	var by_action: Dictionary = await matrix_run("action")
+	var by_touch: Dictionary = await matrix_run("touch")
+	check(by_action.dashes == 1 and by_touch.dashes == 1, "H7-72 dash runs once from an action press and once from the touch button (%s, %s)" % [by_action.dashes, by_touch.dashes])
+	check(by_action.tap_swings == 1 and by_touch.tap_swings == 1, "H7-73 a tap of attack_light starts one light attack from either source (%s, %s)" % [by_action.tap_swings, by_touch.tap_swings])
+	check(by_action.charging and by_touch.charging and by_action.heavy == by_touch.heavy and by_action.heavy == "sword_heavy_slash", "H7-74 holding attack_light charges and releasing it swings the heavy attack, the same from either source (%s, %s)" % [by_action.heavy, by_touch.heavy])
+	check(by_action.skills.size() == 3 and by_touch.skills == by_action.skills, "H7-75 skill_1 to skill_3 cast the same three skills from either source (%s, %s)" % [by_action.skills, by_touch.skills])
+
+	# Aim source priority: a drag from the attack button sets the aim (it presses aim_*, like a stick), and a real mouse
+	# movement hands it back to the mouse.
+	var main := await fresh()
+	var p: Character2D = main.get_node("Player")
+	(main.get_node("InputModeManager") as InputModeManager).set_device(Device.TOUCH)
+	await phys(2)
+	var aim_button := (main.get_node("HUD/MobileControls") as MobileControls).get_button(&"attack_light")
+	var centre := aim_button.get_global_rect().get_center()
+	var radius := aim_button.size.x * 0.5
+	aim_button._input(touch_event(centre, true, 1))
+	aim_button._input(drag_event(centre + Vector2(radius * 2.0, 0), 1))
+	check(p._get_aim_direction().distance_to(Vector2.RIGHT) < 0.001, "H7-76 a drag from the attack button to the right aims right (got %s)" % p._get_aim_direction())
+	aim_button._input(touch_event(centre, false, 1))
+	await phys(5) # the aim stays down a few frames after the lift, so the player reads it
+	var moved := InputEventMouseMotion.new()
+	moved.relative = Vector2(3, 0)
+	p._input(moved)
+	var mouse_dir := (p.get_global_mouse_position() - p.global_position).normalized()
+	check(p._get_aim_direction().distance_to(mouse_dir) < 0.001, "H7-77 a mouse movement after the stick hands the aim back to the mouse")
+	await cleanup(main)
+
+## H8.2 and H8.3: the aim shapes and the targeting service. The checks live in tests/h8_aim_checks.gd; this only runs them against the suite's counters.
+func run_h8_aim_checks() -> void:
+	reset_global_state()
+	H8AimChecks.run(check, root)
+
+## H8.4: the player's persistent aim state and the activation hook.
+func run_h8_aim_state_checks() -> void:
+	reset_global_state()
+	var main := await fresh()
+	H8AimChecks.run_player(check, main)
+	await cleanup(main)
+
+## ---------- H8.8: touch controls: tap, hold and drag, and the new layout ----------
+func touch_aim_vector() -> Vector2:
+	return Input.get_vector("aim_left", "aim_right", "aim_up", "aim_down")
+
+## A finger lands on the middle of `button`. Returns that point.
+func touch_down(button: TouchActionButton, finger: int) -> Vector2:
+	var centre := button.get_global_rect().get_center()
+	button._input(touch_event(centre, true, finger))
+	return centre
+
+## The finger on `button` slides to `direction` at full reach (one button width from the centre).
+func touch_drag_toward(button: TouchActionButton, finger: int, direction: Vector2) -> void:
+	var centre := button.get_global_rect().get_center()
+	button._input(drag_event(centre + direction.normalized() * button.size.x, finger))
+
+func touch_up(button: TouchActionButton, finger: int) -> void:
+	button._input(touch_event(button.get_global_rect().get_center(), false, finger))
+
+func run_h8_touch_checks() -> void:
+	reset_global_state()
+	var Device := InputModeManager.Device
+	var main := await fresh()
+	var p = main.get_node("Player") # untyped: it calls player.gd methods Character2D does not declare
+	var manager := main.get_node("InputModeManager") as InputModeManager
+	var controls := main.get_node("HUD/MobileControls") as MobileControls
+	manager.set_device(Device.TOUCH)
+	await phys(3)
+
+	# --- Layout (D13): no aim stick, one large attack button, the rest round it ---
+	var sticks := controls.find_children("*", "VirtualStick", true, false)
+	check(sticks.size() == 1 and sticks[0] == controls.get_move_stick() and controls.get_node_or_null("RightCluster/AimStick") == null, "H8-118 the overlay has the move stick and no aim stick")
+	var attack := controls.get_button(&"attack_light")
+	var viewport_rect: Rect2 = main.get_viewport().get_visible_rect()
+	var layout_ok := true
+	var largest := true
+	var attack_rightmost := true
+	var overlaps: Array[String] = []
+	var outside: Array[String] = []
+	var names: Array = controls._buttons.keys()
+	for name_a in names:
+		var a := controls.get_button(name_a)
+		var rect_a := a.get_global_rect()
+		if not viewport_rect.encloses(rect_a):
+			outside.append(String(name_a))
+		if a != attack:
+			largest = largest and a.size.x < attack.size.x
+			attack_rightmost = attack_rightmost and a.get_global_rect().end.x <= attack.get_global_rect().end.x
+		for name_b in names:
+			if String(name_a) < String(name_b):
+				var b := controls.get_button(name_b)
+				var gap := a.get_global_rect().get_center().distance_to(b.get_global_rect().get_center()) - a.size.x * 0.5 - b.size.x * 0.5
+				if gap < 0.0:
+					overlaps.append("%s/%s" % [name_a, name_b])
+	check(largest and attack_rightmost and attack.size.x >= 140.0, "H8-119 the attack button is the largest and reaches furthest right (size %s)" % attack.size)
+	check(overlaps.is_empty() and outside.is_empty(), "H8-120 no two buttons overlap and every button is on screen at the base size (overlaps: %s, off screen: %s)" % [overlaps, outside])
+	check(controls.get_button(&"skill_1").mode == TouchActionButton.Mode.AIM_ON_RELEASE and controls.get_button(&"dash").mode == TouchActionButton.Mode.PRESS and attack.drag_aim, "H8-121 skills cast on the lift, the dodge and attack press, and only the attack button and the skills can aim")
+	check(p.slot_has_aim_shape(0) and not p.slot_has_aim_shape(1) and not p.slot_has_aim_shape(2), "H8-122 the player says skill 1 has an aim and the self skill and the buff in slots 2 and 3 have none (D16)")
+
+	# --- Attack button: tap, wobble, drag ---
+	var swings: Array = []
+	p.attack_component.attack_started.connect(func(direction): swings.append(direction))
+	touch_down(attack, 1)
+	check(Input.is_action_pressed(&"attack_light") and touch_aim_vector() == Vector2.ZERO, "H8-123 a finger on the attack button holds attack_light and presses no aim")
+	attack._input(drag_event(attack.get_global_rect().get_center() + Vector2(10, 0), 1))
+	check(not attack.is_dragging() and touch_aim_vector() == Vector2.ZERO, "H8-124 a wobble inside the drag threshold aims nothing")
+	var thirty := Vector2.from_angle(deg_to_rad(30.0))
+	touch_drag_toward(attack, 1, thirty)
+	check(attack.is_dragging() and attack.get_aim().distance_to(thirty) < 0.001 and p._get_aim_direction().distance_to(thirty) < 0.02 and Input.is_action_pressed(&"attack_light"), "H8-125 a drag past the threshold aims where the finger points, as a stick would, and keeps the attack held (got %s, expected %s)" % [p._get_aim_direction(), thirty])
+	attack._input(drag_event(attack.get_global_rect().get_center() + Vector2(10, 0), 1))
+	check(attack.is_dragging() and attack.get_aim() == Vector2.ZERO and touch_aim_vector() == Vector2.ZERO, "H8-126 back inside the dead zone the manual aim is dropped")
+	touch_drag_toward(attack, 1, Vector2.LEFT)
+	touch_up(attack, 1)
+	check(not Input.is_action_pressed(&"attack_light") and touch_aim_vector().distance_to(Vector2.LEFT) < 0.02, "H8-127 on the lift the attack is released at once and the aim is still down for the player to read")
+	await phys(5)
+	check(touch_aim_vector() == Vector2.ZERO and not attack.is_held(), "H8-128 a few frames later the aim is let go too")
+	check(p._intended_aim() == Vector2.ZERO, "H8-129 an aim left by a finished drag is no aim: the next tap is assisted again")
+	await phys(100)
+
+	# A plain tap never presses an aim.
+	swings.clear()
+	var aim_seen := false
+	touch_down(attack, 2)
+	await phys(2)
+	aim_seen = aim_seen or touch_aim_vector() != Vector2.ZERO
+	touch_up(attack, 2)
+	for i in 4:
+		await phys(1)
+		aim_seen = aim_seen or touch_aim_vector() != Vector2.ZERO
+	check(swings.size() == 1 and not aim_seen, "H8-130 a tap starts one light attack and presses no aim (swings %s)" % swings.size())
+	await phys(100)
+
+	# A tap after a drag goes to a target near the last aim, not to the old drag direction.
+	touch_down(attack, 3)
+	touch_drag_toward(attack, 3, Vector2.DOWN)
+	touch_up(attack, 3)
+	await phys(6)
+	await phys(100)
+	var tilt := Vector2.DOWN.rotated(deg_to_rad(-15.0))
+	var stub := H8AimChecks._stub(main, p.global_position + tilt * 30.0)
+	swings.clear()
+	touch_down(attack, 4)
+	await phys(2)
+	touch_up(attack, 4)
+	await phys(3)
+	check(swings.size() == 1 and swings[0].distance_to(tilt) < 0.02, "H8-131 after a drag, a plain tap is assisted again: it goes toward a target near the last aim (got %s, expected %s)" % [swings, tilt])
+	stub.queue_free()
+	await phys(100)
+
+	# Hold, then drag: the heavy attack goes where the finger pointed.
+	swings.clear()
+	touch_down(attack, 5)
+	await phys(22)
+	var charging: bool = p.attack_component.is_charging()
+	touch_drag_toward(attack, 5, Vector2.UP)
+	await phys(2)
+	touch_up(attack, 5)
+	await phys(4)
+	check(charging and swings.size() == 1 and swings[0].distance_to(Vector2.UP) < 0.02, "H8-132 hold, drag up, lift swings the heavy attack up (charging %s, swings %s)" % [charging, swings])
+	await phys(120)
+
+	# Hiding the overlay in the middle of a drag lets go at once.
+	touch_down(attack, 6)
+	touch_drag_toward(attack, 6, Vector2.RIGHT)
+	manager.set_device(Device.KEYBOARD_MOUSE)
+	check(not Input.is_action_pressed(&"attack_light") and touch_aim_vector() == Vector2.ZERO and not attack.is_held(), "H8-133 hiding the overlay mid-drag releases the attack and the aim at once")
+	await cleanup(main)
+
+	# --- An aimed skill: the lift casts; a drag aims it ---
+	main = await fresh()
+	p = main.get_node("Player")
+	manager = main.get_node("InputModeManager") as InputModeManager
+	controls = main.get_node("HUD/MobileControls") as MobileControls
+	manager.set_device(Device.TOUCH)
+	await phys(3)
+	var skill_one := controls.get_button(&"skill_1")
+	var started: Array = []
+	var directions: Array = []
+	p.skill_component.skill_started.connect(func(skill): started.append(skill.id))
+	p.skill_component.skill_executed.connect(func(_skill, direction): directions.append(direction))
+	p.mana_component.restore(100.0)
+	touch_down(skill_one, 1)
+	await phys(5)
+	check(started.is_empty() and skill_one.casts_on_release() and skill_one.is_held(), "H8-134 a finger on an aimed skill casts nothing yet")
+	touch_drag_toward(skill_one, 1, Vector2.UP)
+	check(skill_one.get_aim().distance_to(Vector2.UP) < 0.001 and touch_aim_vector().distance_to(Vector2.UP) < 0.02, "H8-135 dragging from the skill aims it by hand")
+	touch_up(skill_one, 1)
+	await phys(4)
+	check(started.size() == 1 and touch_aim_vector() == Vector2.ZERO, "H8-136 the lift casts it once and then lets go of the aim")
+	await phys(40)
+	check(directions.size() >= 1 and directions[0].distance_to(Vector2.UP) < 0.02, "H8-137 the cast goes the way it was dragged (got %s)" % [directions])
+	await cleanup(main)
+
+	# --- A skill with no aim (self skill, buff): casts on touch-down, and a drag aims nothing (D16) ---
+	main = await fresh()
+	p = main.get_node("Player")
+	manager = main.get_node("InputModeManager") as InputModeManager
+	controls = main.get_node("HUD/MobileControls") as MobileControls
+	manager.set_device(Device.TOUCH)
+	await phys(3)
+	started.clear()
+	p.skill_component.skill_started.connect(func(skill): started.append(skill.id))
+	p.mana_component.restore(100.0)
+	var buff := controls.get_button(&"skill_3")
+	touch_down(buff, 1)
+	await phys(3)
+	check(started.has(&"empower") and not buff.casts_on_release(), "H8-138 a buff casts as soon as the finger lands (started %s)" % [started])
+	touch_drag_toward(buff, 1, Vector2.RIGHT)
+	check(not buff.is_dragging() and touch_aim_vector() == Vector2.ZERO, "H8-139 dragging from a buff aims nothing")
+	touch_up(buff, 1)
+	await cleanup(main)
+
+## ---------- H8.9: aim indicators ----------
+func run_h8_indicator_checks() -> void:
+	reset_global_state()
+	H8AimChecks.run_indicator_shapes(check)
+	H8AimChecks.run_indicator_node(check, root)
+	H8AimChecks.run_indicator_scenes(check, root)
+
+	var Device := InputModeManager.Device
+	var main := await fresh()
+	var p = main.get_node("Player") # untyped: it calls player.gd methods Character2D does not declare
+	var manager := main.get_node("InputModeManager") as InputModeManager
+	var controls := main.get_node("HUD/MobileControls") as MobileControls
+	manager.set_device(Device.TOUCH)
+	await phys(3)
+	check(p.get_aim_indicator() == null, "H8-163 nothing is drawn, and no indicator node exists yet, before an aimed action starts")
+	var heavy_shape: AimShape2D = p._heavy_assist_shape()
+	var attack := controls.get_button(&"attack_light")
+	p.context.last_aim_direction = Vector2.RIGHT
+	var near := H8AimChecks._stub(main, p.global_position + Vector2.RIGHT * minf(heavy_shape.max_range * 0.5, 40.0))
+
+	# --- A charging heavy attack shows its shape, ringing the target the release will take ---
+	touch_down(attack, 1)
+	await phys(3)
+	var indicator: AimIndicator2D = p.get_aim_indicator()
+	check(indicator == null or not indicator.is_showing(), "H8-164 a finger that has only just landed (still a tap) draws nothing")
+	await phys(19)
+	indicator = p.get_aim_indicator()
+	check(p.attack_component.is_charging() and indicator != null and indicator.is_showing() and indicator.get_shape() == heavy_shape, "H8-165 while the heavy attack charges its own aim shape is drawn")
+	check(indicator.get_picked() == near and indicator.get_candidates().has(near) and indicator.get_direction().distance_to(Vector2.RIGHT) < 0.02, "H8-166 the target the release will take is marked, and the shape points at it")
+	var assist_view: AssistIndicator2D = p.get_assist_indicator()
+	check(assist_view != null and assist_view.visible and assist_view.get_range_radius() > 0.0, "H8-243 the blue light-attack circle stays visible while the heavy attack charges")
+	check(assist_view.get_target() == null, "H8-244 while a heavy attack shows its own aim shape the light-attack target marker is not drawn")
+	var resolved: TargetingService2D.AimResult = p.get_targeting_service().resolve(p.global_position, Vector2.ZERO, heavy_shape, p.context.last_aim_direction, p.context.facing_direction, false)
+	check(resolved.target == indicator.get_picked(), "H8-167 the indicator's pick is what the assist resolves (same shape, same rules)")
+	p.get_targeting_service().begin_action()
+	touch_drag_toward(attack, 1, Vector2.UP)
+	await phys(2)
+	check(indicator.is_showing() and indicator.get_picked() == null and indicator.get_direction().distance_to(Vector2.UP) < 0.02, "H8-168 dragging aims by hand: the shape follows the finger and no target is picked")
+	touch_up(attack, 1)
+	await phys(8)
+	check(not indicator.is_showing(), "H8-169 releasing the heavy attack hides the indicator")
+	await phys(120)
+	p.aim_indicators = false
+	touch_down(attack, 2)
+	await phys(22)
+	check(p.attack_component.is_charging() and not indicator.is_showing(), "H8-170 with aim_indicators off nothing is drawn, but the charge still runs")
+	touch_up(attack, 2)
+	await phys(8)
+	p.aim_indicators = true
+	near.queue_free()
+	await phys(120)
+
+	# --- A light tap draws nothing (D14: assisted, no shape to show) ---
+	var swings: Array = []
+	p.attack_component.attack_started.connect(func(direction): swings.append(direction))
+	touch_down(attack, 3)
+	await phys(2)
+	touch_up(attack, 3)
+	await phys(4)
+	check(swings.size() == 1 and not indicator.is_showing(), "H8-171 a light tap attacks and draws no indicator")
+	await phys(100)
+
+	# --- An aimed skill: the shape shows while the finger is down, and the cast goes where it showed ---
+	p.mana_component.restore(100.0)
+	var skill_one := controls.get_button(&"skill_1")
+	var lunge_shape: AimShape2D = p._skill_assist_shape(0)
+	var started: Array = []
+	var directions: Array = []
+	p.skill_component.skill_started.connect(func(skill): started.append(skill.id))
+	p.skill_component.skill_executed.connect(func(_skill, direction): directions.append(direction))
+	var aimed_at := Vector2.RIGHT.rotated(deg_to_rad(10.0))
+	p.context.last_aim_direction = Vector2.RIGHT
+	for other in main.get_tree().get_nodes_in_group(TargetingService2D.GROUP):
+		if other != p and other is BasicEnemy2D:
+			other.remove_from_group(TargetingService2D.GROUP) # the world's own enemies would out-score the stub below
+	var mark := H8AimChecks._stub(main, p.global_position + aimed_at * minf(lunge_shape.max_range * 0.5, 60.0))
+	touch_down(skill_one, 1)
+	await phys(3)
+	indicator = p.get_aim_indicator()
+	check(indicator != null and indicator.is_showing() and indicator.get_shape() == lunge_shape and started.is_empty(), "H8-172 a finger on an aimed skill draws its shape and casts nothing yet")
+	check(indicator.get_picked() == mark and indicator.get_direction().distance_to(aimed_at) < 0.02, "H8-173 it points at the target the cast will take (picked %s, mark %s, direction %s, expected %s, candidates %s)" % [indicator.get_picked(), mark, indicator.get_direction(), aimed_at, indicator.get_candidates()])
+	var shown := indicator.get_direction()
+	touch_up(skill_one, 1)
+	await phys(4)
+	check(not indicator.is_showing(), "H8-174 the lift hides it")
+	await phys(30)
+	check(started.size() == 1 and directions.size() >= 1 and directions[0].distance_to(shown) < 0.02, "H8-175 the cast goes exactly the way the indicator pointed (cast %s, shown %s)" % [directions, shown])
+	mark.queue_free()
+	await phys(60)
+
+	# --- Dragging the skill aims by hand and the shape follows the finger ---
+	p.mana_component.restore(100.0)
+	touch_down(skill_one, 2)
+	touch_drag_toward(skill_one, 2, Vector2.DOWN)
+	await phys(2)
+	check(indicator.is_showing() and indicator.get_picked() == null and indicator.get_direction().distance_to(Vector2.DOWN) < 0.02, "H8-176 a dragged skill shows its shape toward the finger")
+	touch_drag_toward(skill_one, 2, Vector2.LEFT)
+	await phys(2)
+	check(indicator.get_direction().distance_to(Vector2.LEFT) < 0.02, "H8-177 and it turns as the finger turns")
+	manager.set_device(Device.KEYBOARD_MOUSE)
+	await phys(2)
+	check(not indicator.is_showing() and p._preview_slot == -1, "H8-178 hiding the overlay mid-drag cancels the preview")
+	manager.set_device(Device.TOUCH)
+	await phys(3)
+
+	# --- A buff and a self skill show no indicator at all (D16) ---
+	var self_skill := controls.get_button(&"skill_2")
+	var buff := controls.get_button(&"skill_3")
+	p.mana_component.restore(100.0)
+	touch_down(self_skill, 3)
+	await phys(2)
+	check(not indicator.is_showing(), "H8-179 a self skill shows no indicator")
+	touch_up(self_skill, 3)
+	await phys(60)
+	p.mana_component.restore(100.0)
+	touch_down(buff, 4)
+	await phys(2)
+	check(not indicator.is_showing() and p._preview_slot == -1, "H8-180 a buff shows no indicator")
+	touch_up(buff, 4)
+	await phys(5)
+
+	# --- Dead players draw nothing ---
+	p.begin_skill_preview(0)
+	await phys(2)
+	check(indicator.is_showing(), "H8-181 setup: a preview on a live player is drawn")
+	p.health_component.apply_hit(HitData.new(100000))
+	await phys(3)
+	check(not p.is_alive() and not indicator.is_showing(), "H8-182 a dead player's indicator is hidden (alive %s, showing %s, slot %s)" % [p.is_alive(), indicator.is_showing(), p._preview_slot])
+	await cleanup(main)
+
+## ---------- H8.8b: the ground circle (drag-to-place) ----------
+func run_h8_ground_checks() -> void:
+	reset_global_state()
+	H8AimChecks.run_ground_shapes(check)
+	H8AimChecks.run_ground_node(check, root)
+	H8AimChecks.run_ground_pull(check, root)
+	var main := await fresh()
+	H8AimChecks.run_ground_player(check, main)
+	await cleanup(main)
+
+## ---------- H8.8c: the touch layout lives in a scene ----------
+func run_h8_layout_checks() -> void:
+	reset_global_state()
+	await H8AimChecks.run_scene_layout(check, root)
+
+## ---------- H8.8d: the skills are on the touch buttons, the hotbar is hidden on touch ----------
+func run_h8_skillface_checks() -> void:
+	reset_global_state()
+	var Device := InputModeManager.Device
+	var main := await fresh()
+	var p := main.get_node("Player")
+	var manager := main.get_node("InputModeManager") as InputModeManager
+	var bar := main.get_node("HUD/PlayerSkillBar") as SkillBar
+	var controls := main.get_node("HUD/MobileControls") as MobileControls
+	await phys(2)
+	check(bar.visible, "H8-225 on keyboard and mouse the hotbar is shown")
+	manager.set_device(Device.TOUCH)
+	await phys(2)
+	check(not bar.visible, "H8-226 on touch the hotbar is hidden")
+	var faces_ok := true
+	for slot in range(3):
+		var face := controls.get_skill_face(StringName("skill_%d" % (slot + 1)))
+		var skill: SkillDefinition2D = p.skill_component.get_skill_in_slot(slot)
+		if face == null or face.get_bound_skill() != skill:
+			faces_ok = false
+	check(faces_ok, "H8-227 each skill button has a face bound to the skill in its slot")
+	var first := controls.get_skill_face(&"skill_1")
+	check(first != null and controls.get_button(&"skill_1").caption == "", "H8-228 a button with a skill drops its number caption (the icon is the label)")
+	var skill_one: SkillDefinition2D = p.skill_component.get_skill_in_slot(0)
+	p.skill_component.try_use_slot(0)
+	await phys(2)
+	check(first.get_cooldown_fraction() > 0.0 or p.skill_component.get_casting_skill() != null, "H8-229 the face shows the cooldown (or the cast) after the skill is used")
+	check(skill_one != null and first.mouse_filter == Control.MOUSE_FILTER_IGNORE, "H8-230 the face never takes a touch")
+	manager.set_device(Device.CONTROLLER)
+	await phys(2)
+	check(bar.visible, "H8-231 with a controller the hotbar is back")
+	await cleanup(main)
+
+
+## ---------- H9.7: replaceable visual scene wiring and hidden ignored Inspector field ----------
+
+func run_h9_visual_checks() -> void:
+	var area_attack := AttackDefinition2D.new()
+	area_attack.effect_scene = load(AREA_SCENE_PATH) as PackedScene
+	area_attack.effect_animation = &"legacy_area_clip"
+	var area_editor_visible := false
+	for prop in area_attack.get_property_list():
+		if prop.name == &"effect_animation":
+			area_editor_visible = (int(prop.usage) & PROPERTY_USAGE_EDITOR) != 0
+	check(not area_editor_visible and area_attack.effect_animation == &"legacy_area_clip" and has_problem(area_attack.get_warnings(), "legacy_area_clip"), "H9-62 area effect hides effect_animation in the Inspector while retaining legacy data and its warning")
+
+	var projectile_attack := AttackDefinition2D.new()
+	projectile_attack.effect_scene = load(PROJECTILE_SCENE_PATH) as PackedScene
+	var projectile_editor_visible := false
+	for prop in projectile_attack.get_property_list():
+		if prop.name == &"effect_animation":
+			projectile_editor_visible = (int(prop.usage) & PROPERTY_USAGE_EDITOR) != 0
+	check(not projectile_editor_visible, "H9-63 projectile effect hides effect_animation in the Inspector")
+
+	var slash_attack := AttackDefinition2D.new()
+	slash_attack.effect_scene = load(SLASH_SCENE_PATH) as PackedScene
+	var slash_editor_visible := false
+	for prop in slash_attack.get_property_list():
+		if prop.name == &"effect_animation":
+			slash_editor_visible = (int(prop.usage) & PROPERTY_USAGE_EDITOR) != 0
+	check(slash_editor_visible, "H9-64 animated slash keeps effect_animation visible in the Inspector")
+
+	var mobile_scene := load("res://UI/Touch/MobileControls.tscn") as PackedScene
+	var mobile: MobileControls = null
+	if mobile_scene != null:
+		mobile = mobile_scene.instantiate() as MobileControls
+	var faces_ok := mobile != null
+	if faces_ok:
+		for slot in range(1, 4):
+			var face := mobile.get_node_or_null("RightCluster/Button_skill_%d/SkillFace" % slot)
+			if not face is TouchSkillFace:
+				faces_ok = false
+				break
+	check(faces_ok, "H9-65 shipped mobile scene authors a TouchSkillFace under each skill button")
+	if mobile != null:
+		mobile.free()

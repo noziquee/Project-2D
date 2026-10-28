@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://4ckccf11jtdb" path="res://Characters/Components/Aim/AimIndicator2D.gd" id="1_aim"]
+
+[node name="AimIndicator2D" type="Node2D"]
+z_index = 50
+script = ExtResource("1_aim")

@@ -88,10 +88,27 @@ enum ReleaseMode {
 @export_group("Effect + Hitbox")
 ## Scene spawned by each of the weapon clip's attack_event(&"spawn_effect") events (root needs a script that extends AttackEffect2D, such as AttackSlash2D.gd).
 ## Required (10.1): an attack with no effect_scene is rejected with an error naming the attack.
-@export var effect_scene: PackedScene
+@export var effect_scene: PackedScene:
+	set(value):
+		effect_scene = value
+		notify_property_list_changed()
 ## The clip of the effect scene's AnimationPlayer that this attack plays (9.8a). `slash` is the default;
-## AttackSlash2D.tscn also ships `heavy_slash`. A scene without the clip is rejected with a message naming it.
+## AttackSlash2D.tscn also ships `heavy_slash`. Hidden for area/projectile scenes (which do not play this clip),
+## but kept in storage so older resources retain their values and the H3.3 warning can still report them.
 @export var effect_animation: StringName = &"slash"
+
+## H9.7 / D22: hide a setting that has no effect for these effect types without deleting serialized legacy values.
+func _validate_property(property: Dictionary) -> void:
+	if property.name == &"effect_animation" and _uses_non_animated_effect_scene():
+		property.usage = int(property.usage) & ~PROPERTY_USAGE_EDITOR
+
+func _uses_non_animated_effect_scene() -> bool:
+	if effect_scene == null or not effect_scene.can_instantiate():
+		return false
+	var probe := effect_scene.instantiate()
+	var unsupported := probe is AreaEffect2D or probe is ProjectileEffect2D
+	probe.free()
+	return unsupported
 ## Optional impact effect (root needs no script; it frees itself) spawned at the contact
 ## point of every hit this attack lands. Empty = no impact effect.
 @export var hit_effect_scene: PackedScene
@@ -104,10 +121,31 @@ enum ReleaseMode {
 ## ignore it. At 60 fps keep speed / 60 below the hitbox length (hitbox_size.x), or the projectile can step over a thin target.
 @export_range(0.0, 3000.0, 1.0) var projectile_speed: float = 0.0
 
-@export_group("AI")
-## Centre-to-centre distance at which an AI starts this attack. 0 = use the AI
-## controller's FALLBACK_ATTACK_RANGE (30 px). Keep it at or below the swing's real reach.
-@export_range(0.0, 300.0, 1.0) var ai_attack_range: float = 0.0
+@export_group("Range")
+## How far this attack reaches, in pixels, measured from the character centre (H9.1, D18). One number for every user of
+## the attack: the light-attack circle the player sees, how far a light tap looks for a target (H8.5), and the distance
+## at which an AI starts the swing (0 = the AI controller's FALLBACK_ATTACK_RANGE, 30 px). The real hitbox and damage are
+## not changed by it, so keep it at or below the swing's real reach. A heavy attack or skill aims with its own
+## aim_shape and does not use it.
+@export_range(0.0, 1000.0, 1.0) var attack_range: float = 0.0
+
+## How far this attack reaches from the character centre, in pixels, whatever kind of attack it is (H9.1c): the number
+## auto-approach closes to before swinging and the radius an aim indicator is clipped to. A light attack answers with its
+## `attack_range`; a heavy attack, which leaves `attack_range` at 0, answers with the reach of its `aim_shape`. 0 = no
+## reach known (no `attack_range` and no `aim_shape`), so nothing can be measured against it.
+func get_reach() -> float:
+	if attack_range > 0.0:
+		return attack_range
+	if aim_shape != null:
+		return aim_shape.max_range
+	return 0.0
+
+@export_group("Aim assist")
+## The shape a HEAVY attack is aimed with (H8.6): the fan, line or arrow the player aims inside, and the area target
+## assist looks in. Empty = no aim shape. Light attacks ignore it (they use attack_range; the weapon warns if a
+## basic_combo attack sets one). A shape guides aiming only; the real hitbox and damage never change. Reserved: the
+## heavy attack's assist and indicator read it from H8.7 and H8.9; nothing does yet.
+@export var aim_shape: AimShape2D
 
 @export_group("Combo")
 ## Attack started by a request that arrives inside this attack's combo window (the
@@ -136,3 +174,21 @@ enum ReleaseMode {
 @export var release_mode: ReleaseMode = ReleaseMode.INPUT_RELEASE
 ## Seconds of charge after which a THRESHOLD attack releases by itself. Must be above 0 for THRESHOLD.
 @export_range(0.0, 10.0, 0.01) var charge_threshold: float = 0.0
+
+## The effect_animation every new attack starts with. A different, non-empty value on an area or projectile attack is a
+## deliberate choice that will never play, so it is worth a warning; the default is not.
+const DEFAULT_EFFECT_ANIMATION := &"slash"
+
+## Things that are set but will have no effect (H3.3), as readable messages naming the attack. Unlike a problem, a
+## warning never stops a weapon from being equipped. Empty when nothing is ignored.
+func get_warnings() -> Array[String]:
+	var found: Array[String] = []
+	var label := "attack '%s'" % id
+	if charge_animation == &"" and (charge_threshold > 0.0 or release_mode != ReleaseMode.INPUT_RELEASE):
+		found.append("%s: charge_threshold or release_mode is set but charge_animation is empty; nothing will show while it charges." % label)
+	if effect_animation != &"" and effect_animation != DEFAULT_EFFECT_ANIMATION and effect_scene != null and effect_scene.can_instantiate():
+		var probe := effect_scene.instantiate()
+		if probe is AreaEffect2D or probe is ProjectileEffect2D:
+			found.append("%s: effect_animation '%s' is ignored: area and projectile effects have no effect AnimationPlayer." % [label, effect_animation])
+		probe.free()
+	return found

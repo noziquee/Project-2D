@@ -1,5 +1,7 @@
 # Project-2D
 
+[![checks](https://github.com/noziquee/Project-2D/actions/workflows/checks.yml/badge.svg)](https://github.com/noziquee/Project-2D/actions/workflows/checks.yml)
+
 A top-down 2D action RPG built with Godot 4.7. The player and enemies use data-driven weapons, attacks, projectiles, skills, and combat components. Weapon-specific content is organized under `Weapons/<WeaponName>/`; runtime systems remain under `Characters/Components/`.
 
 ## Controls
@@ -25,13 +27,19 @@ The HUD displays health, mana, skill icons, cooldowns, hotkeys, and mana costs. 
    godot --headless --import --path .
    ```
 
-3. Run the smoke suite:
+3. Run the smoke suite (or run steps 2 and 3 together with `tools/run_checks.sh`, which saves the log under `tools/logs/`):
 
    ```bash
    godot --headless --fixed-fps 60 --path . --script res://tests/smoke_checks.gd
    ```
 
-The last **confirmed** result is `SUMMARY passes=1109 failures=0` (headless Godot 4.7.2, October 26, 2026; import clean; see `docs/trackW/W9-notes.md`). It covers Track W, P2 to P7 and the retimed bow-cycle checks. The V3 play-test and your own run in the editor are still open.
+Every push and pull request also runs this on GitHub (`.github/workflows/checks.yml`, Godot 4.7.2): a red run means a check failed, or the suite did not finish. The log is attached to the run as the `smoke-log` artifact.
+
+The single status file is `docs/STATUS.md`. The last **confirmed** result is `SUMMARY passes=1109 failures=0` (headless Godot 4.7.2, October 26, 2026; import clean; see `docs/trackW/W9-notes.md`). It covers Track W, P2 to P7 and the retimed bow-cycle checks. The V3 play-test and your own run in the editor are still open.
+
+## Packaging an archive
+
+When you zip the project to share it, **exclude `.godot/`** (the import cache; it is already in `.gitignore` and is rebuilt by an import) and `tools/logs/`. `.git/` is optional: include it only if you want the history to travel with the archive, and say so when you send it.
 
 ## Project structure
 
@@ -62,6 +70,7 @@ Characters/
 └── Enemies/           # enemy scenes and behavior profiles
 UI/HUD/                # health/mana bars, skill slots, icons and HUD scenes
 tests/smoke_checks.gd  # headless smoke checks
+tools/run_checks.sh    # import + smoke suite, saves the log
 docs/                  # roadmap, architecture guide, and phase/track notes
 Data/Examples/         # un-equipped example resources
 ```

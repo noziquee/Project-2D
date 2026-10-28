@@ -1,0 +1,1838 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+CHECK PASS  A1 player weapon sprite is under WeaponFacingPivot/MainHand
+CHECK PASS  A2 player HandAnim is under WeaponFacingPivot/MainHand
+CHECK PASS  A3 no orphaned re-parented nodes on the player root (found 0)
+CHECK PASS  A4 player weapon player has its default attack's weapon clip
+CHECK PASS  A5 enemy weapon player has 'slash'
+CHECK PASS  A6 player groups
+CHECK PASS  A7 enemy groups
+CHECK PASS  A8 player HUD present
+CHECK PASS  B1 attack_component.try_start succeeds
+CHECK PASS  B2 a slash was spawned by the animation event
+CHECK PASS  B3 enemy took exactly one swing's damage (5; health=15)
+CHECK PASS  B4 swing animation did not move the player body (pos=(0.0, 0.0))
+CHECK PASS  B5 attack lifecycle finished
+CHECK PASS  C1 idle plays at start (got 'idle')
+CHECK PASS  C2 the hit flash plays on ReactionAnim (got 'take_damage')
+CHECK PASS  C2b idle keeps playing underneath the flash (got 'idle')
+CHECK PASS  C3 flash ends and idle is still playing (got 'idle', playing=true)
+CHECK PASS  C4 run plays while moving (got 'run')
+CHECK PASS  C5 run is not interrupted by a hit while moving (got 'run')
+CHECK PASS  C5b run still playing after the flash (got 'run')
+CHECK PASS  D1 moving left mirrors body and weapon
+CHECK PASS  D2 moving right restores facing
+CHECK PASS  E1 dash starts
+CHECK PASS  E2 dash ends and moved (dx=90.0)
+CHECK PASS  F1 enemy chases (150.0 -> 125.0)
+CHECK PASS  F2 enemy damages the player (health=0/5)
+CHECK PASS  F3 repeated hits kill the player (health=0)
+CHECK PASS  F4 dead player stops processing input/physics
+CHECK PASS  F5 death clip played
+CHECK PASS  G1 physics disabled on death even if the AnimationPlayer is missing
+CHECK PASS  H-player 1 first swing starts
+CHECK PASS  H-player 2 cooldown is active the moment the swing ends
+CHECK PASS  H-player 3 swing lasts one animation cycle (57 frames, expected 55.0..58.0)
+CHECK PASS  H-player 4 gap after the swing equals cooldown_duration (4 frames, expected 3.0)
+CHECK PASS  H-player 5 swing-to-swing period = cycle + cooldown (61 frames, expected 58.0..62.5)
+CHECK PASS  H-player 6 raising cooldown_duration to 0.5 widens the gap (31 frames, expected 30.0; first swing started=true and lasted 57 frames, definition cooldown 0.50 s)
+CHECK PASS  H-player 7 attack rate changes by exactly the cooldown delta (27 frames)
+CHECK PASS  H-goblin 1 first swing starts
+CHECK PASS  H-goblin 2 cooldown is active the moment the swing ends
+CHECK PASS  H-goblin 3 swing lasts one animation cycle (60 frames, expected 57.5..60.5)
+CHECK PASS  H-goblin 4 gap after the swing equals cooldown_duration (4 frames, expected 3.0)
+CHECK PASS  H-goblin 5 swing-to-swing period = cycle + cooldown (64 frames, expected 60.5..65.0)
+CHECK PASS  H-goblin 6 raising cooldown_duration to 0.5 widens the gap (31 frames, expected 30.0; first swing started=true and lasted 60 frames, definition cooldown 0.50 s)
+CHECK PASS  H-goblin 7 attack rate changes by exactly the cooldown delta (27 frames)
+PART core_basics passes=44 failures=0
+CHECK PASS  I1 player definition names its weapon and recovery clips
+CHECK PASS  I2 both shipped definitions carry their own effect scene
+CHECK PASS  I3 goblin AI takes its range from the definition (60)
+CHECK PASS  I4 definition with custom clip names is accepted
+CHECK PASS  I5 swing starts with custom clips
+CHECK PASS  I6 custom weapon clip plays and its spawn event creates the effect (clip='heavy_swing', slashes=1)
+CHECK PASS  I7 custom recovery clip follows (got 'heavy_recover')
+CHECK PASS  I8 attack finishes after the custom recovery clip
+CHECK PASS  I9 attack with no recovery clip ends when the weapon clip ends
+CHECK PASS  I10 sword_return was not played (got '')
+CHECK PASS  I11 validation names the missing weapon clip
+CHECK PASS  I12 validation names the missing recovery clip
+CHECK PASS  I13 recovery clip equal to the weapon clip is rejected
+CHECK PASS  I14 the shipped definition validates cleanly
+ERROR: AttackComponent2D rejected definition: attack 'test_bad_weapon' on 'Player': weapon AnimationPlayer has no clip 'no_such_weapon_clip' (weapon_animation).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_attack_definition (res://Characters/Components/Combat/AttackComponent2D.gd:188)
+       [1] run_core_phase2_5_checks (res://tests/smoke_checks.gd:883)
+       [2] fresh (res://tests/smoke_checks.gd:54)
+       [3] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  I15 component rejects a bad definition and keeps the old one
+ERROR: AttackComponent2D rejected definition: attack 'test_bad_recovery' on 'Player': weapon AnimationPlayer has no clip 'no_such_recovery_clip' (recovery_animation).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_attack_definition (res://Characters/Components/Combat/AttackComponent2D.gd:188)
+       [1] @attack_definition_setter (res://Characters/Core/Character2D.gd:83)
+       [2] run_core_phase2_5_checks (res://tests/smoke_checks.gd:884)
+       [3] fresh (res://tests/smoke_checks.gd:54)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  I16 Character2D export mirrors the rejection
+CHECK PASS  I17 the character can still attack after a rejected swap
+CHECK PASS  I18 range 100 from the definition: goblin attacks at 90 px (behavior=ATTACK)
+CHECK PASS  I19 range 0 falls back to FALLBACK_ATTACK_RANGE (30, behavior=CHASE)
+CHECK PASS  I20 a goblin swing connects with a target at its ai_attack_range (60 px)
+CHECK PASS  I21 full speed before the attack (vx=100.0)
+CHECK PASS  I22 movement is scaled during the swing (mult=0.25, vx=25.0)
+CHECK PASS  I23 multiplier returns to 1.0 when the attack finishes (mult=1.00, vx=100.0)
+CHECK PASS  I24 second swing scales movement again
+CHECK PASS  I25 multiplier returns to 1.0 when the attack is cancelled
+CHECK PASS  I26a marked effect scene packs
+CHECK PASS  I26 definition.effect_scene is the scene that spawns
+ERROR: AttackComponent2D rejected definition: attack 'test_no_effect' on 'Player': no effect_scene (every attack needs its own effect scene).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_attack_definition (res://Characters/Components/Combat/AttackComponent2D.gd:188)
+       [1] @attack_definition_setter (res://Characters/Core/Character2D.gd:83)
+       [2] run_core_phase2_5_checks (res://tests/smoke_checks.gd:979)
+       [3] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  I27 a definition with no effect_scene is refused and the previous attack stays
+CHECK PASS  J1 attack_event exists and the spawn_slash alias is gone
+CHECK PASS  J2 player slash clip fires attack_event(spawn_effect) ([[&"attack_event", [&"spawn_effect"]]])
+CHECK PASS  J2 goblin slash clip fires attack_event(spawn_effect) ([[&"attack_event", [&"spawn_effect"]]])
+CHECK PASS  J3 spawn_effect and the reserved combo events are the known events
+CHECK PASS  J4 attack_event(spawn_effect) with no attack running spawns nothing
+CHECK PASS  J5 flurry swing starts
+CHECK PASS  J6 first event spawns one slash (1)
+CHECK PASS  J7 second event spawns another without freeing the first (2)
+CHECK PASS  J8 reserved combo events do not spawn effects
+CHECK PASS  J9 a freed effect is removed from the active list (1)
+CHECK PASS  J10 cancel() frees all active effects (0 left)
+CHECK PASS  J11a single-effect attack tracks its slash
+CHECK PASS  J11b finished attack tracks no effects (0)
+CHECK PASS  K1 player has a HealthComponent2D (max 5, full health)
+CHECK PASS  K2 goblin has a HealthComponent2D at full health (20/20)
+CHECK PASS  K3 take_damage shim wraps a HitData and re-emits health_changed/damaged ([[3, 5]])
+CHECK PASS  K4 a null hit is ignored
+CHECK PASS  K5 zero or negative damage is ignored
+CHECK PASS  K6 heal() is clamped to max_health and returns the amount restored (health=5)
+CHECK PASS  K7 healing at full health or by a non-positive amount does nothing
+CHECK PASS  K8 overkill deals only the remaining health (dealt=3) and emits died once
+CHECK PASS  K9 a dead character cannot be hit again or healed
+CHECK PASS  K10 death still stops the player's physics processing
+CHECK PASS  K11 invulnerability is off by default
+CHECK PASS  K12 first hit lands and opens the window
+CHECK PASS  K13 a second hit inside the window is ignored
+CHECK PASS  K14 hits land again once the window has expired (health=3)
+CHECK PASS  K16 slash hit carries damage and source (1 hits)
+CHECK PASS  K17 slash hit carries the slash direction ((1.0, 0.0))
+CHECK PASS  K18a player is mid-swing
+CHECK PASS  K18 death cancels the swing through the shared handler
+CHECK PASS  K19 goblin death emits died once and frees the node
+CHECK PASS  K20 setting the component's max_health emits health_changed ([[6, 6]])
+CHECK PASS  K21 lowering max_health below current health clamps it ([2, 2])
+CHECK PASS  L1 player and goblin are on the player/enemy teams
+CHECK PASS  L2 the shared sword slash and player attack carry knockback/hit stun and are not interruptible
+CHECK PASS  L3 a same-team target takes no damage (took 0)
+CHECK PASS  L4 a third team is damaged without any script change (took 5)
+CHECK PASS  L5 a neutral (empty-team) target can be hit (took 5)
+CHECK PASS  L6 the hitbox mask comes from definition.hit_layers ({ 1: 1, 2: 2, 4: 4 })
+CHECK PASS  L7 layers that exclude the target's layer miss it (player-only=0, world-only=0)
+CHECK PASS  L8 the enemy layer hits the goblin (took 5)
+CHECK PASS  L9 knockback moves the target along the hit direction (dx=-20.0, dy=0.0)
+CHECK PASS  L10 knockback decays to zero after about v^2/(2*friction) px (moved 35.0)
+CHECK PASS  L10b the target stays put once knockback ends
+CHECK PASS  L11 a killing hit leaves no knockback or stun behind
+CHECK PASS  L12 a hit with hit_stun stuns the target
+CHECK PASS  L13 a stunned character can neither attack nor dash
+CHECK PASS  L14 the stun expires and attacks work again
+CHECK PASS  L15 a non-interruptible swing survives being hit
+CHECK PASS  L16a interruptible swing has spawned its effect
+CHECK PASS  L16 an interruptible swing is cancelled by a hit (effects freed: 0 left)
+CHECK PASS  L17 an interrupted attack starts its cooldown
+PART core_phase2_5 passes=81 failures=0
+CHECK PASS  M1 player.tscn stores a MovementComponent2D node in the scene file
+CHECK PASS  M1 player.tscn stores a DashComponent2D node in the scene file
+CHECK PASS  M1 player.tscn stores a AttackComponent2D node in the scene file
+CHECK PASS  M1 player.tscn stores a HealthComponent2D node in the scene file
+CHECK PASS  M1 BasicEnemy2D.tscn stores a MovementComponent2D node in the scene file
+CHECK PASS  M1 BasicEnemy2D.tscn stores a DashComponent2D node in the scene file
+CHECK PASS  M1 BasicEnemy2D.tscn stores a AttackComponent2D node in the scene file
+CHECK PASS  M1 BasicEnemy2D.tscn stores a HealthComponent2D node in the scene file
+CHECK PASS  M2 the character uses the scene's component nodes
+CHECK PASS  M3 player keeps its tuned move speed (100, set in player.tscn) and the default dash values
+CHECK PASS  M4 the goblin's move_speed 50 and dash_speed 150 now live on its components
+CHECK PASS  M5 each character's AttackComponent2D carries its own definition
+CHECK PASS  M6 Character2D no longer forwards move/dash/slash-scene values
+CHECK PASS  M7 editing move_speed on the component changes movement (vx=100.0)
+ERROR: Character2D '@CharacterBody2D@3' is missing required component node(s): MovementComponent2D. Add them as children in the scene. The character is disabled.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _ready (res://Characters/Core/Character2D.gd:128)
+       [1] _ready (res://Characters/Enemies/BasicEnemy2D.gd:10)
+       [2] run_core_phase6_8_checks (res://tests/smoke_checks.gd:1272)
+       [3] fresh (res://tests/smoke_checks.gd:54)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  M8 missing MovementComponent2D disables the character instead of crashing
+CHECK PASS  N1 player.tscn stores a CharacterStateMachine node in the scene file
+CHECK PASS  N1 player.tscn stores a CharacterStateMachine/Idle node in the scene file
+CHECK PASS  N1 player.tscn stores a CharacterStateMachine/Move node in the scene file
+CHECK PASS  N1 player.tscn stores a CharacterStateMachine/Dash node in the scene file
+CHECK PASS  N1 player.tscn stores a CharacterStateMachine/Attack node in the scene file
+CHECK PASS  N1 BasicEnemy2D.tscn stores a CharacterStateMachine node in the scene file
+CHECK PASS  N1 BasicEnemy2D.tscn stores a CharacterStateMachine/Idle node in the scene file
+CHECK PASS  N1 BasicEnemy2D.tscn stores a CharacterStateMachine/Move node in the scene file
+CHECK PASS  N1 BasicEnemy2D.tscn stores a CharacterStateMachine/Dash node in the scene file
+CHECK PASS  N1 BasicEnemy2D.tscn stores a CharacterStateMachine/Attack node in the scene file
+CHECK PASS  N2 the character uses the scene's state machine and state nodes
+CHECK PASS  N3 the machine registered all four child states by node name
+CHECK PASS  N4 the machine enters initial_state (Idle)
+CHECK PASS  N5 moving enters Move (Move)
+CHECK PASS  N6 stopping returns to Idle (Idle)
+CHECK PASS  N7 dashing enters Dash (Dash)
+CHECK PASS  N8 attacking enters Attack (Attack)
+CHECK PASS  N9 the machine returns to Idle after the swing (Idle)
+CHECK PASS  N10 initial_state decides the first state (Move)
+ERROR: Character2D '@CharacterBody2D@5' is missing required component node(s): CharacterStateMachine. Add them as children in the scene. The character is disabled.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _ready (res://Characters/Core/Character2D.gd:128)
+       [1] _ready (res://Characters/Enemies/BasicEnemy2D.gd:10)
+       [2] run_core_phase6_8_checks (res://tests/smoke_checks.gd:1318)
+       [3] fresh (res://tests/smoke_checks.gd:54)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  N11 missing CharacterStateMachine disables the character instead of crashing
+CHECK PASS  O1 the reaction players are nodes in the scene files
+CHECK PASS  O1b Main.tscn has an Effects node
+CHECK PASS  O1c HitEffect.tscn is built from a scene with its own AnimationPlayer
+CHECK PASS  O1c DeathEffect.tscn is built from a scene with its own AnimationPlayer
+CHECK PASS  O2 enemy 'take_damage' clip has no :frame track (0)
+CHECK PASS  O2 enemy 'RESET' clip has no :frame track (0)
+CHECK PASS  O2b the flash shake ends back at the rest position ((0.0, 0.0))
+CHECK PASS  O3 the tween-based hit feedback is gone
+CHECK PASS  O3b a hit plays the take_damage clip (got 'take_damage')
+CHECK PASS  O3c idle/run frames keep animating during the flash (3 distinct frames)
+CHECK PASS  O3d the sprite is back at rest after the flash (pos=(0.0, 0.0))
+CHECK PASS  O4 the four rig sprites share one flash material
+CHECK PASS  O4b PlayerAnim has no take_damage clip any more
+CHECK PASS  O4c the flash turns the shader on during take_damage
+CHECK PASS  O4d the flash ends switched off
+CHECK PASS  O5 Effects2D finds the effects_root node
+CHECK PASS  O5b the slash is parented under Effects, not Main
+CHECK PASS  O6 a landed hit spawns HitEffect in the Effects container
+CHECK PASS  O6b the impact appears near the target (dist=2.5)
+CHECK PASS  O6c the impact frees itself when its clip ends
+CHECK PASS  O7 an attack with no hit_effect_scene spawns no impact (0)
+CHECK PASS  O8 the goblin is removed on death
+CHECK PASS  O8b one DeathEffect spawned at the death position (1)
+CHECK PASS  O8c the death effect frees itself
+CHECK PASS  O9 player.gd sets no groups or z_index in code
+CHECK PASS  O9 BasicEnemy2D.gd sets no groups or z_index in code
+CHECK PASS  O9 Character2D.gd sets no groups or z_index in code
+CHECK PASS  O9b player.tscn root carries the player/damageable groups
+CHECK PASS  O9c BasicEnemy2D.tscn root carries the enemy/damageable groups
+CHECK PASS  O9d both weapon pivots have z_index 1 from the scene
+CHECK PASS  P1 both use the shared sword slash data, but only the player rig has an aim pivot
+CHECK PASS  P2 the pivot's forward axis points along the attack direction: (1.0, 0.0)->(1.0, 0.0) (0.0, 1.0)->(-0.0, 1.0) (0.0, -1.0)->(-0.0, -1.0) (-1.0, 0.0)->(-1.0, 0.0) (-0.707107, -0.707107)->(-0.707107, -0.707107) (-0.707107, 0.707107)->(-0.707107, 0.707107) (0.707107, -0.707107)->(0.707107, -0.707107) (0.707107, 0.707107)->(0.707107, 0.707107)
+CHECK PASS  P3 cancelling the swing restores the pivot rotation (0.000)
+CHECK PASS  P4 the pivot is rotated while the swing runs (1.571)
+CHECK PASS  P5 the pivot returns to 0 when the swing finishes (0.000)
+CHECK PASS  P6 aim_weapon = false keeps the original unrotated arc (0.000)
+CHECK PASS  P7 dying mid-swing leaves the pivot unrotated (0.000)
+CHECK PASS  P8 aim_weapon is ignored on a rig without WeaponFacingPivot
+CHECK PASS  Q1 the goblin has a DetectionArea that watches the player layer only
+CHECK PASS  Q2 DetectionArea has a drawn CircleShape2D (radius 200)
+CHECK PASS  Q3 the AI controller points at the area and a profile resource
+CHECK PASS  Q4 the goblin profile carries the old controller values (detection 0 = use the drawn shape)
+CHECK PASS  Q5 detection radius is read from the drawn shape (200)
+CHECK PASS  Q6 the AI no longer scans groups or compares behavior strings
+CHECK PASS  Q7 behavior is an enum value (CHASE)
+CHECK PASS  Q8 a player outside the detection area is ignored (behavior=IDLE)
+CHECK PASS  Q9 once inside the area the goblin targets and chases (behavior=CHASE)
+CHECK PASS  Q10 behavior_changed reports enum values and includes CHASE ([3, 1])
+CHECK PASS  Q11 leaving the area (220 px) removes the candidate but the target is kept inside the disengage radius
+CHECK PASS  Q12 beyond the disengage radius for the grace time the target is dropped
+CHECK PASS  Q13 a smaller drawn circle (60) leaves a player at 100 px unnoticed
+CHECK PASS  Q14 the same smaller circle notices a player at 40 px
+CHECK PASS  Q15 profile.detection_radius (100) overrides the drawn 200 (player at 160 px ignored)
+CHECK PASS  Q16 the override did not change the shared scene shape (another goblin still has 200)
+CHECK PASS  R1 the HUD uses the shared HealthBar scene
+CHECK PASS  R2 health_source (a NodePath) points at the player's HealthComponent2D
+CHECK PASS  R3 HealthBarStyle.gd was deleted
+CHECK PASS  R3 PlayerHealthBar.gd was deleted
+CHECK PASS  R3 PlayerHealthBar.tscn was deleted
+CHECK PASS  R3 EnemyHealthBar2D.gd was deleted
+CHECK PASS  R3 EnemyHealthBar2D.tscn was deleted
+CHECK PASS  R4 the bar has intro, hit, heal and critical clips
+CHECK PASS  R5 the critical clip loops
+CHECK PASS  R6 colours come from a Gradient resource
+CHECK PASS  R7 the Phase 4 health / max_health shims are gone from Character2D
+CHECK PASS  R8 the bar starts full (100 / 100)
+CHECK PASS  R9 a full bar uses the high colour
+CHECK PASS  R10 a hit plays the hit clip (got 'hit')
+CHECK PASS  R11 the bar value and counter follow health_changed (60 / 100)
+CHECK PASS  R12 the damage trail lags behind the bar (100.00)
+CHECK PASS  R13 the damage trail catches up (60.00)
+CHECK PASS  R14 40 percent health switches to the mid colour
+CHECK PASS  R15 40 percent is not critical
+CHECK PASS  R16 20 percent health runs the critical clip (got 'critical')
+CHECK PASS  R17 20 percent uses the low colour
+CHECK PASS  R18 healing plays the heal clip (got 'heal')
+CHECK PASS  R19 healing out of the critical range stops the pulse (clip '', playing false, shown 60.0 of 60, critical false)
+CHECK PASS  R20 death shows DEAD and stops the clips
+CHECK PASS  R21 EnemyHealthBar.tscn inherits HealthBar.tscn
+CHECK PASS  R22 the enemy bar is bound to the goblin's HealthComponent2D by NodePath
+CHECK PASS  R23 the enemy bar stays hidden until damaged
+CHECK PASS  R24 the enemy bar is only the bars (changed in V6): no header, number, accent, card panel or padding
+CHECK PASS  R25 the first hit reveals the bar and it follows health (19 / 20)
+CHECK PASS  R27 the enemy bar is not inflated by a minimum size: it is as large as its offsets ((28.0, 5.0)) and thin
+CHECK PASS  R28 the fill bar and the damage trail bar are what the enemy bar shows
+CHECK PASS  R26 the hidden on-bar label still tracks the same counter
+PART core_phase6_8 passes=121 failures=0
+CHECK PASS  S1 the player lists two extra attacks; the goblin sword lists the combo follow-up and lunge
+CHECK PASS  S2 the player's selectable ids are the default attack and its combo follow-up and heavy attack ([&"sword_slash1", &"sword_slash2", &"sword_heavy_slash"])
+CHECK PASS  S3 get_attack finds the default by its id; empty and unknown ids give null
+CHECK PASS  S4 an empty id means no attack and starts nothing
+WARNING: AttackComponent2D on 'Player': no attack with id 'no_such_attack' (known: [&"sword_slash1", &"sword_slash2", &"sword_heavy_slash"]).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] try_start_attack (res://Characters/Components/Combat/AttackComponent2D.gd:215)
+       [1] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1703)
+       [2] fresh (res://tests/smoke_checks.gd:54)
+       [3] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  S5 an unknown id starts nothing
+CHECK PASS  S6 try_start_attack with the default id runs the default attack
+CHECK PASS  S7 the default attack finishes and clears the active id
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:293)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:251)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1714)
+       [3] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  S8 set_attacks registers one extra attack ([&"sword_slash1", &"test_heavy"])
+CHECK PASS  S9 try_start_attack starts the extra attack by id
+CHECK PASS  S10 the extra attack's movement_multiplier applies while it runs (0.30)
+CHECK PASS  S11 another attack cannot start while one is running
+CHECK PASS  S12 the extra attack dealt its own damage (15 -> 12)
+CHECK PASS  S13 movement and active id are restored when the extra attack ends
+CHECK PASS  S14 the finished attack's cooldown (1 s) blocks every other attack
+CHECK PASS  S15 once the cooldown has passed the default attack starts again
+ERROR: AttackComponent2D rejected attack: attack 'test_bad_clip' on 'Player': weapon AnimationPlayer has no clip 'no_such_clip' (weapon_animation).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _register_extra_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:510)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:250)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1740)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: duplicate attack id 'test_good' in 'attacks'; the first one is kept.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _register_extra_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:505)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:250)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1740)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: ignoring an attack with an empty id (an empty id means 'no attack').
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _register_extra_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:499)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:250)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1740)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' in 'attacks' has the same id as the default attack and is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _register_extra_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:502)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:250)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1740)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: ignoring an empty entry in 'attacks'.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _register_extra_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:496)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:250)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1740)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:293)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:251)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1740)
+       [3] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  S16 only the valid, unique, named entry is registered ([&"sword_slash1", &"test_good"])
+CHECK PASS  S17 the first of two attacks with the same id is kept
+CHECK PASS  S18 replacing the default attack keeps the extra attacks ([&"test_swapped_default", &"test_good"])
+CHECK PASS  S19 an empty list leaves only the default attack
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:293)
+       [1] initialize (res://Characters/Components/Combat/AttackComponent2D.gd:134)
+       [2] _ready (res://Characters/Core/Character2D.gd:135)
+       [3] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1764)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  S20 an `attacks` list set on the component is registered at startup and selectable
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:293)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:251)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1776)
+       [3] fresh (res://tests/smoke_checks.gd:54)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  T1 get_default_attack_id() is the attack component's default id (sword_slash1)
+CHECK PASS  T2 with no input the player requests no attack (empty id)
+CHECK PASS  T3 no input starts no swing
+CHECK PASS  T4 pressing attack starts the default attack by its id (active: sword_slash1)
+CHECK PASS  T5 the swing finishes and movement is restored
+CHECK PASS  T6 the default id follows a swapped definition
+CHECK PASS  T7 pressing attack starts the swapped default attack
+CHECK PASS  T8 a dead player requests no attack
+CHECK PASS  T9 the goblin AI starts its default attack by id ([&"sword_slash1"])
+CHECK PASS  T10 consume_attack_request() returns an empty id once the request has been used
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:293)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:251)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1827)
+       [3] fresh (res://tests/smoke_checks.gd:54)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  U1 attack_light is the left mouse button and the old 'attack' action is gone
+CHECK PASS  U2 attack_heavy exists with no default binding
+CHECK PASS  U3 default exports (changed in 9.7d-1): both id overrides empty, the heavy id comes from the equipped sword (sword_heavy_slash), charge starts after 0.1 s (pinned by load_main since V5)
+CHECK PASS  U4 attack_heavy does nothing while the character has no heavy attack
+CHECK PASS  U5 without a heavy attack, attack_light starts the light attack on press, still held
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:293)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:251)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1849)
+       [3] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  U6 the heavy attack registers
+CHECK PASS  U7 while a press may still become a hold, nothing starts
+CHECK PASS  U8 releasing before heavy_hold_time starts the light attack
+CHECK PASS  U9 holding attack_light past charge_start_time begins a charge of the heavy attack, with no swing yet
+CHECK PASS  U10 releasing the button releases the charge into the heavy attack (active: sword_heavy_slash)
+CHECK PASS  U11 after the heavy swing nothing else starts: one hold gives one heavy attack
+CHECK PASS  U12 a shorter charge_start_time begins the charge sooner
+CHECK PASS  U13 attack_heavy charges the heavy attack, and its release starts the swing
+CHECK PASS  U14 light_attack_id overrides which attack a tap starts (active 'sword_heavy_slash', light id 'sword_heavy_slash', cooldown false, stunned false, charging false)
+CHECK PASS  U15 a dead player requests nothing and drops the hold in progress
+CHECK PASS  V1 the shipped goblin profile offers two weighted choices; a new choice defaults to weight 1
+CHECK PASS  V2 with no choices the AI uses the default attack and its range (sword_slash1, 60)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:293)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:251)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1918)
+       [3] fresh (res://tests/smoke_checks.gd:54)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  V3 the two test attacks register on the goblin
+CHECK PASS  V4 a single choice is used, and its ai_attack_range becomes the swing distance
+CHECK PASS  V5 an entry with weight 0 is never picked
+CHECK PASS  V6 weights 1 : 3 pick the heavier entry about 75 percent of the time (312 / 400)
+CHECK PASS  V7 the picked attack is kept until the swing is requested
+WARNING: EnemyAIController2D on 'BasicEnemy2D': attack choice 'v_missing' is not registered on its AttackComponent2D (add it to 'attacks'); ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _pick_attack (res://Characters/Controllers/EnemyAIController2D.gd:134)
+       [1] get_chosen_attack (res://Characters/Controllers/EnemyAIController2D.gd:105)
+       [2] get_chosen_attack_id (res://Characters/Controllers/EnemyAIController2D.gd:112)
+       [3] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1949)
+       [4] fresh (res://tests/smoke_checks.gd:54)
+       [5] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  V8 a choice that is not registered on the attack component falls back to the default attack
+CHECK PASS  V9 an unregistered entry is skipped, the usable ones are still picked
+CHECK PASS  V10 null entries and entries without an attack are ignored
+CHECK PASS  V11 when every weight is 0 the default attack is used
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:293)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:251)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1977)
+       [3] fresh (res://tests/smoke_checks.gd:54)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  V12 the goblin swings with the chosen attack from beyond the default range ([&"v_long"], 70 px)
+CHECK PASS  V13 after the choices change, the next swings use the new pick ([&"v_long", &"v_short", &"v_short"])
+CHECK PASS  W1 a new attack has no next_attack unless one is set
+CHECK PASS  W2a the default attack and a registered extra attack are set up
+CHECK PASS  W2b a link to a registered attack is valid and resolves to that attack
+CHECK PASS  W3 a link to an unregistered attack is reported and never followed (["attack \'w_second\' on \'Player\': next_attack \'w_orphan\' is not registered on this component (add it to \'attacks\'); the link is ignored."])
+CHECK PASS  W4 a link to itself is valid: it means repeat, and is never followed as an explicit link (9.6a)
+CHECK PASS  W5a an attack with a bad link still starts normally
+CHECK PASS  W5b cancel() ends the swing
+CHECK PASS  W6 a link back to the default attack is valid (cycles are allowed)
+CHECK PASS  W7 the player and goblin sword_slash1 both link to the registered sword_slash2
+CHECK PASS  X1 the window is closed when nothing is running
+CHECK PASS  X2 a window event with no swing running does nothing
+CHECK PASS  X3 a new swing starts with the window closed
+CHECK PASS  X4 combo_window_open opens the window during the swing
+CHECK PASS  X5 combo_window_close closes it and the swing goes on
+CHECK PASS  X6 cancel() closes the window
+CHECK PASS  X7 the window closes when the weapon clip ends and recovery starts
+CHECK PASS  X8 window events during the recovery clip are ignored
+CHECK PASS  X9 the window is closed when the swing finishes
+CHECK PASS  X10 the goblin's window opens too
+CHECK PASS  X11 an interrupted swing closes the window
+CHECK PASS  Y1 the first attack starts
+CHECK PASS  Y2 outside the window a request does not chain (normal gating applies)
+CHECK PASS  Y3a a request inside the window is accepted
+CHECK PASS  Y3b the request chains into next_attack and the window closes
+CHECK PASS  Y4 attack_started fires per link, attack_chained once (started [&"y_first", &"y_second"], chained [[&"y_first", &"y_second"]])
+CHECK PASS  Y5 the chain does not finish or start a cooldown mid-chain (finished 0)
+CHECK PASS  Y6 the chained link uses the direction of the request ((-1.0, 0.0))
+CHECK PASS  Y7 a press in the window of the last link starts the combo again from its first attack (9.R2; was: repeat the last link)
+CHECK PASS  Y8 the whole chain finishes once (attack_finished count 1)
+CHECK PASS  Y9a a new chain can start after the previous one has ended and the cooldown has passed
+CHECK PASS  Y9b the second chain works the same way
+CHECK PASS  Y10 a hit on the chained link interrupts it (it is interruptible)
+CHECK PASS  Z1 the controller sends the default attack id for a light press and the equipped weapon's heavy (sword_heavy_slash) for a heavy one
+CHECK PASS  Z2 the light request starts the first attack
+CHECK PASS  Z3 the per-frame empty request with no input does not chain
+CHECK PASS  Z4 the light request chains into next_attack inside the window
+CHECK PASS  Z5a a new first attack starts after the chain ended
+CHECK PASS  Z5b the heavy request inside the window chains too (any attack request does)
+CHECK PASS  AA1 the slash clip opens and closes the combo window inside its length (open 0.25, close 0.42, length 0.50)
+CHECK PASS  AA2 the shipped player links sword_slash1 to sword_slash2 and the links validate
+CHECK PASS  AA3a the shipped light attack starts
+CHECK PASS  AA3b the window opens from the clip's own key (now at 0.28s, opens at 0.25s)
+CHECK PASS  AA3c a press inside the window chains into sword_slash2 (active: sword_slash2)
+CHECK PASS  BB1 the heavy attack is registered and its clip exists on the weapon player
+CHECK PASS  BB2 the heavy hits harder, pushes further, never moves faster than the light attack, and has a charge clip the light attack does not
+CHECK PASS  BB3a holding attack_light past charge_start_time begins the heavy charge, with no swing yet
+CHECK PASS  BB3b the heavy attack slows movement to its movement_multiplier (0.40)
+CHECK PASS  BB4 the heavy swing finishes and movement is restored
+CHECK PASS  BB5 a quick tap still starts the light attack, on release (active: sword_slash1)
+CHECK PASS  BB6a the heavy attack starts by its id
+CHECK PASS  BB6b the heavy hits the goblin for its own damage (took 12, expected 12)
+CHECK PASS  CC1 the goblin has a registered lunge with its clip, and its profile offers two weighted choices
+CHECK PASS  CC2 the lunge slows the goblin, reaches further, shares the sword slash damage and can be interrupted
+CHECK PASS  CC3 weights 3 : 1 pick the lunge about a quarter of the time (102 / 400)
+CHECK PASS  CC4 at 72 px, beyond the slash's range but inside the lunge's, the goblin lunges ([&"goblin_sword_lunge"])
+CHECK PASS  CC5 during the lunge the goblin moves at the lunge's movement_multiplier (0.30)
+CHECK PASS  DD1a a looping sequence whose entries are registered validates
+CHECK PASS  DD1b an unregistered sequence entry is reported (["attack \'dd_1\' on \'Player\': combo_sequence entry \'dd_orphan\' is not registered on this component (add it to \'attacks\')."])
+CHECK PASS  DD1c a sequence must start with the attack itself (["attack \'dd_1\' on \'Player\': combo_sequence must start with the attack itself."])
+CHECK PASS  DD2 the sequence loops 1 -> 2 -> 3 -> 1 ([&"dd_1", &"dd_2", &"dd_3", &"dd_1"])
+CHECK PASS  DD3 an attack with no sequence or link repeats itself inside its window
+CHECK PASS  DD4 a new combo after a finished one starts at the beginning of the sequence (active: dd_2)
+CHECK PASS  DD5a a hit interrupts the chained attack and ends the combo
+CHECK PASS  DD5b the next combo after an interrupt starts at the beginning of the sequence (active: dd_2)
+CHECK PASS  EE1 closing the window with no press starts the return at once (now: sword_slash_return_1)
+CHECK PASS  EE2 a press after the window has closed does not chain
+CHECK PASS  EE3 the return starts at the clip's own close key, not at the end of the clip (cut at 0.40s, close key 0.42s, clip length 0.50s)
+CHECK PASS  EE4 an attack with no return clip ends at once when its window closes
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:293)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:251)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:2416)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  FF1a a THRESHOLD attack with a threshold and a known charge clip validates
+CHECK PASS  FF1b a THRESHOLD attack needs a charge_threshold above 0
+CHECK PASS  FF1c a missing charge clip is reported by name
+CHECK PASS  FF2 begin_charge holds the character in the charge, plays the charge clip, and starts no swing yet
+CHECK PASS  FF3 an INPUT_RELEASE charge is held, with no automatic release (charged 1.00s)
+CHECK PASS  FF4 release_charge() turns the charge into its swing (started 1)
+CHECK PASS  FF5a a THRESHOLD charge starts
+CHECK PASS  FF5b a THRESHOLD charge releases by itself at its threshold, with no input (charged 0.50s)
+CHECK PASS  FF6 releasing after a threshold release does nothing
+CHECK PASS  FF7 a hit does not cancel a charge of an attack that is not interruptible
+CHECK PASS  FF8 cancel() ends a charge, and a release after it does nothing
+CHECK PASS  FF9 a charge cannot start while a swing is running
+CHECK PASS  GG1 the controller exports a 0.1 s charge start and takes the heavy attack id from the equipped weapon
+CHECK PASS  GG2 holding attack_light begins a charge of the heavy attack
+CHECK PASS  GG3 releasing the held button releases the heavy charge into its swing
+CHECK PASS  GG4 a tap under 0.1 s is the light attack, sent on release
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:293)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:251)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:2491)
+       [3] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  GG5a a THRESHOLD heavy releases by itself while the button is still held
+CHECK PASS  GG5b releasing afterwards adds nothing: the heavy swing carries on
+CHECK PASS  GG6 a press held into the combo window chains as the light attack, not as a charge (active: sword_slash2)
+CHECK PASS  HH1a the light attack starts with sword_slash_1
+CHECK PASS  HH1b a press before the window opens does not chain
+CHECK PASS  HH2 a press in the first window plays sword_slash_2
+CHECK PASS  HH3 a press in the SECOND window starts a new combo with attack 1, not a repeat of attack 2 (active: sword_slash1)
+CHECK PASS  HH4 the restarted combo goes on to attack 2 again
+CHECK PASS  HH5 four swings in a row, no attack_finished until the chain ends ([&"sword_slash1", &"sword_slash2", &"sword_slash1", &"sword_slash2"])
+CHECK PASS  HH6 the window closing with no press plays the return of the LAST attack (sword_slash_return_2)
+CHECK PASS  HH7 a press during the return is refused: the return keeps playing
+CHECK PASS  HH8 a real tap during the return starts nothing
+CHECK PASS  HH9 the return finishes the combo once and restores movement
+CHECK PASS  HH10 after the return a new combo starts at attack 1 (attacking=false cooldown=false stunned=false dashing=false)
+CHECK PASS  HH11 attack 1 alone ends with sword_slash_return_1 (now sword_slash_return_1)
+CHECK PASS  HH12a the combo is on attack 2
+CHECK PASS  HH12b a hit that interrupts attack 2 ends the combo and restores movement
+CHECK PASS  HH13 after the interrupt the next press is attack 1
+CHECK PASS  HH14 cancel() in a window also resets the combo: the next press is attack 1, not attack 2
+CHECK PASS  HH15 the shipped heavy (INPUT_RELEASE) is still charging after 2.5 s of hold; the charge clip is playing
+CHECK PASS  HH15b an INPUT_RELEASE heavy with no threshold reports no charge ratio
+CHECK PASS  HH16 releasing the input swings sword_heavy_slash
+CHECK PASS  HH17 the heavy ends with its return clip
+CHECK PASS  HH17b the character is free again after the heavy return
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:293)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:251)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:2651)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  HH18 a threshold charge fills over time and has not released yet (ratio 0.56)
+CHECK PASS  HH19 the heavy releases by itself at the threshold with the button still held
+CHECK PASS  HH20 still holding after the swing and return: no second charge starts (swings: 1)
+CHECK PASS  HH20b the next press starts a new charge
+CHECK PASS  HH21a while a swing runs, the held button cannot charge yet
+CHECK PASS  HH21b once the return has finished the held button begins the heavy charge
+PART core_phase9_attacks passes=172 failures=0
+CHECK PASS  II1a the shipped sword weapon loads as a WeaponDefinition2D
+CHECK PASS  II1b sword id and display name
+CHECK PASS  II1c the sword's basic combo is light then light2
+CHECK PASS  II1d the sword's heavy attack is sword_heavy_slash
+CHECK PASS  II1e the sword's weapon_scene is Weapons/Sword/Sword.tscn (9.7b; it was empty in 9.7a)
+CHECK PASS  II2 the sword's data validates (problems: [])
+CHECK PASS  II3 every clip the sword's attacks name exists on the player's weapon AnimationPlayer (problems: [])
+CHECK PASS  II4a the default attack is the first combo entry
+CHECK PASS  II4b the extra attacks are the rest of the combo, then the heavy ([&"sword_slash2", &"sword_heavy_slash"])
+CHECK PASS  II4c all attack ids in order
+CHECK PASS  II5 lookup by id: found, unknown is null, empty is null
+CHECK PASS  II6a the sword lists the same attacks the player's AttackComponent2D has registered ([&"sword_heavy_slash", &"sword_slash2", &"sword_slash1"])
+CHECK PASS  II6b nothing was equipped or changed on the player by loading the weapon
+CHECK PASS  II7 an empty weapon_id is reported, naming the weapon by its display name
+CHECK PASS  II8 a weapon with no basic_combo attack is reported
+CHECK PASS  II9 an empty entry is reported, and the default attack skips it
+CHECK PASS  II10a a duplicate id inside basic_combo is reported
+CHECK PASS  II10b a heavy attack with the same id as a combo attack is reported
+CHECK PASS  II10c an attack with an empty id is reported
+CHECK PASS  II11a a combo entry no link leads to is reported as unreachable
+CHECK PASS  II11b once 'a' links to 'b' the weapon validates (problems: [])
+CHECK PASS  II11c an entry reached through combo_sequence counts as reachable (problems: [])
+CHECK PASS  II12a a next_attack to an attack outside the weapon is reported
+CHECK PASS  II12b a combo_sequence entry outside the weapon is reported
+CHECK PASS  II12c a deliberate self link (repeat) is valid
+CHECK PASS  II13a without an AnimationPlayer only the data is checked
+CHECK PASS  II13b a missing weapon clip names the weapon, the attack and the clip
+CHECK PASS  II13c a missing recovery clip is reported
+CHECK PASS  II13d a missing charge clip on the heavy attack is reported
+CHECK PASS  II13e a recovery clip equal to the weapon clip is reported
+CHECK PASS  II13f an attack with no recovery clip is valid
+CHECK PASS  II14 validating and building variants left the shipped sword and its attacks unchanged
+CHECK PASS  JJ1a Weapons/Sword/Sword.tscn loads and can be instantiated
+CHECK PASS  JJ1b the weapon root is a Node2D called MainHand (it takes over the node the player rig used to hold)
+CHECK PASS  JJ1c the weapon sprite keeps the sword texture and its (5, -5) offset (was (8, -8) until it was tuned in the editor, V5)
+CHECK PASS  JJ1d the weapon scene has a HandAnim AnimationPlayer
+CHECK PASS  JJ1e the weapon root keeps the pose the player's MainHand had (z_index 1, position (-4, 5), rotation 0.8727)
+CHECK PASS  JJ1f the weapon player has every clip that moved out of player.tscn (missing: [])
+CHECK PASS  JJ2a find_weapon_player finds HandAnim in the sword scene
+CHECK PASS  JJ2b with no HandAnim or WeaponAnimation the first AnimationPlayer child is used
+CHECK PASS  JJ2c a weapon with no AnimationPlayer, or no weapon, gives null
+CHECK PASS  JJ2d a player called HandAnim wins over an earlier AnimationPlayer child
+CHECK PASS  JJ3a every method track of the sword clips (4) resolves to the character when mounted under WeaponFacingPivot (0 did not)
+CHECK PASS  JJ3b every method key calls attack_event with one known event name (0 did not)
+CHECK PASS  JJ3c every sword attack's weapon clip spawns an effect (without one: [])
+CHECK PASS  JJ4a a weapon scene mounted under another name than MainHand is found
+CHECK PASS  JJ4b bind_weapon points the context at a weapon mounted later
+WARNING: CharacterContext2D: weapon 'Bare' has no AnimationPlayer; keeping the current weapon.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] bind_weapon (res://Characters/Core/CharacterContext2D.gd:129)
+       [1] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:2900)
+       [2] cleanup (res://tests/smoke_checks.gd:114)
+       [3] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  JJ4c bind_weapon refuses a weapon with no AnimationPlayer and keeps the old one
+CHECK PASS  JJ4d a node called MainHand is preferred over another mounted weapon
+CHECK PASS  JJ5a the player's MainHand is an instance of Weapons/Sword/Sword.tscn
+CHECK PASS  JJ5b the player's context reads the weapon player from the mounted weapon scene
+CHECK PASS  JJ5c player.tscn stores only the MainHand instance; the sprite and the clips live in the weapon scene
+CHECK PASS  JJ5d the player's attacks and the weapon's z_index are unchanged
+CHECK PASS  JJ5e the shipped sword's own scene validates (problems: [])
+CHECK PASS  JJ5f instantiate_weapon() gives a new MainHand from the weapon's scene
+CHECK PASS  JJ6a the player can start a swing with the weapon from the scene
+CHECK PASS  JJ6b the clip's attack_event reaches the character and spawns the effect (after 4 frames)
+CHECK PASS  JJ6c the swing finishes through the weapon scene's clips and movement is restored (53 frames)
+CHECK PASS  JJ7a the goblin's own rig layout is still found
+CHECK PASS  JJ7b the goblin still has its slash and lunge clips
+CHECK PASS  JJ8a a weapon with no scene has nothing to validate and instantiates nothing
+CHECK PASS  JJ8b a scene whose root is not a Node2D is reported, naming the weapon
+CHECK PASS  JJ8c a weapon scene without an AnimationPlayer is reported
+CHECK PASS  JJ8d a weapon scene missing a clip names the weapon, the attack and the clip
+CHECK PASS  KK1a a controller that was never initialized refuses every weapon and says so
+CHECK PASS  KK1b the controller initializes with the player's context and attack component
+CHECK PASS  KK1c the shipped sword can be equipped by the player (problems: [])
+CHECK PASS  KK1d can_equip() agrees with validate_equip()
+CHECK PASS  KK2a a null weapon is reported
+CHECK PASS  KK3a the player starts a swing
+CHECK PASS  KK3b equipping during a swing is refused
+CHECK PASS  KK3c after the swing is cancelled the sword can be equipped again
+CHECK PASS  KK3d the player starts a heavy charge
+CHECK PASS  KK3e equipping during a charge is refused
+CHECK PASS  KK3f after the charge is cancelled the sword can be equipped again
+CHECK PASS  KK4a a weapon with no combo attack is reported by name
+CHECK PASS  KK4b a weapon without a scene is checked against the player's current weapon clips (["weapon \'ghostly\': attack \'ghost\' needs clip \'no_such_clip\' (weapon_animation) on the weapon AnimationPlayer.", "weapon \'ghostly\': attack \'ghost\' has no effect_scene (every attack needs its own effect scene)."])
+CHECK PASS  KK4c a weapon with a scene is checked against its own scene, not the player's current clips (["weapon \'scenic\': attack \'sword_slash1\' has next_attack \'sword_slash2\', which is not part of this weapon (add it to basic_combo).", "weapon \'scenic\': attack \'sword_slash1\' needs clip \'sword_slash_1\' (weapon_animation) on the weapon AnimationPlayer.", "weapon \'scenic\': attack \'sword_slash1\' needs clip \'sword_slash_return_1\' (recovery_animation) on the weapon AnimationPlayer."])
+CHECK PASS  KK4d a valid weapon without a scene is accepted (its one attack has no link that leaves the weapon)
+CHECK PASS  KK4e an effect scene that cannot be instantiated is reported
+CHECK PASS  KK4f a THRESHOLD release with no charge_threshold is reported
+CHECK PASS  KK5 validate_equip() leaves the attacks, the mounted weapon, the weapon player and the attack state untouched
+CHECK PASS  KK6 the goblin rig has no WeaponFacingPivot, so equipping is refused with that reason
+CHECK PASS  LL1a nothing is equipped until equip() succeeds
+CHECK PASS  LL1b equipping the shipped sword (the mounted weapon) succeeds and emits weapon_equipped
+CHECK PASS  LL1c the sword's attacks are exactly what the player already had
+CHECK PASS  LL2a a valid weapon with no scene can be equipped
+CHECK PASS  LL2b the default attack is the weapon's first combo attack and the heavy is registered
+CHECK PASS  LL2c the previous weapon's attacks are gone
+CHECK PASS  LL2d the new default attack can be started by its id
+CHECK PASS  LL2e the new attack spawns its effect (after 4 frames)
+CHECK PASS  LL2f the swing finishes, movement is restored, and the new heavy can be charged (53 frames)
+CHECK PASS  LL3a equipping the sword again restores its attacks and drops the duelist's
+CHECK PASS  LL3b three successful equips emitted three weapon_equipped and no equip_failed
+CHECK PASS  LL4a the player starts a swing
+WARNING: WeaponController2D: weapon 'duelist': cannot be equipped during a swing or charge.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3117)
+       [3] fresh (res://tests/smoke_checks.gd:54)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  LL4b equipping during a swing is refused, emits equip_failed and names the reason
+CHECK PASS  LL4c the attacks and the equipped weapon are unchanged
+ERROR: AttackComponent2D rejected attack: attack 'ghost' on 'Player': weapon AnimationPlayer has no clip 'no_such_clip' (weapon_animation).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _register_extra_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:510)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:250)
+       [2] _set_attacks_from (res://Characters/Components/Weapons/WeaponController2D.gd:242)
+       [3] _apply_attacks (res://Characters/Components/Weapons/WeaponController2D.gd:253)
+       [4] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3129)
+       [5] fresh (res://tests/smoke_checks.gd:54)
+       [6] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  LL5a the attack component rejecting an attack makes the apply step fail
+CHECK PASS  LL5b the previous default attack and attacks list are restored
+WARNING: WeaponController2D: weapon 'brokenish': attack 'ghost' needs clip 'no_such_clip' (weapon_animation) on the weapon AnimationPlayer.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3132)
+       [3] fresh (res://tests/smoke_checks.gd:54)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'brokenish': attack 'ghost' has no effect_scene (every attack needs its own effect scene).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3132)
+       [3] fresh (res://tests/smoke_checks.gd:54)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  LL5c equip() refuses the same weapon up front, emits equip_failed and changes nothing
+CHECK PASS  MM1a precondition: the packed copy of the sword scene validates (problems: [])
+CHECK PASS  MM1b a weapon with a different scene is equipped and emits weapon_equipped
+CHECK PASS  MM2a the old weapon is freed and the context points at the new one
+CHECK PASS  MM2b the new weapon takes the old one's name, place and path
+CHECK PASS  MM2c the context reads the weapon player from the new weapon
+CHECK PASS  MM3a the weapon's attacks are registered (here the same ids as the sword)
+CHECK PASS  MM4a the player swings the new weapon
+CHECK PASS  MM4b the new weapon's clip spawns the effect (after 4 frames)
+CHECK PASS  MM4c the swing finishes, so animation_finished is connected to the new player (53 frames)
+CHECK PASS  MM5a equipping the shipped sword again works and leaves one weapon mounted
+CHECK PASS  MM5b the player swings the sword again
+CHECK PASS  MM5c that swing finishes too (57 frames)
+CHECK PASS  MM6a the player starts a swing
+WARNING: WeaponController2D: weapon 'sword_copy': cannot be equipped during a swing or charge.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3199)
+       [3] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  MM6b swapping during a swing is refused and the mounted weapon is untouched
+WARNING: WeaponController2D: weapon 'sword_copy': the attack component rejected the weapon's attacks; the previous weapon is kept.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] _fail_with (res://Characters/Components/Weapons/WeaponController2D.gd:260)
+       [2] equip (res://Characters/Components/Weapons/WeaponController2D.gd:104)
+       [3] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3211)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  MM7a a failing attack step makes equip() return false and emit equip_failed
+CHECK PASS  MM7b the previous weapon is back in its place and the failed one is gone
+CHECK PASS  MM7c the context and the attacks are as before
+CHECK PASS  MM7d the player can swing the restored weapon
+CHECK PASS  MM7e that swing finishes, so the attack component listens to the restored weapon's player (57 frames)
+CHECK PASS  NN1a the player has a WeaponController2D and Character2D initialized it (add the node in player.tscn if this fails)
+CHECK PASS  NN1b the controller's starting weapon, the sword, is equipped
+CHECK PASS  NN1c equipping the starting weapon leaves the player's attacks and mounted sword exactly as the scene had them
+CHECK PASS  NN2a the goblin has a weapon controller (W5d) and keeps its attacks
+CHECK PASS  NN3a the player's own controller equips another weapon
+CHECK PASS  NN3b the player swings it
+CHECK PASS  NN3c the swing finishes (57 frames)
+CHECK PASS  NN3d the starting weapon can be equipped again and restores the sword's attacks
+CHECK PASS  OO1a both id overrides are empty on the shipped player
+CHECK PASS  OO1b the ids come from the equipped sword: light sword_slash1, heavy sword_heavy_slash
+CHECK PASS  OO2a a non-empty heavy_attack_id overrides the weapon
+CHECK PASS  OO2b a non-empty light_attack_id overrides the default attack
+CHECK PASS  OO3a the player equips a weapon with its own light and heavy attack
+CHECK PASS  OO3b the controller now sends that weapon's ids
+CHECK PASS  OO3c holding attack_light begins a charge of the new weapon's heavy attack
+CHECK PASS  OO3d releasing swings the new weapon's heavy attack
+CHECK PASS  OO4a a weapon with no heavy attack leaves the heavy id empty
+CHECK PASS  OO4b attack_light starts the light attack on press when the weapon has no heavy
+CHECK PASS  OO5a equipping the sword again restores sword_slash1 and sword_heavy_slash
+CHECK PASS  OO6a without a weapon controller the heavy id is empty and the light id is still the default attack
+CHECK PASS  PP1a effect_animation defaults to slash; the shipped light attack keeps it and the heavy attack uses heavy_slash
+CHECK PASS  PP1b the effect scene has slash and heavy_slash; a missing clip is detected; no scene or an empty name is not judged
+CHECK PASS  PP2a the light attack starts
+CHECK PASS  PP2b the light attack's effect plays slash
+CHECK PASS  PP2c the heavy attack starts
+CHECK PASS  PP2d the heavy attack's effect plays heavy_slash
+CHECK PASS  PP2e the heavy effect frees itself when heavy_slash ends (left over: [])
+CHECK PASS  PP3a validate_definition names the missing effect clip (attack 'pp_bad' on 'Player': effect_scene has no clip 'no_such_effect_clip' (effect_animation).)
+ERROR: AttackComponent2D rejected definition: attack 'pp_bad' on 'Player': effect_scene has no clip 'no_such_effect_clip' (effect_animation).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_attack_definition (res://Characters/Components/Combat/AttackComponent2D.gd:188)
+       [1] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3337)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  PP3b the attack component refuses it and keeps the previous attack
+CHECK PASS  PP4 validate_equip reports the missing effect clip and the weapon cannot be equipped
+CHECK PASS  PP5 an empty effect animation falls back to slash
+ERROR: AttackSlash2D requires the animation player 'SlashEffectAnimSpritesheet/AnimationPlayer' to have the animation 'no_such_effect_clip'.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _ready (res://Characters/Components/Combat/AttackSlash2D.gd:62)
+       [1] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3348)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  PP6 an effect told to play a clip it lacks logs an error and removes itself
+PART core_phase9_weapons passes=151 failures=0
+CHECK PASS  QQ1a the legacy slash scene, its setter and the two default constants are gone from AttackComponent2D
+CHECK PASS  QQ1b the player scene sets its own attack_definition (it no longer relies on a script default) and so does the goblin
+CHECK PASS  QQ2 validate_definition names an attack that has no effect_scene (attack 'qq_no_fx' on 'Player': no effect_scene (every attack needs its own effect scene).)
+ERROR: AttackComponent2D rejected definition: attack 'qq_no_fx' on 'Player': no effect_scene (every attack needs its own effect scene).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_attack_definition (res://Characters/Components/Combat/AttackComponent2D.gd:188)
+       [1] run_core_phase10_11_checks (res://tests/smoke_checks.gd:3376)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  QQ3 set_attack_definition refuses it and keeps the previous attack
+CHECK PASS  QQ4 a weapon holding such an attack is refused by the dry run
+CHECK PASS  QQ5 assigning a null attack_definition is refused and the previous attack stays
+ERROR: AttackComponent2D needs a character context, an attack_definition, and a weapon AnimationPlayer.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] initialize (res://Characters/Components/Combat/AttackComponent2D.gd:125)
+       [1] run_core_phase10_11_checks (res://tests/smoke_checks.gd:3382)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  QQ6 a component with no attack_definition does not initialize, so that character cannot attack
+CHECK PASS  RR1 AttackSlash2D is an AttackEffect2D (its script extends the base class)
+CHECK PASS  RR2a configure() clamps damage, size, knockback and stun, normalizes the direction and defaults the clip to slash
+CHECK PASS  RR2b a zero aim direction falls back to right
+CHECK PASS  RR3a an effect never hits a character on the attacker's own team
+CHECK PASS  RR3b an enemy is hit once per effect, through apply_hit, and hit_confirmed fires once
+CHECK PASS  RR3c an effect never hits its own attacker
+CHECK PASS  RR4a a scene whose root is a bare AttackEffect2D packs
+CHECK PASS  RR4b the component accepts an attack whose effect scene is not a slash
+CHECK PASS  RR4c the swing spawns that effect and the component tracks it
+CHECK PASS  RR4d cancel() removes it
+ERROR: AttackComponent2D: effect scene for attack 'rr_plain' must have an AttackEffect2D script (such as AttackSlash2D.gd) on its root.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _spawn_effect (res://Characters/Components/Combat/AttackComponent2D.gd:592)
+       [1] handle_event (res://Characters/Components/Combat/AttackComponent2D.gd:544)
+       [2] attack_event (res://Characters/Core/Character2D.gd:218)
+CHECK PASS  RR5 a scene whose root is not an AttackEffect2D spawns nothing
+CHECK PASS  SS1a the shipped scene keeps the default paths (no scene edit was needed)
+CHECK PASS  SS1b every default path leads to the right kind of node
+CHECK PASS  SS2a an effect scene with its own animation player and path packs
+CHECK PASS  SS2b the clip check looks at the player the scene's own path names, not the standard one
+CHECK PASS  SS2c the swing plays alt_clip on that player and the effect frees itself when it ends
+ERROR: AttackSlash2D: hitbox_path 'Nowhere' does not lead to an Area2D.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _resolve_nodes (res://Characters/Components/Combat/AttackSlash2D.gd:79)
+       [1] _ready (res://Characters/Components/Combat/AttackSlash2D.gd:43)
+       [2] run_core_phase10_11_checks (res://tests/smoke_checks.gd:3521)
+       [3] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  SS3 an effect with a broken node path logs an error and removes itself
+CHECK PASS  TT1 a new attack and every shipped attack keep the old behavior (no target limit, pierce on)
+CHECK PASS  TT2a no limit and pierce on: the effect hits all three and is never spent
+CHECK PASS  TT2b max_targets 1: only the first target is hit and the effect is spent
+CHECK PASS  TT2c pierce off: the first target ends the effect
+CHECK PASS  TT2d max_targets 2 with pierce on: two targets are hit, then the effect is spent
+CHECK PASS  TT2e a limit equal to the number of targets hits them all and then the effect is spent
+CHECK PASS  TT3 the spawned effect carries the attack's max_targets and pierce
+CHECK PASS  UU1a the shipped player has no spawn marker and its attack origin is its own position
+CHECK PASS  UU1b the shipped goblin has no spawn marker and its attack origin is its own position
+CHECK PASS  UU2a a child named AttackSpawnPoint is resolved on the character and its context
+CHECK PASS  UU2b the spawned effect appears at the marker, not at the character's origin
+CHECK PASS  UU4 the attack origin follows the marker when it moves
+CHECK PASS  UU5 after the marker is freed the attack origin is the character's position again
+CHECK PASS  UU3 an exported marker with another name is used for the spawn position
+WARNING: Character2D 'Player' has a child named AttackSpawnPoint that is not a Marker2D; effects spawn at the character's origin.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _resolve_spawn_point (res://Characters/Core/Character2D.gd:166)
+       [1] _ready (res://Characters/Core/Character2D.gd:110)
+       [2] fresh_far_prepared (res://tests/smoke_checks.gd:304)
+       [3] run_core_phase10_11_checks (res://tests/smoke_checks.gd:3656)
+       [4] cleanup (res://tests/smoke_checks.gd:114)
+       [5] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  UU6 an AttackSpawnPoint node that is not a Marker2D is ignored
+CHECK PASS  UU7 the goblin resolves a marker and uses it as its attack origin
+CHECK PASS  VV1 the projectile scene is an AttackEffect2D with a hit area, a speed and a lifetime
+CHECK PASS  VV2 the projectile flies along its direction at its speed (moved 150.0 px in 30 frames)
+CHECK PASS  VV3a an arrow damages a goblin once through apply_hit (health 20 -> 17, hits [3])
+CHECK PASS  VV3b with pierce off the first target ends the projectile
+CHECK PASS  VV4a a projectile never hits the character that fired it
+CHECK PASS  VV4b a teammate is not hit and the projectile flies on
+CHECK PASS  VV5a a wall on the world layer stops the projectile before it reaches the target behind it
+CHECK PASS  VV5b world_hit fires once, at the wall ([(5090.0, 1200.0)])
+CHECK PASS  VV6a the projectile is still flying before its lifetime is over
+CHECK PASS  VV6b it removes itself when the lifetime ends, with no world hit
+CHECK PASS  VV7a a piercing projectile hits both targets in line and flies on
+CHECK PASS  VV7b max_targets 1 hits the first target only, then the projectile ends
+CHECK PASS  VV8 a projectile whose hit_layers leave out the goblin's layer passes through it
+CHECK PASS  VV9pre the attack component accepts an attack whose effect scene is a projectile
+CHECK PASS  VV9a the attack component fires the projectile and it damages the goblin (health 20 -> 15, expected -5)
+CHECK PASS  VV9b the spent projectile is no longer tracked by the attack component (0 left)
+CHECK PASS  WW1 both arrow definitions load and use Arrow.tscn as their effect scene
+CHECK PASS  WW2 Arrow.tscn is a ProjectileEffect2D with a sprite instead of the placeholder polygon, and a hit area
+CHECK PASS  WW3 the arrow definitions carry their numbers as data (speeds 420 and 600, light stops at one target, heavy pierces up to 3)
+CHECK PASS  WW4 both speeds stay below the hitbox length per frame at 60 fps (no tunnelling, see 11.1 notes)
+CHECK PASS  WW5 every shipped melee definition keeps projectile_speed 0 (the field is ignored by melee)
+CHECK PASS  WW6 the definition's projectile_speed is the flight speed (speed 420, moved 210.0 px in 30 frames, expected about 210)
+CHECK PASS  WW7 projectile_speed 0 keeps the scene's own speed (420)
+CHECK PASS  WW8 a different projectile_speed changes the flight (moved 125.0 px in 30 frames, expected about 125)
+CHECK PASS  WW9 the light arrow hits the first goblin for 4 and is spent (second goblin untouched)
+CHECK PASS  WW10 the heavy arrow pierces three goblins for 9 each and is spent before the fourth
+CHECK PASS  WW11pre the attack component accepts the arrow attack with an existing weapon clip
+CHECK PASS  WW11 AttackComponent2D fires the arrow at the definition's speed (420), it damages the goblin (20 -> 16) and no slash is spawned
+CHECK PASS  WW12 a missing clip is reported with the attack and the clip name (attack 'bow_arrow_shot' on 'Player': weapon AnimationPlayer has no clip 'bow_shoot' (weapon_animation).)
+ERROR: AttackComponent2D rejected definition: attack 'ww_bad_scene' on 'Player': no effect_scene (every attack needs its own effect scene).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_attack_definition (res://Characters/Components/Combat/AttackComponent2D.gd:188)
+       [1] run_core_phase10_11_checks (res://tests/smoke_checks.gd:3869)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  WW13 an arrow attack with no effect scene is still refused, naming the attack
+CHECK PASS  XX1 validate_equip() for the bow returns no problems ([])
+CHECK PASS  XX2 Bow.tscn has the charge (looping), shoot, heavy shoot and return clips
+CHECK PASS  XX3 each shot clip has exactly one spawn_effect key at the release ({ &"bow_shoot": 1, &"bow_heavy_shoot": 1 })
+CHECK PASS  XX4 the bow equips
+CHECK PASS  XX5 the bow is mounted and the player's light and heavy ids come from it
+CHECK PASS  XX6 the sword's attacks are gone from the attack component
+CHECK PASS  XX7pre the bow's light attack starts
+CHECK PASS  XX7 a light shot spawns one arrow, hits the first goblin for 4, leaves the one behind it, and no slash appears (health 20 -> 16)
+CHECK PASS  XX8 the shot and its return clip finish and the weapon pivot is back at rest
+CHECK PASS  XX9pre the bow's heavy attack begins charging
+CHECK PASS  XX9pre2 the charge can be released
+CHECK PASS  XX9 the charged shot pierces both goblins for 9 each (health 7, 11)
+CHECK PASS  XX10 a shot aimed straight down hits a goblin below (health 7 -> 3)
+CHECK PASS  XX11 no equip failure was reported in this section
+CHECK PASS  YY1 the weapon_next input action exists with a key bound
+CHECK PASS  YY2 the player's loadout is sword then bow and the sword is equipped at the start
+CHECK PASS  YY3 with the sword the light and heavy ids are the sword's
+CHECK PASS  YY4 equip_next() switches sword to bow and mounts the bow scene
+CHECK PASS  YY5 the ids now come from the bow (9.7d-1)
+CHECK PASS  YY6 equip_next() wraps around from the bow back to the sword
+CHECK PASS  YY7pre a sword swing starts
+CHECK PASS  YY7 equip_next() is refused during a swing and the sword stays
+CHECK PASS  YY8 after the swing ends the switch works
+CHECK PASS  YY8b and back to the sword
+WARNING: WeaponController2D: weapon 'yy_broken': attack 'yy_broken_attack' needs clip 'no_such_clip' (weapon_animation) on the weapon AnimationPlayer.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] equip_next (res://Characters/Components/Weapons/WeaponController2D.gd:128)
+       [3] run_core_phase10_11_checks (res://tests/smoke_checks.gd:3981)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  YY9 a failed equip rolls back: same weapon, same attacks, same mount, equip_failed reported once
+WARNING: WeaponController2D: weapon 'yy_broken': attack 'yy_broken_attack' needs clip 'no_such_clip' (weapon_animation) on the weapon AnimationPlayer.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] equip_next (res://Characters/Components/Weapons/WeaponController2D.gd:128)
+       [3] run_core_phase10_11_checks (res://tests/smoke_checks.gd:3984)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  YY10 equip_next() skips the weapon that fails and equips the next one
+CHECK PASS  YY11 a loadout with nothing else to switch to does nothing
+CHECK PASS  YY12 an empty loadout does nothing
+CHECK PASS  YY13pre the bow is equipped before the input test
+CHECK PASS  YY13 pressing weapon_next switches once (bow to sword), not once per frame held
+CHECK PASS  YY14 the next press switches again (sword to bow)
+CHECK PASS  YY15 a dead player does not switch weapons
+CHECK PASS  ZZ1 Main.tscn has a GoblinArcher in the arena
+CHECK PASS  ZZ2 the archer is an enemy whose only attack is bow_arrow_enemy, with the arrow as its effect
+CHECK PASS  ZZ3 the arrow attack validates against the archer's own bow clips
+CHECK PASS  ZZ4 the archer carries a bow and has less health than a goblin
+CHECK PASS  ZZ5 its AI starts shooting at 170 px and notices targets at 260 px, without changing the goblin's 200 px
+CHECK PASS  ZZ6 the archer fires arrows and never swings a slash (arrows seen 1)
+CHECK PASS  ZZ7 its arrows hurt the player for 1 each (health 100 -> 99)
+CHECK PASS  ZZ8 an arrow flies through a goblin of its own team without hurting it
+CHECK PASS  ZZ9 it keeps its distance: it did not walk toward a player already inside its range (closest 169 px, behavior ATTACK)
+CHECK PASS  ZZ10 an archer starting at 240 px chases until in range, then shoots (distance 170 px, arrows seen 1, player health 100 -> 99)
+CHECK PASS  ZZ11 the archer takes damage through apply_hit like any character
+PART core_phase10_11 passes=113 failures=0
+CHECK PASS  AAA1 resolve() returns the same hit with every field unchanged
+CHECK PASS  AAA2 resolve() of a null hit stays null
+CHECK PASS  AAA3 HealthComponent2D.apply_hit() resolves once, deals the same damage and passes the same hit to damaged
+CHECK PASS  AAA4 Character2D.apply_hit() goes through the resolver exactly once
+CHECK PASS  AAA5 the take_damage() shim goes through the resolver exactly once
+CHECK PASS  AAA6 a melee slash goes through the resolver once and deals its definition's damage (5)
+CHECK PASS  AAA7 a projectile goes through the resolver once and deals its damage
+CHECK PASS  AAA8 a hit on an invulnerable target is ignored and never resolved
+CHECK PASS  AAA9 a hit on a dead target is ignored and never resolved
+CHECK PASS  BBB1 both sides start the test arena with no defense (the goblin ships with 0; load_main pins the player's tuned value to 0)
+CHECK PASS  BBB2 with no defense the resolver returns the very same hit
+CHECK PASS  BBB3 defense 2 lowers a 5 hit to 3: the returned hit is applied and the original is left alone
+CHECK PASS  BBB4 damage never drops below the minimum of 1, however high the defense
+CHECK PASS  BBB5 defense equal to the damage still deals 1; 4 gives 1 and 6 gives 3 with defense 3
+CHECK PASS  BBB6 a hit with no damage is still ignored (defense never makes it hurt)
+CHECK PASS  BBB7 a melee slash of 5 on a target with defense 2 deals 3
+CHECK PASS  BBB8 a projectile of 3 on a target with defense 2 deals 1
+CHECK PASS  CCC1 chance 0 never crits (100 hits: same hit back, damage 3)
+CHECK PASS  CCC2 chance 1 always crits for damage x multiplier (3 x 2 = 6) and leaves the original hit alone
+CHECK PASS  CCC3 the multiplier is applied once through apply_hit (dealt 6)
+CHECK PASS  CCC4 the result is a whole number (4 x 1.5 = 6) and a multiplier below 1 never lowers damage
+CHECK PASS  CCC5 a seeded generator repeats its rolls, and chance 0.5 gives a mix (18 crits in 40)
+CHECK PASS  CCC6 the crit comes first, then defense (5 x 2 - 3 = 7)
+CHECK PASS  CCC7 a melee attack whose definition has crit_chance 1 deals double damage (10)
+CHECK PASS  CCC8 an arrow attack whose definition has crit_chance 1 deals double damage (8)
+CHECK PASS  CCC9 the shipped attacks have no crit chance
+CHECK PASS  DDD1 a status can be applied and starts without an immediate tick
+CHECK PASS  DDD2 nothing ticks before the first interval (0.25 s)
+CHECK PASS  DDD3 the first tick of 2 lands at 0.5 s (health 48)
+CHECK PASS  DDD4 a 1 s status with 0.5 s ticks ticks twice, then expires and the controller stops processing (health 46)
+CHECK PASS  DDD5 the REFRESH rule restarts the time and keeps one stack
+CHECK PASS  DDD6 a refreshed status outlives its original end, then expires (health 44)
+CHECK PASS  DDD7 the STACK rule stops at max_stacks (2 after three applications)
+CHECK PASS  DDD8 a tick does tick_damage x stacks (1 x 2, health 48)
+CHECK PASS  DDD9 the IGNORE rule refuses a second application and keeps the time running
+CHECK PASS  DDD10 a status that kills the target is cleared by the death, once
+CHECK PASS  DDD11 a dead target takes no further ticks and takes no new status
+CHECK PASS  DDD12 a tick ignores defense and crit (defense 5, tick 2, health 48)
+CHECK PASS  DDD13 a periodic hit causes no knockback or hit stun, an ordinary hit with the same numbers does
+CHECK PASS  DDD14 the shipped BleedStatusDefinition.tres loads: id bleed, stacks up to 3, 1 damage a second
+CHECK PASS  DDD15 the shipped player (13.4.2) and the shipped goblin (H2.1) each have a StatusController2D with nothing running
+CHECK PASS  DDD16 Character2D finds the goblin's shipped child named StatusController2D and initializes it
+CHECK PASS  DDD17 an arrow whose definition lists bleed damages the target and starts the status
+CHECK PASS  DDD18 the bleed ticks on the target after the hit (health 16 -> 14)
+CHECK PASS  DDD19 a hit that is ignored applies no status
+CHECK PASS  DDD20 a character with no StatusController2D takes the damage and ignores the status
+PART core_phase12 passes=46 failures=0
+CHECK PASS  EEE1 the shipped player has the skill components and, since 13.4.3, the sword's three skills; the sword has 3 skills and the bow 2, both still validate, the goblin has neither component, 3 slots per weapon
+CHECK PASS  EEE2 a valid skill has no problems
+CHECK PASS  EEE3 an empty id, a slot outside the weapon, an amount with no resource, a channel time and a missing clip are each reported (5 messages)
+CHECK PASS  EEE4 a mana skill with no amount is reported
+CHECK PASS  EEE5 a weapon with three skills validates and finds them by id and by slot
+CHECK PASS  EEE6 more skills than slots and two skills in one slot are reported
+CHECK PASS  EEE7 a duplicate skill id and an empty entry are reported
+CHECK PASS  EEE8 a skill whose clip is missing is reported by the weapon and refuses the equip
+CHECK PASS  EEE9 mana starts full, spending needs enough, a refused spend changes nothing, restore stops at the maximum
+CHECK PASS  EEE10 mana regenerates by itself (50 -> 55.0 after 0.5 s at 10 a second)
+WARNING: SkillComponent2D: duplicate skill id 'fireball'; the first one is kept.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:104)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4439)
+       [2] phys (res://tests/smoke_checks.gd:25)
+WARNING: SkillComponent2D: skill 'other' wants slot 0, which 'fireball' already holds; it is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:107)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4439)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill (unnamed): id is empty.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4439)
+       [2] phys (res://tests/smoke_checks.gd:25)
+WARNING: SkillComponent2D: ignoring an empty entry in the skills.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:97)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4439)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  EEE a skill with an empty id is rejected with an error: every declared error happened ()
+CHECK PASS  EEE11 set_skills keeps the valid skills and skips a duplicate id, a taken slot, an invalid skill and an empty entry
+CHECK PASS  EEE12 an instant skill pays its cost, starts its cooldown and executes at once
+CHECK PASS  EEE13 a skill on cooldown refuses a second use and spends nothing
+CHECK PASS  EEE14 the skill works again when the cooldown is over
+CHECK PASS  EEE15 a skill that cannot be paid fails cleanly: no mana spent, no cooldown, no execution
+CHECK PASS  EEE16 a character with no mana pool refuses mana skills and still uses free ones
+CHECK PASS  EEE17 dashing, attacking and stunned each prevent a skill and cost nothing
+WARNING: SkillComponent2D: no skill with id 'no_such_skill' (known: [&"fireball", &"heal"]).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] try_use_skill (res://Characters/Components/Skills/SkillComponent2D.gd:162)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4479)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  EEE18 an unknown id and an empty slot are refused; a slot number starts the skill in it
+CHECK PASS  EEE19 a cast skill pays and starts its cooldown when the cast starts, and has not executed yet
+CHECK PASS  EEE20 while casting, no attack, charge, dash, second skill or weapon switch can start
+CHECK PASS  EEE21 the cast ends after its cast time and the skill executes once
+CHECK PASS  EEE22 attacking works again after the cast
+CHECK PASS  EEE23 a damaging hit cancels an interruptible cast: the whole cost is back and the cooldown is cleared
+CHECK PASS  EEE24 a cancelled cast never executes, and the skill can be started again at once
+CHECK PASS  EEE25 a periodic hit (a status tick) does not interrupt a cast
+CHECK PASS  EEE26 the cast that was left alone executes
+CHECK PASS  EEE27 a skill with interruptible off keeps casting through a hit
+CHECK PASS  EEE28 and executes
+CHECK PASS  EEE29 equipping a weapon gives its active skills to the skill component
+CHECK PASS  EEE30 switching weapons swaps the skills, and a running cooldown keeps running
+CHECK PASS  EEE31 switching back does not reset the cooldown
+CHECK PASS  EEE32 a goblin can be given a skill component and starts a cast
+CHECK PASS  EEE33 death cancels the cast and gives the cost back
+CHECK PASS  EEE34 Character2D finds child nodes named ManaComponent2D and SkillComponent2D and initializes them
+CHECK PASS  EEE35 the shipped Power Shot skill loads: a mana projectile skill that uses Arrow.tscn and has no validation problems
+CHECK PASS  EEE36 a projectile skill with no attack, an attack with no effect scene, a melee effect scene or SELF targeting is reported
+ERROR: SkillComponent2D rejected skill: skill 'no_attack': a projectile skill needs an attack (AttackDefinition2D).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4588)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'power_shot': the attack's effect_scene root must be a ProjectileEffect2D (such as Arrow.tscn), not a melee effect.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4588)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'power_shot': a projectile skill needs targeting AIM_DIRECTION, not SELF.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4588)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  EEE37 SkillComponent2D refuses the three invalid projectile skills and accepts the shipped one
+CHECK PASS  EEE38 using the skill spawns exactly one projectile at the attack origin, owned by the caster and aimed along the direction; it pays 20 mana, starts the 4 s cooldown and executes once
+CHECK PASS  EEE39 the projectile is configured from the skill's attack: damage, speed, hit policy, knockback, stun and hit layers
+CHECK PASS  EEE40 max_range turns into a flight time: 300 px at 520 px/s is 0.577 s
+CHECK PASS  EEE41 the projectile reaches the goblin and damages it; skill_hit names the skill, the target and the damage
+CHECK PASS  EEE42 the attack's hit_effect_scene spawns an impact effect at the hit
+CHECK PASS  EEE43 a skill on cooldown fires nothing and spends nothing
+CHECK PASS  EEE44 a skill the caster cannot pay for fires nothing and spends nothing
+CHECK PASS  EEE45 with no direction the skill fires along the aim; a given direction is normalized and used
+CHECK PASS  EEE46 a skill with max_range 0 leaves the scene's own lifetime (1.20 s)
+CHECK PASS  EEE47 a cast projectile skill spawns nothing while it casts and exactly one projectile when the cast ends
+CHECK PASS  EEE48 a cast cancelled by a hit fires nothing and gives the mana back
+CHECK PASS  EEE49 a goblin with a skill component fires the same skill: the arrow hurts the player (team filter) and never the shooter
+CHECK PASS  EEE50 a weapon whose projectile skill has a melee effect scene is reported and refuses the equip
+CHECK PASS  EEE51 the shipped Ground Slam skill loads: a mana area skill that uses AreaEffect2D.tscn and has no validation problems
+CHECK PASS  EEE52 an area skill with no attack, no effect scene, a projectile or melee scene, or a max_range is reported
+ERROR: SkillComponent2D rejected skill: skill 'area_no_attack': an area skill needs an attack (AttackDefinition2D).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4719)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'ground_slam': the attack's effect_scene root must be an AreaEffect2D (such as AreaEffect2D.tscn), not a melee or projectile effect.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4719)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'ground_slam': the attack's effect_scene root must be an AreaEffect2D (such as AreaEffect2D.tscn), not a melee or projectile effect.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4719)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  EEE53 SkillComponent2D refuses the three invalid area skills and accepts the shipped one
+CHECK PASS  EEE54 using the skill spawns exactly one area at the attack origin, owned by the caster and aimed along the direction; it pays 15 mana, starts the 6 s cooldown and executes once (used=true, spawned=1, source_ok=true, direction=(1.0, 0.0), origin_distance=0.000, mana=85.00, cooldown=6.000, executed=1)
+CHECK PASS  EEE55 the area is configured from the skill's attack: damage, knockback, stun, hit layers, hit policy and offset
+CHECK PASS  EEE56 area_radius 40 gives a circle of radius 40 centred 32 px in front of the caster
+CHECK PASS  EEE57 both goblins inside the area are damaged exactly once and skill_hit names the skill for each
+CHECK PASS  EEE58 a goblin outside the circle and the caster itself are not hurt
+CHECK PASS  EEE59 the attack's hit_effect_scene spawns an impact effect at each hit (spawned=2; short-lived effects are counted at creation)
+CHECK PASS  EEE60 the area removes itself once its active time is over
+CHECK PASS  EEE61 an area skill on cooldown, or one the caster cannot pay for, fires nothing and spends nothing
+CHECK PASS  EEE62 a SELF area is centred on the caster, takes its size from the attack when area_radius is 0, hurts a goblin beside the caster and never the caster (used=true, spawned=1, area_valid_at_spawn=true, centered=true, radius=40.0 expected=40.0 radius_ok=true, nearby_hp=20->14 hit=true, player_hp=100->100 safe=true)
+CHECK PASS  EEE63 an area skill whose attack has max_targets 1 hurts only one of the four goblins in the circle
+CHECK PASS  EEE64 a cast area spawns nothing while casting and one area at the end of the cast; a cast cancelled by a hit spawns nothing and gives the mana back
+CHECK PASS  EEE65 a weapon whose area skill has a projectile effect scene is reported and refuses the equip
+CHECK PASS  EEE66 the shipped Lunge skill loads: a free dash skill of 120 px at 600 px/s with an AreaEffect2D strike and no validation problems
+CHECK PASS  EEE67 a dash skill with no distance, no speed, a strike with no scene or a projectile scene is reported; one with no attack at all is a valid plain dash
+ERROR: SkillComponent2D rejected skill: skill 'lunge': a dash skill needs max_range above 0 (the distance of the dash).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4871)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'lunge': the dash strike's effect_scene root must be an AreaEffect2D (such as AreaEffect2D.tscn).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4871)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  EEE68 SkillComponent2D refuses the invalid dash skills and accepts the shipped one and the plain dash
+CHECK PASS  EEE69 start_skill_dash starts a dash at the given speed without touching the normal dash cooldown, and is refused while dashing, casting, attacking or stunned
+WARNING: SkillComponent2D: skill 'plain_dash' wants slot 0, which 'lunge' already holds; it is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:107)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4899)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  EEE70 using the skill starts a dash along the direction at 600 px/s, starts its 4 s cooldown, executes once and spawns a strike that follows the caster for the dash's 0.2 s
+CHECK PASS  EEE71 the strike travels with the caster during the dash
+CHECK PASS  EEE72 the dash covers about 120 px along the direction (moved 120.0) and leaves the normal dash cooldown alone
+CHECK PASS  EEE73 the strike hurts the goblin on the path exactly once, and not the goblin off the path or the caster
+CHECK PASS  EEE74 a dash skill with no attack dashes and spawns no strike
+CHECK PASS  EEE75 a dash skill on cooldown does not move the caster
+CHECK PASS  EEE76 a SELF dash skill goes the way the character is moving
+CHECK PASS  EEE77 a cast dash stays put while casting and dashes when the cast ends; a cast cancelled by a hit never dashes and clears the cooldown
+CHECK PASS  EEE78 a weapon whose dash skill has no distance is reported and refuses the equip
+CHECK PASS  EEE79 the shipped Weapon Empowerment skill loads: a 15 mana buff with a 10 s cooldown that puts the 6 s empowered status (damage x1.5) on the caster, and validates
+CHECK PASS  EEE80 a buff skill with no status, or a status with no duration, is reported
+CHECK PASS  EEE81 the damage multiplier is 1 with no status, 1.25 with one stack of x1.25, 1.5 with two, 1 again when it expires; bleed leaves it at 1
+CHECK PASS  EEE82 the resolver multiplies the attacker's damage (10 -> 15), before defense (15 - 3 = 12) and crit (15 x 2 = 30); a source with no buff, no source and a status tick are unchanged
+CHECK PASS  EEE83 a hit by a buffed caster deals 15 to a goblin, the same hit unbuffed deals 10
+ERROR: SkillComponent2D rejected skill: skill 'empower': a buff skill needs a status_effect (StatusEffectDefinition2D).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:5070)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'empower': the status_effect has no duration; it would never start.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:5070)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  EEE84 SkillComponent2D refuses the invalid buff skills and accepts the shipped one
+CHECK PASS  EEE85 using the skill puts the 6 s empowered status on the caster, pays 15 mana, starts the 10 s cooldown and executes once
+CHECK PASS  EEE86 a skill on cooldown is refused, and a caster with no StatusController2D is refused with a reason, spending nothing and starting no cooldown
+CHECK PASS  EEE87 using a buff again while it runs restarts its time, and when the time is over the status and its bonus are gone
+CHECK PASS  EEE88 a cast buff applies at the end of the cast; a cast cancelled by a hit applies nothing, refunds the mana and clears the cooldown
+CHECK PASS  EEE89 a weapon whose buff skill has no status is reported and refuses the equip
+CHECK PASS  FFF1 set_skills() emits skills_changed once and still returns how many skills it accepted (3)
+CHECK PASS  FFF2 using a skill emits cooldown_started once with the skill and its 0.25 s, and a successful use emits no refusal; get_cooldown_duration() reads 0.25
+CHECK PASS  FFF3 cooldown_finished comes once when the 0.25 s are over, not before, with nothing left on the clock, the skill ready and the duration back to 0
+CHECK PASS  FFF4 a skill with cooldown 0 emits neither cooldown signal and is usable twice in a row
+CHECK PASS  FFF5 a skill used while cooling down emits skill_refused with its reason (on cooldown) and spends nothing more
+CHECK PASS  FFF6 a skill refused for lack of mana emits skill_refused with the mana reason, starts no cooldown and keeps the mana
+WARNING: SkillComponent2D: no skill with id 'no_such_skill' (known: [&"quick", &"free", &"slow"]).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] try_use_skill (res://Characters/Components/Skills/SkillComponent2D.gd:162)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:5196)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  FFF7 an unknown skill id or an empty slot emits no skill_refused
+CHECK PASS  FFF8 get_cast_progress() is 0 idle, about half way through a 0.4 s cast (0.50) and 0 after it; the cooldown signals bracket the skill's 0.5 s
+CHECK PASS  FFF9 equipping a weapon emits skills_changed once; a cooldown running across the switch keeps its 0.25 s duration and still finishes, for a skill that is no longer set
+CHECK PASS  FFF10 a cast cancelled by a hit emits cooldown_finished (its cooldown is cleared) and then skill_cancelled, and the cast progress is back to 0
+CHECK PASS  GGG1 player.tscn has children named ManaComponent2D, SkillComponent2D and StatusController2D, Character2D found and initialized them, and the goblin has a StatusController2D but no mana or skills
+CHECK PASS  GGG2 the player's mana pool uses the defaults: 100 mana, full, 5 per second
+CHECK PASS  GGG3 skill_1 to skill_3 are one key each, 1 to 3, and the existing actions are still there
+CHECK PASS  GGG4 the weapon controller hands the equipped weapon's skills to the player's SkillComponent2D
+CHECK PASS  GGG5 with the slots emptied, pressing 1, 2 and 3 starts nothing, refuses nothing and spends nothing
+CHECK PASS  GGG6 pressing skill_1 once uses the skill in slot 0 once (not once per frame held): 10 mana paid, cooldown running
+CHECK PASS  GGG7 skill_2 uses the skill in slot 1 and skill_3 the skill in slot 2
+CHECK PASS  GGG8 pressing a skill that is still cooling down is refused (skill_refused, reason names the cooldown) and spends no mana
+CHECK PASS  GGG9pre a sword swing starts
+CHECK PASS  GGG9 a skill key pressed in the middle of a swing is refused (the character is attacking) and the swing goes on
+CHECK PASS  GGG10 weapon_next still switches the weapon, and the skill component hears skills_changed once
+CHECK PASS  GGG11 a dead player ignores the skill keys: nothing started, nothing refused, nothing spent
+CHECK PASS  HHH1 each shipped skill has its own 64 x 64 placeholder icon
+CHECK PASS  HHH2 the sword has Lunge, Spin and Empowerment; the bow has Power Shot, Multi-shot and Empowerment; both weapons still validate
+CHECK PASS  HHH3 the player starts with the sword and the sword's three skills in the player's own SkillComponent2D
+CHECK PASS  HHH4 equipping the bow gives Power Shot, Multi-shot and Empowerment, and equipping the sword restores its three skills
+CHECK PASS  HHH5 Sword Spin hits around the caster but not the caster, even with an offset spawn marker; pays 20 mana and starts its 7 s cooldown (used=true, target_hp=20->12, player_hp=100->100, mana_after_cost=80.00, cooldown=6.98, centered=true)
+CHECK PASS  HHH6 Lunge from the sword's slot 0 carries the player about 120 px along the aim (moved 120.0) and starts its 4 s cooldown
+CHECK PASS  HHH7 Power Shot from the bow's slot 0 hurts a goblin 120 px away, pays 20 mana and starts its 4 s cooldown
+CHECK PASS  HHH8 pressing key 3 with the bow uses Empowerment: the empowered status is on the player, 15 mana paid, 10 s cooldown running
+CHECK PASS  HHH9 Empowerment is slot 2 on both weapons, and switching from the bow to the sword does not reset its cooldown
+PART core_phase13_skills passes=121 failures=0
+CHECK PASS  MMM1 Main uses the reusable ManaBar scene
+CHECK PASS  MMM2 mana_source resolves to the player's ManaComponent2D
+CHECK PASS  MMM3 the mana bar defines intro, spend and restore clips
+CHECK PASS  MMM4 mana fill styling comes from its blue StyleBox resource
+CHECK PASS  MMM5 the mana bar starts synced to the resource
+CHECK PASS  MMM6 spending mana plays the spend feedback clip
+CHECK PASS  MMM7 spending mana smoothly updates the bar and counter
+CHECK PASS  MMM8 restoring mana plays the restore feedback clip
+CHECK PASS  MMM9 restoring/regenerating mana raises the displayed value
+WARNING: ManaBar 'UnboundManaBar': mana_source does not point to a ManaComponent2D.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _ready (res://UI/HUD/ManaBar.gd:34)
+       [1] run_core_phase13_hud_checks (res://tests/smoke_checks.gd:5460)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  MMM10 a mana bar without a source warns but remains safe to instantiate
+CHECK PASS  SSS1 the reusable SkillSlot scene instantiates with its icon and radial TextureProgressBar
+CHECK PASS  SSS2 the slot defines ready, denied, started and unaffordable scene animations
+CHECK PASS  SSS3 an unbound slot shows only its frame and hotkey
+CHECK PASS  SSS4 bind displays the skill icon, hotkey and mana-cost badge
+CHECK PASS  SSS5 cooldown formatting uses one decimal below ten seconds and whole seconds at ten or above
+CHECK PASS  SSS6 using a skill drives the radial cooldown wipe from SkillComponent2D remaining time (used=true, remaining=0.317, duration=0.350, visible=true, wipe=1.000/1.000)
+CHECK PASS  SSS7 pressing a cooling skill plays the denied shake through skill_refused
+CHECK PASS  SSS8 cooldown completion clears the wipe and plays the ready flash/pop
+CHECK PASS  SSS9 a skill that cannot afford its mana cost dims its icon
+CHECK PASS  SSS10 a skill with no resource cost hides its cost badge
+CHECK PASS  SSS11 cast progress reuses the radial wipe with the cast tint
+CHECK PASS  TTT1 Main instantiates a SkillBar scene containing exactly three reusable SkillSlot scenes
+CHECK PASS  TTT2 SkillBar resolves the player's SkillComponent2D and ManaComponent2D through exported paths
+CHECK PASS  TTT3 the player's starting sword supplies Lunge, Spin and Empowerment to the three slots
+CHECK PASS  TTT4 SkillBar initially binds the slots to the equipped sword's skills
+CHECK PASS  TTT5 hotkey labels are derived from the skill_1 to skill_3 Input Map events
+CHECK PASS  TTT6 the player can switch to the bow after starting a cooldown
+CHECK PASS  TTT7 weapon switching rebuilds the slots for the bow's three skills
+CHECK PASS  TTT8 switching weapons does not clear the previous weapon skill's cooldown
+CHECK PASS  TTT9 switching back restores the correct skill and its still-running cooldown wipe
+CHECK PASS  TTT10 a runtime Input Map rebind updates the displayed hotkey
+CHECK PASS  TTT11 the scene-based skill bar remains alive and processing after the player dies
+CHECK PASS  UUU1 Sword Spin loads as a valid self-targeted area skill
+CHECK PASS  UUU2 Multi-shot loads as a valid three-projectile skill with a 24 degree fan
+CHECK PASS  UUU3 the sword and bow equip Spin and Multi-shot in slot 1 and both weapon definitions validate
+CHECK PASS  UUU4 existing projectile skills keep the default single-shot, zero-spread behavior
+CHECK PASS  UUU5 volley validation rejects an invalid count, out-of-range spread and spread on a single projectile
+CHECK PASS  UUU6 Multi-shot spawns exactly three arrows at -12, 0 and +12 degrees, pays its cost once and starts one cooldown
+CHECK PASS  UUU7 each arrow hits its target once through the shared damage path
+PART core_phase13_hud passes=39 failures=0
+CHECK PASS  PAS1 Rising Strikes loads (3 swings, 4 s window, status x1.5 for 8 s, consumed by the next attack) and validates
+CHECK PASS  PAS2 passive validation reports an empty id, a zero count, a missing status and a status with no duration
+CHECK PASS  PAS3 a weapon reports empty, duplicate and invalid passives; a clean one validates and get_passive() finds by id
+CHECK PASS  PAS4 each swing that hits counts once; a swing that hits nothing neither counts nor resets
+CHECK PASS  PAS5 a swing that hits three targets counts once; the reward is earned mid-swing but granted only when that swing closes
+CHECK PASS  PAS6 the next attack uses the reward up when it closes, its hits do not count, and counting starts again from 0
+CHECK PASS  PAS7 in a combo chain the reward is granted when the next link starts, that link uses it, and the link after is normal
+CHECK PASS  PAS8 the counter survives a swing inside its window and goes back to 0 after the window passes with no swing
+CHECK PASS  PAS9 death resets the counter
+CHECK PASS  PAS10 death takes a granted reward away
+CHECK PASS  PAS11 a reward that is not consumed runs its own duration; swings do not count while it runs and counting resumes when it ends
+CHECK PASS  PAS12 replacing the passives (an equip) removes a granted reward and announces the change
+ERROR: PassiveController2D rejected passive 'pas_ok': its id is listed more than once.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_passives (res://Characters/Components/Passives/PassiveController2D.gd:81)
+       [1] run_core_phase14_p_checks (res://tests/smoke_checks.gd:5718)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: PassiveController2D rejected passive: passive 'pas_inv': needs a status_effect (the status it applies).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_passives (res://Characters/Components/Passives/PassiveController2D.gd:78)
+       [1] run_core_phase14_p_checks (res://tests/smoke_checks.gd:5718)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  PAS13 an empty, duplicate or invalid passive is skipped with an error and the valid one is kept
+CHECK PASS  PAS14 a swing that was cancelled still uses the reward up; a late hit then counts for the new count
+CHECK PASS  PAS15 the player has a PassiveController2D wired to its weapon controller, and the shipped sword and bow have no passives
+CHECK PASS  PAS16 equipping a weapon gives its passives to the player's controller
+CHECK PASS  PAS17 a real swing that lands counts once and deals normal damage
+CHECK PASS  PAS18 the third real swing earns the reward: it still deals normal damage, and the reward is active once the swing ends
+CHECK PASS  PAS19 the next real swing deals the empowered damage, uses the reward up, and does not count
+CHECK PASS  PAS20 the swing after that is back to normal damage and counting from 0
+CHECK PASS  PAS21 equipping a weapon without that passive removes it and its counter
+CHECK PASS  EVT1 the shipped Vampiric Strikes, Serrated Edge and Executioner load with their effects and validate
+CHECK PASS  EVT2 event passive validation reports a zero heal, a threshold outside 0 to 1, a multiplier of 1 and a missing status; a heal needs no status
+CHECK PASS  EVT3 heal on hit restores its amount for every target hit (3 x 2), while a counter passive in the same list still counts the swing once
+CHECK PASS  EVT4 a swing that hits nothing heals nothing, and healing never goes above the maximum
+CHECK PASS  EVT5 bleed on hit puts the status on the target of every hit, and it stacks by the status's own rule
+CHECK PASS  EVT6 a target with no status controller, or no target at all, is ignored without a problem and the next target still gets the status
+CHECK PASS  EVT7 the low-health bonus applies at or below the threshold (100 of 400 = 25%) and not above it (101), through the damage resolver
+CHECK PASS  EVT8 the passive bonus multiplies with a buff status (20 x 1.5 x 1.5 = 45); a hit with no source, or after the passive is gone, gets none
+CHECK PASS  EVT9 a real swing that lands heals the player by the passive's amount
+CHECK PASS  EVT10 a real swing puts the passive's status on the goblin it hits (and the replaced heal passive no longer heals)
+CHECK PASS  EVT11 a real swing deals double damage to a goblin at 25% health and normal damage at 75%
+CHECK PASS  EVT12 equipping a weapon without passives removes the event passives and their damage bonus
+CHECK PASS  RC1 the player and the goblin each have a ReactionComponent2D, found by Character2D
+CHECK PASS  RC2 the player's component is wired in the scene: flash on ReactionAnim, death clip on PlayerAnim, no freeing, no effect
+CHECK PASS  RC3 the goblin's component is wired in the scene: flash on its AnimationPlayer, DeathEffect, frees on death
+CHECK PASS  RC4 player.gd has no clip names, effect spawning or freeing left in it
+CHECK PASS  RC4 BasicEnemy2D.gd has no clip names, effect spawning or freeing left in it
+CHECK PASS  RC5 BasicEnemy2D declares neither presentation hook: a new enemy needs no presentation script
+CHECK PASS  RC6 a hit plays the component's hit clip on its hit_player (got 'take_damage')
+CHECK PASS  RC7 a missing clip, an empty clip name or an unset player is skipped without breaking the hit
+CHECK PASS  RC8 death plays the death clip, stops a running flash, keeps the player in the scene and still stops its physics (got 'death' / 'RESET')
+CHECK PASS  RC9 initialize() twice leaves one connection per signal, not two (2)
+CHECK PASS  RC10 a component built in code with its own effect and free_on_death off spawns that effect where the goblin died and leaves the goblin in place
+CHECK PASS  RC11 initialize() for another character moves the connections (old 0, new 2)
+CHECK PASS  FC1 the player and the goblin each have a FacingComponent2D, found by Character2D
+CHECK PASS  FC2 Character2D.gd holds no mirroring or weapon-aim math any more
+CHECK PASS  FC3 moving left faces left, mirrors the body and the weapon, and takes the idle aim
+CHECK PASS  FC4 standing still keeps the last horizontal facing
+CHECK PASS  FC5 an attack aimed right shows the character facing right and uses the attack direction, without losing the movement facing
+CHECK PASS  FC6 mirror_visual and mirror_weapon each switch off one mirror and leave the other on
+CHECK PASS  FC7 art_faces_left mirrors the rig when facing right and not when facing left; the facing itself is unchanged
+CHECK PASS  FC8 rotate_weapon_to_aim off leaves the pivot unrotated during an aimed swing, on rotates it (off 0.000, on -1.571)
+CHECK PASS  FC9 a character with no FacingComponent2D node gets a default one made in code, and it mirrors the goblin sprite
+CHECK PASS  FC10 a component with no context does nothing, and one with no attack component puts the pivot at rest
+PART core_phase14_p passes=55 failures=0
+CHECK PASS  CA0 the aimable test controller kept the player's components
+CHECK PASS  CA1 the heavy attack starts charging
+CHECK PASS  CA2 charging toward the right: pivot at 0, facing right
+CHECK PASS  CA3 changing the aim to up during the charge rotates the pivot to -90 degrees without flipping (rotation -1.571)
+CHECK PASS  CA4 sweeping the aim over to the left flips the sprite and points the pivot left during the charge
+CHECK PASS  CA5 the release swings along the live aim (down)
+CHECK PASS  DZ1 an aim within the dead zone of straight up never flips the sprite ([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+CHECK PASS  DZ2 an aim clearly to the left flips it
+CHECK PASS  DZ3 back inside the dead zone it keeps the side it shows (left)
+CHECK PASS  DZ4 with the dead zone at 0 a small x flips it
+CHECK PASS  DZ5 update_charge_direction does nothing when not charging
+CHECK PASS  SF1 an attack aimed left after walking right faces left
+CHECK PASS  SF2 when the attack ends the character keeps facing left
+CHECK PASS  SF3 and keeps it on later frames while standing still
+CHECK PASS  SF4 moving horizontally takes the facing over again
+CHECK PASS  SF5 sticky_facing off restores the revert to the last movement direction
+CHECK PASS  BR1 the bow's RESET pose, idle pose, the end of bow_return and the scene default are the same (0.0873 / 0.0873 / 0.0873 / 0.0873)
+CHECK PASS  BR2 the sword's RESET and idle rotations match
+CHECK PASS  SB1 the first frame after a cancel the pivot has barely moved (1.571 -> 1.517)
+CHECK PASS  SB2 the pivot blends to 0 with no frame jumping more than 0.4 rad (largest 0.261)
+CHECK PASS  SB3 the hand blends from the swing pose to the idle pose (2.801 -> 0.873, largest step 0.320)
+CHECK PASS  SB4 the blend ends and releases the hand
+CHECK PASS  SB5 with settle_time 0 the pivot still snaps (1.571 -> 0.000)
+CHECK PASS  SB6a the swing starts
+CHECK PASS  SB6 a swing aimed up ends with the pivot blending back to 0 (largest step 0.261)
+CHECK PASS  SB7a the swing starts
+CHECK PASS  SB7 a hit that interrupts the swing blends the pivot back (largest step 0.261)
+CHECK PASS  SB8 starting a new swing ends the blend in progress
+CHECK PASS  SB9 dying mid-swing snaps the pivot and the hand to rest (pivot 0.000, hand 0.873)
+CHECK PASS  SB10 the bow can be equipped
+CHECK PASS  SB11 a cancelled bow shot blends the hand to the idle pose 0.0873 (from -0.785, largest step 0.145)
+PART p9 passes=31 failures=0
+CHECK PASS  RT1 the shipped sword and bow attacks use a code-driven return (no return clip, recovery_time > 0)
+CHECK PASS  RT2 the swing starts
+CHECK PASS  RT3 after the weapon clip the attack is in a code-driven recovery and still attacking (26 frames)
+CHECK PASS  RT3b the swing ended away from rest (hand 2.880, idle 0.873, pivot 1.571)
+CHECK PASS  RT4 no attack can start during the return
+CHECK PASS  RT5 the return lasts recovery_time (31 frames, wanted 30) and the attack finishes once
+CHECK PASS  RT6 the return starts from the pose the swing ended in and never jumps (largest hand step 0.100, pivot 0.078)
+CHECK PASS  RT7 it ends at the idle pose with the pivot at 0 and no second blend (hand 0.873, pivot 0.000)
+CHECK PASS  RT8 cancelling during the return does not snap the hand (2.173 -> 2.129)
+CHECK PASS  RT9 recovery_ease shapes the return (a constant-1 curve is at rest after two frames while the attack is still locked)
+CHECK PASS  RT10 the return after the combo window closes continues from the cut pose (steps 0.031)
+CHECK PASS  RT11 a bow shot returns by code too and blocks the next shot meanwhile
+CHECK PASS  RT12 the bow ends at its idle pose (0.0873)
+PART p10 passes=13 failures=0
+CHECK PASS  BC1 the bow has a nocked-arrow sprite that starts hidden, and the bow script that puts it away
+CHECK PASS  BC2 Bow.tscn has a bow_draw clip that plays once, next to the looping bow_charge
+CHECK PASS  BC3 bow_draw and bow_charge show the arrow from their first frame
+CHECK PASS  BC4 bow_shoot and bow_heavy_shoot hide the arrow on exactly the key that fires spawn_effect ({ &"bow_shoot": [0.04166666790843, 0.04166666790843], &"bow_heavy_shoot": [0.04166666790843, 0.04166666790843] })
+CHECK PASS  BC5 idle, RESET and bow_return keep the arrow hidden
+CHECK PASS  BC6 the arrow attacks name draw > shoot (light) and draw > charge > heavy shoot (heavy) and remember a click
+CHECK PASS  BC7 the bow and both arrow attacks validate
+CHECK PASS  BC8 a missing or duplicated draw clip is reported by name
+CHECK PASS  BC9 idle: no arrow on the bow
+CHECK PASS  BC10 a light attack starts with bow_draw, not bow_shoot
+CHECK PASS  BC11 the clips play in the order bow_draw > bow_shoot, with no charge ([&"bow_draw", &"bow_shoot"])
+CHECK PASS  BC12 the arrow is on the bow throughout the draw (first seen on frame 0)
+CHECK PASS  BC13 the arrow leaves the bow on the very frame the real arrow spawns (hidden on frame 34, spawned on frame 34)
+CHECK PASS  BC14 with no further input exactly one arrow was shot and the bow is back to idle with no arrow
+CHECK PASS  BC15 the weapon pivot and the hand are back at their idle pose
+CHECK PASS  BC16 a click made before the window opens is remembered (reported as not started)
+CHECK PASS  BC17 the click repeats the cycle: draw > shoot > draw > shoot ([&"bow_draw", &"bow_shoot", &"bow_draw", &"bow_shoot"])
+CHECK PASS  BC18 two arrows were shot and the second attack was a chain link ([[&"bow_arrow_shot", &"bow_arrow_shot"]])
+CHECK PASS  BC19 no return plays between the two shots
+CHECK PASS  BC20 four clicks give four arrows (shots 4, swings 4)
+CHECK PASS  BC21 the return starts only after the 4th arrow (recovering first seen with 4 arrows out)
+CHECK PASS  BC22 after the 4th shot the bow returns to idle
+CHECK PASS  BC23 clicking every frame for 5 s fires 7 arrows with 0 returns in between
+CHECK PASS  BC24 a click made while the bow is returning is queued and shoots again once the return is over (arrows 2)
+CHECK PASS  BC25 the queued click starts with bow_draw ([&"bow_draw", &"bow_shoot", &"bow_draw", &"bow_shoot"])
+CHECK PASS  BC26pre the short-queue variant is accepted
+CHECK PASS  BC26 a click that waits longer than input_queue_time is dropped (arrows 1)
+CHECK PASS  BC27 a heavy attack starts its charge with bow_draw
+CHECK PASS  BC28 the draw hands over to the looping charge clip by itself and the arrow stays on the bow ([&"bow_draw", &"bow_charge"])
+CHECK PASS  BC29 the charge only counts after the draw (0.150 s after 0.667 s)
+CHECK PASS  BC30pre the charge is released
+CHECK PASS  BC30 the release plays bow_heavy_shoot with no second draw ([&"bow_heavy_shoot"])
+CHECK PASS  BC31 the heavy arrow leaves the bow on the frame it spawns (hidden 3, spawned 3) and the bow returns to idle
+CHECK PASS  BC32 a release during the draw is accepted but the draw keeps playing
+CHECK PASS  BC33 the shot follows the draw directly, with no charge clip ([&"bow_draw", &"bow_heavy_shoot"])
+CHECK PASS  BC34 after bow_heavy_shoot finishes with a click waiting, bow_draw plays again ([&"bow_draw", &"bow_heavy_shoot", &"bow_draw", &"bow_shoot"])
+CHECK PASS  BC35 the click became a light attack chained after the heavy one ([[&"bow_arrow_heavy", &"bow_arrow_shot"]])
+CHECK PASS  BC36 cancelling during the draw hides the arrow and clears the draw state
+CHECK PASS  BC37 a new attack can start after the cancel and draws again
+CHECK PASS  BC38 cancelling during the charge hides the arrow and ends the charge
+CHECK PASS  BC41 four button taps give four arrows as draw > shoot x4 (arrows 4, [&"bow_draw", &"bow_shoot", &"bow_draw", &"bow_shoot", &"bow_draw", &"bow_shoot", &"bow_draw", &"bow_shoot"])
+CHECK PASS  BC42 the bow returns to idle only after the last tap's shot
+CHECK PASS  BC43 holding the button plays draw > charge > heavy shoot and shoots once ([&"bow_draw", &"bow_charge", &"bow_heavy_shoot"])
+CHECK PASS  BC39 a sword swing starts straight with its slash clip
+CHECK PASS  BC40 a sword click during the swing is refused and not remembered
+PART bow_cycle passes=45 failures=0
+CHECK PASS  WX1 no attack or skill id under Weapons/Sword and Weapons/Bow names a character (player, goblin); 11 resources scanned, offenders: []
+CHECK PASS  WX2 attack ids are unique across the sword, the bow and the goblin sword (11 ids, duplicates: [])
+PART track_w passes=2 failures=0
+CHECK PASS  WM1 an empty weapon_mount means WeaponFacingPivot: the player can equip the bow, the goblin is still refused for lacking one
+CHECK PASS  WM2 weapon_mount ../AnimatedSprite2D resolves to the sprite and the goblin can equip the sword (problems: [])
+WARNING: WeaponController2D: weapon 'sword': weapon_mount '../NoSuchMount' does not resolve to a Node2D, so its weapon cannot be swapped.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_weapon_mount_checks (res://tests/smoke_checks.gd:6870)
+       [3] fresh (res://tests/smoke_checks.gd:54)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  WM3 an unresolved weapon_mount refuses the weapon and leaves the goblin's weapon and attacks as they were
+CHECK PASS  WM4 the sword is mounted under AnimatedSprite2D and takes the name Weapon (equipped: true)
+CHECK PASS  WM5 the goblin now has the sword's attacks, with sword_slash1 as its default
+CHECK PASS  WM6 the goblin swings the mounted sword (clip sword_slash_1) and no orphaned nodes are left under its sprite
+PART weapon_mount passes=6 failures=0
+CHECK PASS  GW1 GoblinSword.tscn is a knife Sprite2D whose weapon player has RESET, slash, lunge, sword_return, sword_slash_1 and sword_slash_2, and the attack clips fire spawn_effect through ../..
+CHECK PASS  GW2 the goblin sword is valid and its combo is the sword's own sword_slash1 and sword_slash2 (the same resources) (problems: [])
+CHECK PASS  GW3 a goblin equips the goblin sword through weapon_mount: the knife scene sits under AnimatedSprite2D as Weapon, sword_slash1 is the default attack (problems: [])
+CHECK PASS  GW4 the goblin swings sword_slash1 with the knife's own sword_slash_1 clip (clip sword_slash_1)
+CHECK PASS  GL1 the goblin lunge takes the sword Lunge's damage, knockback and hit stun (Q1), keeps the lunge clip and its 75 px AI range
+CHECK PASS  GL2 the lunge is registered on the goblin sword in the heavy_attack slot, as the last of the extra attacks
+CHECK PASS  GL3 the goblin that equipped the goblin sword starts the lunge by id and plays the lunge clip (clip lunge)
+PART goblin_sword passes=7 failures=0
+CHECK PASS  GS1 BasicEnemy2D has a WeaponController2D child
+CHECK PASS  GS2 the goblin controller initializes and equips GoblinSword
+CHECK PASS  GS3 the goblin weapon mount resolves to AnimatedSprite2D
+CHECK PASS  GS4 the weapon is the GoblinSword scene mounted as AnimatedSprite2D/Weapon
+CHECK PASS  GS5 the goblin's default attack is the shared sword_slash1 resource
+CHECK PASS  GS6 the goblin exposes only sword_slash1, sword_slash2 and goblin_sword_lunge
+CHECK PASS  GS7 the combo follow-up and lunge resolve to their weapon-owned resources
+CHECK PASS  GS8 goblin slash uses the sword's damage and effect data
+CHECK PASS  GS9 the goblin lunge keeps its intended damage, knockback and hit stun
+CHECK PASS  GS10 the AI slash choice points at sword_slash1
+CHECK PASS  GS11 the AI lunge choice points at GoblinSword_Lunge
+CHECK PASS  GS12 the AI does not autonomously choose sword_slash2 as a combo follow-up
+CHECK PASS  GS13 the character-owned goblin attack resources have been removed
+CHECK PASS  GS14 BasicEnemy2D no longer embeds the knife animations or references deleted attack resources
+PART goblin_sword_wiring passes=14 failures=0
+CHECK PASS  WA1 Main contains a GoblinArcher character
+CHECK PASS  WA2 GoblinArcher inherits WeaponController2D
+CHECK PASS  WA3 GoblinArcher equips the Bow enemy weapon definition
+CHECK PASS  WA4 the archer mounts its weapon under AnimatedSprite2D
+CHECK PASS  WA5 the equipped weapon is Weapons/Bow/Bow.tscn and its animation player is bound
+CHECK PASS  WA6 Bow enemy definition uses the shared Bow scene and Bow_ArrowEnemy attack
+CHECK PASS  WA7 the archer keeps the enemy-specific arrow attack rather than player-only Bow attacks
+CHECK PASS  WA8 archer AI selects the Bow folder's enemy arrow resource
+CHECK PASS  WA9 archer scene no longer embeds bow animation data or a duplicate bow texture override
+CHECK PASS  WA10 Bow enemy weapon definition passes WeaponDefinition2D validation
+PART goblin_archer_bow passes=10 failures=0
+CHECK PASS  WZ1 Sword and GoblinSword share Sword_Slash1 and Sword_Slash2 from the original Sword folder
+CHECK PASS  WZ2 Sword and Bow share Sword_Empower from the folder of the weapon that created it
+CHECK PASS  WZ3 every attack and skill resource inside a weapon folder is referenced by at least one weapon definition (orphans: [])
+CHECK PASS  WZ4 every shipped weapon definition has all attack-named clips in its own weapon scene
+CHECK PASS  WZ5 validate_equip refuses a cross-weapon attack when its scene lacks the named clip, identifying weapon, attack and clip (["weapon \'w7_cross_weapon\': attack \'w7_missing_clip_attack\' needs clip \'sword_slash_1\' (weapon_animation) on the weapon AnimationPlayer.", "weapon \'w7_cross_weapon\': attack \'w7_missing_clip_attack\' needs clip \'sword_slash_return_1\' (recovery_animation) on the weapon AnimationPlayer."])
+PART track_w7 passes=5 failures=0
+CHECK PASS  P2a the shipped scenes set no rig path, so they keep the default node names
+CHECK PASS  P2b the player's rig is found by name exactly as before
+CHECK PASS  P2c the goblin's rig is found by name exactly as before
+CHECK PASS  P2d a rig with none of the default names works through its paths
+CHECK PASS  P2e with no weapon path, the weapon is the first weapon scene found under the facing root
+WARNING: CharacterContext2D: '' rig path 'NoSuchPivot' does not resolve to a node.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _rig_node (res://Characters/Core/CharacterContext2D.gd:97)
+       [1] _init (res://Characters/Core/CharacterContext2D.gd:77)
+       [2] run_p2_checks (res://tests/smoke_checks.gd:7098)
+       [3] fresh (res://tests/smoke_checks.gd:54)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  P2f a facing-root path that does not resolve leaves it empty instead of using WeaponFacingPivot
+CHECK PASS  P2g a sprite rig with renamed nodes works through its paths
+CHECK PASS  P2h Character2D passes its rig paths to its context (set one, the rest stay on defaults)
+CHECK PASS  P2i a goblin whose sprite is renamed Body works through its paths and still plays idle
+PART p2 passes=9 failures=0
+CHECK PASS  P3a the shipped scenes keep the clip names idle and run, and the context carries them
+CHECK PASS  P3b the shipped goblin and player idle on the default clip
+CHECK PASS  P3c a goblin with idle_clip = run starts on that clip
+CHECK PASS  P3d the idle state keeps playing the exported idle clip
+PART p3 passes=4 failures=0
+CHECK PASS  P4a the AI no longer has a target_group
+CHECK PASS  P4b a character on another team is hostile (the player, a third faction)
+CHECK PASS  P4c the same team, a neutral character, a plain body and the enemy itself are not
+CHECK PASS  P4d a body that enters the detection area becomes a candidate only if it is hostile
+PART p4 passes=4 failures=0
+CHECK PASS  P5a a Hurtbox2D finds its HealthComponent2D child and is in no group
+CHECK PASS  P5b apply_hit forwards to the health and the damaged signal follows
+CHECK PASS  P5c take_damage kills it, died fires once, and a dead hurtbox takes nothing
+CHECK PASS  P5d a light arrow hurts a Hurtbox2D for 4 and is spent (health 16)
+PART p5 passes=4 failures=0
+CHECK PASS  P6a only the goblin given a Stagger node has the state, and both start in Idle
+CHECK PASS  P6b a hit that applies stun puts the goblin with a Stagger node into it, playing its clip
+CHECK PASS  P6c a goblin without one is stunned as before and shows nothing
+CHECK PASS  P6d a hit with no stun leaves the state alone (it stays staggered, the stun is not extended)
+CHECK PASS  P6e when the stun ends it returns to Idle and the idle clip
+CHECK PASS  P6f a killing hit does not stagger: the stun is cleared and the state stays Idle
+CHECK PASS  P6g the killed goblin is freed by its reaction component as usual
+PART p6 passes=7 failures=0
+CHECK PASS  P7a the goblin's lunge has a forward impulse and the shared slash has none
+CHECK PASS  P7b the lunge starts, and the step has not begun before its effect spawns
+CHECK PASS  P7c the step reaches close to its speed (peak 267 of 300)
+CHECK PASS  P7d it moves the goblin a short way forward and is over by the end of the swing (moved 13.3 px)
+CHECK PASS  P7e cancelling the swing clears the step immediately
+CHECK PASS  P7f an attack with no forward impulse leaves the step at zero
+PART p7 passes=6 failures=0
+CHECK PASS  H2-1 the shipped goblin has a StatusController2D child, Character2D found it, and nothing is running
+CHECK PASS  H2-2 the shipped goblin archer inherits the StatusController2D from the goblin scene
+CHECK PASS  H2-3 a hit that lists bleed damages the shipped goblin and starts the status on it
+CHECK PASS  H2-4 the bleed ticks on the shipped goblin (health 17 -> 15)
+CHECK PASS  H2-5 the same hit starts bleed on the archer too
+CHECK PASS  H2-6 a damage-multiplier status on the goblin raises its outgoing multiplier from 1 to 1.5
+CHECK PASS  H2-7 a character answers team and status controller from its own fields
+CHECK PASS  H2-8 the passive controller is the player's, and the goblin has none
+CHECK PASS  H2-9 health_of finds a character's health, a health component itself, and nothing on a bare node
+CHECK PASS  H2-10 team_of gives the neutral team for null, a freed node, a bare node and a projectile
+CHECK PASS  H2-11 the controller and health helpers return null for null, a freed node, a bare node and a projectile
+CHECK PASS  H2-12 a non-character node with the right property names is still read (test doubles keep working)
+CHECK PASS  H2-13 no combat script reads team, status_controller or passive_controller by string name outside Combatant2D
+CHECK PASS  H2-14 channel_time is stored but not shown in the Inspector
+CHECK PASS  H2-15 a skill with channel_time above 0 is still rejected by validation
+PART h2 passes=15 failures=0
+CHECK PASS  H2-7 a skill that names a clip plays it the moment it starts, before the effect executes
+CHECK PASS  H2-8 the effect executes once, after the cast time, with the clip as the visible cast
+CHECK PASS  H2-9 when the clip ends the weapon leaves it (back to its RESET pose)
+CHECK PASS  H2-10 a cast cancelled before it executes stops its clip, and nothing executes
+CHECK PASS  H2-11 a skill with no clip does not touch the weapon animation player
+CHECK PASS  H2-12 a clip the weapon lacks plays nothing and the skill still executes
+PART h2_skill_clip passes=6 failures=0
+CHECK PASS  H3-1 two skills in one slot are reported by the equip dry run, naming both skills and the slot
+WARNING: WeaponController2D: weapon 'h3_slot_clash': skills 'h3_b' and 'h3_c' both use slot 1.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_checks (res://tests/smoke_checks.gd:7408)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  H3-2 a weapon whose skills share a slot is refused, and the old weapon and its skills stay
+WARNING: WeaponController2D: weapon 'h3_dup_id': skill id 'h3_same' is listed more than once (active_skills ids must be unique).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_checks (res://tests/smoke_checks.gd:7414)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  H3-3 a weapon that lists one skill id twice is refused with the id in the message, and the old weapon stays
+WARNING: SkillComponent2D: skill 'h3_c' wants slot 1, which 'h3_b' already holds; it is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:107)
+       [1] run_h3_checks (res://tests/smoke_checks.gd:7418)
+       [2] fresh_far (res://tests/smoke_checks.gd:79)
+       [3] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  H3-4 set_skills called directly keeps the first skill of a slot clash and skips the rest; equip is the strict gate
+PART h3 passes=4 failures=0
+CHECK PASS  H3-5 every skill behavior has a validation row (missing: [])
+CHECK PASS  H3-6 the PROJECTILE base skill is valid and has no warnings (problems: []; warnings: [])
+CHECK PASS  H3-7 every PROJECTILE break is reported by validate() (not reported: [])
+CHECK PASS  H3-8 every PROJECTILE ignored field earns a warning (no warning for: [])
+CHECK PASS  H3-6 the AREA base skill is valid and has no warnings (problems: []; warnings: [])
+CHECK PASS  H3-7 every AREA break is reported by validate() (not reported: [])
+CHECK PASS  H3-8 every AREA ignored field earns a warning (no warning for: [])
+CHECK PASS  H3-6 the DASH base skill is valid and has no warnings (problems: []; warnings: [])
+CHECK PASS  H3-7 every DASH break is reported by validate() (not reported: [])
+CHECK PASS  H3-8 every DASH ignored field earns a warning (no warning for: [])
+CHECK PASS  H3-6 the BUFF base skill is valid and has no warnings (problems: []; warnings: [])
+CHECK PASS  H3-7 every BUFF break is reported by validate() (not reported: [])
+CHECK PASS  H3-8 every BUFF ignored field earns a warning (no warning for: [])
+CHECK PASS  H3-6 the NONE base skill is valid and has no warnings (problems: []; warnings: [])
+CHECK PASS  H3-7 every NONE break is reported by validate() (not reported: [])
+CHECK PASS  H3-8 every NONE ignored field earns a warning (no warning for: [])
+CHECK PASS  H3-9 a skill that only earns warnings still validates
+CHECK PASS  H3-10 the four shipped weapon definitions have no warnings
+CHECK PASS  H3-11 a weapon's warnings name the weapon and the skill, and do not make it invalid
+PART h3_table passes=19 failures=0
+CHECK PASS  H3-12 every shipped effect scene passes validate_scene (slash with its own clip)
+CHECK PASS  H3-13 the shipped slash, area and projectile scenes have no warnings, the heavy clip opens its hit window, and the bow arrow's capsule shape earns the 'not resized' warning
+CHECK PASS  H3-14 a slash scene whose hit area is gone reports the hitbox and shape paths
+CHECK PASS  H3-15 a slash clip with no 'disabled' track is reported (and only when the clip is named)
+CHECK PASS  H3-16 slash node paths that lead nowhere are reported by property name
+CHECK PASS  H3-17 an area scene with no shape is a problem; a rectangle shape is only a warning
+CHECK PASS  H3-18 a projectile with a bad hitbox path and a root that is not an effect are reported; a null scene is left to the attack check
+WARNING: WeaponController2D: weapon 'h3_bad_fx_weapon': attack 'h3_bad_fx': AttackSlash2D: hitbox_path 'HitboxOrigin/HitboxMotion/Area2D' does not lead to an Area2D.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_scene_checks (res://tests/smoke_checks.gd:7632)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_bad_fx_weapon': attack 'h3_bad_fx': AttackSlash2D: collision_shape_path 'HitboxOrigin/HitboxMotion/Area2D/CollisionShape2D' does not lead to a CollisionShape2D.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_scene_checks (res://tests/smoke_checks.gd:7632)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  H3-19 a weapon whose attack spawns a broken effect scene is refused with the attack and the path named, and the old weapon stays
+CHECK PASS  H3-20 a skill whose attack spawns a broken effect scene is refused too, naming the skill
+CHECK PASS  H3-21 the shipped sword and bow still pass the equip dry run with the new scene checks
+PART h3_scene passes=10 failures=0
+CHECK PASS  H3-22 every shipped weapon definition (4 found under Weapons/) has a loadout report with no problems and no warnings
+CHECK PASS  H3-23 a deliberately broken weapon lists all of its problems in one report (not found: [])
+CHECK PASS  H3-24 an attack clip with no spawn_effect key is a warning naming the attack; the weapon stays valid
+WARNING: WeaponController2D: weapon 'h3_broken': skills 'h3_a' and 'h3_b' both use slot 1.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7716)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': skill id 'h3_a' is listed more than once (active_skills ids must be unique).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7716)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': attack 'h3_broken_attack' needs clip 'nope_clip' (weapon_animation) on the weapon AnimationPlayer.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7716)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': attack 'h3_broken_attack': AttackSlash2D: hitbox_path 'HitboxOrigin/HitboxMotion/Area2D' does not lead to an Area2D.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7716)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': attack 'h3_broken_attack': AttackSlash2D: collision_shape_path 'HitboxOrigin/HitboxMotion/Area2D/CollisionShape2D' does not lead to a CollisionShape2D.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7716)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': attack 'h3_broken_attack': status_effects[0] has an empty id.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7716)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': attack 'h3_broken_attack': status '' needs a duration above 0.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7716)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': attack 'h3_broken_attack': status 'h3_tickless' has tick_damage 3 but tick_interval 0, so it never ticks.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7716)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  H3-25 the controller's loadout report matches its equip dry run, and the broken weapon is refused
+PART h3_report passes=4 failures=0
+CHECK PASS  H4-0 the shipped bow is a valid weapon to swap to, and the sword starts with skills (so the failure checks below have something to lose)
+WARNING: WeaponController2D: weapon 'h4_no_player': weapon_scene has no AnimationPlayer child (expected one called HandAnim, or any AnimationPlayer).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h4_equip_checks (res://tests/smoke_checks.gd:7785)
+       [3] fresh_far (res://tests/smoke_checks.gd:79)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  H4-1 an invalid weapon scene is refused with equip_failed, and the old weapon, attacks, skills, passives and swing are intact
+WARNING: WeaponController2D: weapon 'h4_missing_clip': attack 'bow_arrow_shot' needs clip 'h4_missing_clip' (weapon_animation) on the weapon AnimationPlayer.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h4_equip_checks (res://tests/smoke_checks.gd:7797)
+       [3] h4_swing_finishes (res://tests/smoke_checks.gd:7764)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  H4-2 a missing clip is refused naming the clip, and the old weapon is intact
+WARNING: WeaponController2D: weapon 'bow': the attack component rejected the weapon's attacks; the previous weapon is kept.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] _fail_with (res://Characters/Components/Weapons/WeaponController2D.gd:260)
+       [2] equip (res://Characters/Components/Weapons/WeaponController2D.gd:104)
+       [3] run_h4_equip_checks (res://tests/smoke_checks.gd:7807)
+       [4] h4_swing_finishes (res://tests/smoke_checks.gd:7764)
+       [5] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  H4-3 a rejected attack list after the swap puts the old weapon back (same node, same place) and frees the new one
+WARNING: CharacterContext2D: weapon 'MainHand' has no AnimationPlayer; keeping the current weapon.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] bind_weapon (res://Characters/Core/CharacterContext2D.gd:129)
+       [1] _swap_mount (res://Characters/Components/Weapons/WeaponController2D.gd:209)
+       [2] equip (res://Characters/Components/Weapons/WeaponController2D.gd:93)
+       [3] run_h4_equip_checks (res://tests/smoke_checks.gd:7822)
+       [4] h4_swing_finishes (res://tests/smoke_checks.gd:7764)
+       [5] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h4_unbindable': the new weapon could not be bound to the character; the previous weapon is kept.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] _fail_with (res://Characters/Components/Weapons/WeaponController2D.gd:260)
+       [2] equip (res://Characters/Components/Weapons/WeaponController2D.gd:96)
+       [3] run_h4_equip_checks (res://tests/smoke_checks.gd:7822)
+       [4] h4_swing_finishes (res://tests/smoke_checks.gd:7764)
+       [5] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  H4-4 a weapon that passes validation but cannot be bound is refused, and the old weapon is back in place with its player connected
+CHECK PASS  H4-5 after the four failed equips a valid swap to the bow and back to the sword still works and restores the sword's attacks, skills and passives
+PART h4_equip passes=6 failures=0
+CHECK PASS  H4-6 no status leaves damage alone; a 1.5 buff makes 10 into 15; 5 x 1.5 = 7.5 rounds up to 8
+CHECK PASS  H4-7 two different buffs ADD their bonuses: 1.5 and 1.25 give 1.75 (8 -> 14), 1.5 and 1.5 give 2.0 (10 -> 20), not 2.25
+CHECK PASS  H4-8 each STACK adds (1.25 - 1) once: three stacks give 1.75 (8 -> 14), and more applications stay capped at max_stacks 3
+CHECK PASS  H4-9 REFRESH never stacks: applying 1.25 twice still gives one stack (8 -> 10)
+CHECK PASS  H4-10 IGNORE leaves the running status and its timer alone; REFRESH puts the timer back to the full duration
+CHECK PASS  H4-11 a 0.5 debuff halves damage; two take it to 0; a third cannot push it below 0
+CHECK PASS  H4-12 the status sum and the passive MULTIPLY and round once: 3 x 1.5 x 2.0 = 9 at 50% health (not 10), and 3 x 1.5 = 4.5 rounds to 5 above the threshold
+CHECK PASS  H4-13 a crit multiplies the already rounded buffed damage: 5 x 1.5 = 8, then x 2 = 16 (not 15)
+CHECK PASS  H4-14 defense comes last: 16 - 3 = 13, and a hit never drops below the minimum of 1
+CHECK PASS  H4-15 a status tick skips all of it, and the bonus ends the moment the status does
+CHECK PASS  H4-16 swapping away keeps a running cooldown, and it keeps counting down while its skill is not equipped
+CHECK PASS  H4-17 swapping back finds the same cooldown still running: the skill cannot be used yet
+CHECK PASS  H4-18 two weapons that list the same skill id share one cooldown, even in different slots
+CHECK PASS  H4-19 a cooldown of a skill that is not equipped still ends (and is announced), so the skill is ready when its weapon returns; the long shared one is still running
+PART h4_rules passes=14 failures=0
+CHECK PASS  H4-28 the crit generator restarts from the test seed at the start of every part (24 rolls repeat, with both outcomes)
+CHECK PASS  H4-29 every enemy AI controller in the arena starts from the test seed (2 found), including one added after the arena loaded
+PART h4_determinism passes=2 failures=0
+CHECK PASS  H4-26 every part in the registry names a method that exists (missing: )
+CHECK PASS  H4-27 every run_*_checks group is a registered part, so a full run cannot skip one (unregistered: )
+CHECK PASS  H4-20 a declared error and a baseline error are both accepted, and the declaration was met
+CHECK PASS  H4-21 an error that is neither declared nor in the baseline is recorded as unexpected, with long numbers normalized
+CHECK PASS  H4-22 a declared error that never happens, or happens the wrong number of times, is reported
+CHECK PASS  H4-23 a recorded baseline loads back, and the same error with different ids counts as one message
+ERROR: H4.4 hookup probe
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] run_error_gate_checks (res://tests/smoke_checks.gd:660)
+       [1] _initialize (res://tests/smoke_checks.gd:589)
+       [2] _run (res://tests/smoke_checks.gd:604)
+       [3] run_h4_determinism_checks (res://tests/smoke_checks.gd:8041)
+       [4] cleanup (res://tests/smoke_checks.gd:114)
+       [5] phys (res://tests/smoke_checks.gd:25)
+WARNING: H4.4 warning probe
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] run_error_gate_checks (res://tests/smoke_checks.gd:661)
+       [1] _initialize (res://tests/smoke_checks.gd:589)
+       [2] _run (res://tests/smoke_checks.gd:604)
+       [3] run_h4_determinism_checks (res://tests/smoke_checks.gd:8041)
+       [4] cleanup (res://tests/smoke_checks.gd:114)
+       [5] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  H4-24 the engine really delivers push_error to a Logger, and warnings are counted apart from errors
+CHECK PASS  H4-25 every error logged this run is in the baseline or declared by its test (0 distinct unexpected)
+SUMMARY passes=1198 failures=0
+ERROR: 1 RID allocations of type 'P12GodotShape2D' were leaked at exit.
+ERROR: 2 RID allocations of type 'PN13RendererDummy14TextureStorage12DummyTextureE' were leaked at exit.
+WARNING: 45 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 16 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:822)

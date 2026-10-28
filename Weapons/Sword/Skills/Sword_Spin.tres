@@ -6,6 +6,11 @@
 [ext_resource type="PackedScene" uid="uid://buuimquyuurcf" path="res://Characters/Effects/HitEffect.tscn" id="4_hit"]
 [ext_resource type="Script" uid="uid://b6wfrpt7lkfob" path="res://Characters/Components/Status/StatusEffectDefinition2D.gd" id="4_wgdr2"]
 [ext_resource type="Texture2D" uid="uid://cbco6gmguey5i" path="res://UI/HUD/Icons/SpinIcon.tres" id="5_icon"]
+[ext_resource type="Script" uid="uid://b8xcv5kpetjx8" path="res://Characters/Components/Aim/CircleSelfAimShape2D.gd" id="aimshape_circle"]
+
+[sub_resource type="Resource" id="aim_shape_sub"]
+script = ExtResource("aimshape_circle")
+max_range = 52.0
 
 [sub_resource type="Resource" id="Resource_spin_attack"]
 script = ExtResource("2_attack")
@@ -29,4 +34,5 @@ cost_amount = 20.0
 cooldown = 7.0
 targeting = 1
 area_radius = 52.0
+aim_shape = SubResource("aim_shape_sub")
 attack = SubResource("Resource_spin_attack")

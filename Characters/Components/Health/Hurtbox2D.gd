@@ -15,8 +15,16 @@ signal died
 @export var health_component: HealthComponent2D
 ## Same meaning as Character2D.team: two things on the same non-empty team do not hit each other.
 @export var team: StringName = &""
+## Whether an aim assist may pick this as a target (H8.3). Off by default: a crate or a switch only draws the assist when
+## it is switched on here, so scenery and decoration are never auto-targeted. It joins the `damageable` group while on.
+@export var targetable: bool = false:
+	set(value):
+		targetable = value
+		if is_inside_tree():
+			_apply_targetable()
 
 func _ready() -> void:
+	_apply_targetable()
 	if health_component == null:
 		health_component = get_node_or_null("HealthComponent2D") as HealthComponent2D
 	if health_component == null:
@@ -24,6 +32,12 @@ func _ready() -> void:
 		return
 	health_component.damaged.connect(_on_damaged)
 	health_component.died.connect(_on_died)
+
+func _apply_targetable() -> void:
+	if targetable:
+		add_to_group(&"damageable")
+	elif is_in_group(&"damageable"):
+		remove_from_group(&"damageable")
 
 func is_alive() -> bool:
 	return is_instance_valid(health_component) and health_component.is_alive()

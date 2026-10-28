@@ -8,6 +8,11 @@ const CLIP_RESTORE := &"restore"
 
 ## Path relative to this node to the ManaComponent2D being displayed.
 @export var mana_source: NodePath
+@export_group("Labels")
+@export var mana_icon_text := "◆"
+@export var mana_title_text := "MANA"
+@export var mana_icon_color := Color(0.35, 0.72, 1.0, 1.0)
+@export var mana_title_color := Color(0.35, 0.72, 1.0, 1.0)
 
 @onready var card: PanelContainer = $Card
 @onready var mana_icon: Label = $Card/Padding/Content/Header/ManaIcon
@@ -25,6 +30,12 @@ var _counter_tween: Tween
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mana_icon.text = mana_icon_text
+	mana_icon.add_theme_color_override("font_color", mana_icon_color)
+	var title_label := get_node_or_null("Card/Padding/Content/Header/Title") as Label
+	if title_label != null:
+		title_label.text = mana_title_text
+		title_label.add_theme_color_override("font_color", mana_title_color)
 	card.resized.connect(_update_card_pivot)
 	_update_card_pivot()
 	var source: ManaComponent2D = null

@@ -156,10 +156,28 @@ func validate(animation_player: AnimationPlayer = null) -> Array[String]:
 	problems.append_array(_unreachable_combo_problems(label))
 	problems.append_array(_skill_problems(label))
 	problems.append_array(_passive_problems(label))
+	problems.append_array(_aim_shape_problems(label))
 
 	if animation_player != null:
 		problems.append_array(_clip_problems(label, animation_player))
 	return problems
+
+## Everything this weapon sets that nothing will read (H3.3): its attacks' and skills' warnings, each naming the weapon.
+## Never a reason to refuse the weapon; WeaponController2D.equip() logs them.
+func get_warnings() -> Array[String]:
+	var found: Array[String] = []
+	var label := _label()
+	for attack in get_all_attacks():
+		for message in attack.get_warnings():
+			found.append("%s: %s" % [label, message])
+	for skill in active_skills:
+		if skill != null:
+			for message in skill.get_warnings():
+				found.append("%s: %s" % [label, message])
+	for attack in basic_combo:
+		if attack != null and attack.aim_shape != null:
+			found.append("%s: attack '%s' is in basic_combo but sets aim_shape; only the heavy attack uses one (a light tap uses attack_range)." % [label, attack.id])
+	return found
 
 ## A new instance of weapon_scene, or null when there is no scene or its root is not a Node2D. The caller
 ## owns the instance (mount it or free it).
@@ -196,6 +214,14 @@ func validate_scene() -> Array[String]:
 		problems.append_array(_clip_problems(label, player))
 	instance.free()
 	return problems
+
+## The heavy attack's aim shape must hold sensible values (H8.6). Skill shapes are checked by their own definition.
+func _aim_shape_problems(label: String) -> Array[String]:
+	var found: Array[String] = []
+	if heavy_attack != null and heavy_attack.aim_shape != null:
+		for message in heavy_attack.aim_shape.validate():
+			found.append("%s: attack '%s': aim_shape: %s." % [label, heavy_attack.id, message])
+	return found
 
 ## basic_combo entries that no next_attack / combo_sequence chain starting at the default attack
 ## reaches. They could never be performed by chaining.

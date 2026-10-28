@@ -20,4 +20,4 @@ effect_scene = ExtResource("2_effect")
 hit_effect_scene = ExtResource("3_hit")
 hitbox_size = Vector2(16, 14)
 hitbox_offset = Vector2(10, 0)
-ai_attack_range = 75.0
+attack_range = 75.0

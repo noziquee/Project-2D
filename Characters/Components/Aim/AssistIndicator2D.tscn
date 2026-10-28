@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://bmxgiv71n56wl"]
+
+[ext_resource type="Script" uid="uid://clhybyfvdihtx" path="res://Characters/Components/Aim/AssistIndicator2D.gd" id="1_assist"]
+
+[node name="AssistIndicator2D" type="Node2D" unique_id=977250195]
+z_index = -1
+z_as_relative = false
+script = ExtResource("1_assist")
+range_fill = Color(0.2509804, 0.6, 1, 0.050980393)
+range_edge = Color(0.4, 0.72156864, 1, 0.23921569)
+range_inner = Color(0.4509804, 0.70980394, 1, 0.105882354)
+marker_fill = Color(1, 0.3019608, 0.2509804, 0.05882353)
+marker_edge = Color(1, 0.41960785, 0.32156864, 0.32156864)
+marker_radius = 10.0

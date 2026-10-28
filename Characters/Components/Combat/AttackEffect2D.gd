@@ -37,6 +37,9 @@ var projectile_speed: float = 0.0
 var crit_chance: float = 0.0
 var crit_multiplier: float = 2.0
 var status_effects: Array = []
+## How far the attack reaches from the attacker's centre, in pixels (H9.1c get_reach()). 0 = not given. Only a melee
+## slash reads it (H9.2: it drives the slash out to this distance); projectiles and areas have their own geometry.
+var attack_range: float = 0.0
 
 ## Targets this effect has already hit. One effect hits each target once.
 var _hit_targets: Dictionary = {}
@@ -47,7 +50,7 @@ func is_spent() -> bool:
 	return _spent
 
 ## Call before adding the effect to the tree. Every subclass takes the same arguments.
-func configure(attacker: Node2D, damage_amount: int, aim_direction: Vector2, shape_size: Vector2, origin_offset: Vector2, layers: int = -1, knockback_strength: float = 0.0, stun_seconds: float = 0.0, animation: StringName = DEFAULT_ANIMATION, max_target_count: int = 0, pierces: bool = true, flight_speed: float = 0.0, critical_chance: float = 0.0, critical_multiplier: float = 2.0, statuses: Array = []) -> void:
+func configure(attacker: Node2D, damage_amount: int, aim_direction: Vector2, shape_size: Vector2, origin_offset: Vector2, layers: int = -1, knockback_strength: float = 0.0, stun_seconds: float = 0.0, animation: StringName = DEFAULT_ANIMATION, max_target_count: int = 0, pierces: bool = true, flight_speed: float = 0.0, critical_chance: float = 0.0, critical_multiplier: float = 2.0, statuses: Array = [], reach: float = 0.0) -> void:
 	source = attacker
 	damage = maxi(damage_amount, 0)
 	direction = aim_direction.normalized() if aim_direction.length_squared() > 0.0001 else Vector2.RIGHT
@@ -63,6 +66,7 @@ func configure(attacker: Node2D, damage_amount: int, aim_direction: Vector2, sha
 	crit_chance = clampf(critical_chance, 0.0, 1.0)
 	crit_multiplier = maxf(critical_multiplier, 1.0)
 	status_effects = statuses
+	attack_range = maxf(reach, 0.0)
 
 ## Override: true while the effect is allowed to hit (for the slash, its hit window is open).
 func _can_hit() -> bool:
@@ -129,6 +133,71 @@ func _contact_point(target: Node) -> Vector2:
 func _is_same_team(target: Node) -> bool:
 	if not is_instance_valid(source):
 		return false
-	var source_team := StringName(source.get("team")) if source.get("team") != null else &""
-	var target_team := StringName(target.get("team")) if target.get("team") != null else &""
+	var source_team := Combatant2D.team_of(source)
+	var target_team := Combatant2D.team_of(target)
 	return source_team != &"" and source_team == target_team
+
+## ---------- Scene checks (H3.2) ----------
+## An effect scene can be wrong in ways that only show once an attack spawns it: a hitbox path that leads nowhere, a
+## hit shape that is missing, a slash clip that never opens its hit window. These checks read the scene without running
+## it, so a weapon with a bad effect scene is refused when it is equipped instead.
+
+## Problems with this (not yet running) effect's own scene as readable messages. Each subclass adds its own. Empty = fine.
+## `effect_clip` is the attack's effect_animation; only effects that play a clip look at it.
+func get_scene_problems(_effect_clip: StringName) -> Array[String]:
+	return []
+
+## Things that work but probably are not what the author meant. Never a reason to refuse a scene.
+func get_scene_warnings() -> Array[String]:
+	return []
+
+## Problems with the effect scene `scene`: it cannot be instantiated, its root is not an AttackEffect2D, or the root's own
+## scene problems. An empty list for a null scene (a missing scene is reported where the attack is checked).
+static func validate_scene(scene: PackedScene, effect_clip: StringName = &"") -> Array[String]:
+	return _scene_messages(scene, effect_clip, false)
+
+## The warnings of the effect scene `scene` (empty for a null or unusable scene).
+static func scene_warnings(scene: PackedScene) -> Array[String]:
+	return _scene_messages(scene, &"", true)
+
+static func _scene_messages(scene: PackedScene, effect_clip: StringName, warnings: bool) -> Array[String]:
+	var found: Array[String] = []
+	if scene == null:
+		return found
+	if not scene.can_instantiate():
+		if not warnings:
+			found.append("the effect scene cannot be instantiated.")
+		return found
+	var instance := scene.instantiate()
+	if instance is AttackEffect2D:
+		var effect := instance as AttackEffect2D
+		found.append_array(effect.get_scene_warnings() if warnings else effect.get_scene_problems(effect_clip))
+	elif not warnings:
+		found.append("the effect scene's root must be an AttackEffect2D (an AttackSlash2D, AreaEffect2D or ProjectileEffect2D), not a %s." % instance.get_class())
+	instance.free()
+	return found
+
+func _effect_name() -> String:
+	var effect_script := get_script() as Script
+	return str(effect_script.get_global_name()) if effect_script != null and effect_script.get_global_name() != &"" else "effect"
+
+## The hit area and its shape: both paths lead to the right kind of node and the shape exists.
+func _hitbox_scene_problems(hitbox_np: NodePath, shape_np: NodePath) -> Array[String]:
+	var found: Array[String] = []
+	var area := get_node_or_null(hitbox_np) as Area2D
+	if area == null:
+		found.append("%s: hitbox_path '%s' does not lead to an Area2D." % [_effect_name(), hitbox_np])
+	var shape_node := get_node_or_null(shape_np) as CollisionShape2D
+	if shape_node == null:
+		found.append("%s: collision_shape_path '%s' does not lead to a CollisionShape2D." % [_effect_name(), shape_np])
+	elif shape_node.shape == null:
+		found.append("%s: the CollisionShape2D at '%s' has no shape, so nothing can be hit." % [_effect_name(), shape_np])
+	return found
+
+## The effect resizes only one kind of shape from the attack's hitbox_size; any other kind is used exactly as drawn.
+func _shape_scene_warnings(shape_np: NodePath, expected_class: String) -> Array[String]:
+	var found: Array[String] = []
+	var shape_node := get_node_or_null(shape_np) as CollisionShape2D
+	if shape_node != null and shape_node.shape != null and shape_node.shape.get_class() != expected_class:
+		found.append("%s: its hit shape is a %s, so the attack's hitbox_size does not resize it and the scene's own shape is used as drawn (a %s is resized)." % [_effect_name(), shape_node.shape.get_class(), expected_class])
+	return found

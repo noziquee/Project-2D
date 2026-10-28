@@ -20,4 +20,4 @@ hit_effect_scene = ExtResource("3_hit")
 hitbox_size = Vector2(12, 6)
 hitbox_offset = Vector2(6, 0)
 projectile_speed = 200.0
-ai_attack_range = 170.0
+attack_range = 170.0
