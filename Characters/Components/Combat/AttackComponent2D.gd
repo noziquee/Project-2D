@@ -45,6 +45,12 @@ signal swing_ended(cancelled: bool)
 signal recovery_started(duration: float, ease: Curve)
 ## A combo link started: `previous_id` ended its swing and `next_id` took over inside the window.
 signal attack_chained(previous_id: StringName, next_id: StringName)
+## RD6 step 3: the charge in progress reached another stage (index into the attack's charge_stages, -1 = none). For a charge bar.
+signal charge_stage_changed(stage_index: int, stage: ChargeStage2D)
+## RD6 step 4: the release timing of the charge in progress changed (AttackDefinition2D.ReleaseTiming), for a cue on the bow.
+signal release_timing_changed(timing: int)
+## RD6 step 4: a charge was released with this timing (NONE when the attack has no window).
+signal charge_released(timing: int)
 
 const EVENT_SPAWN_EFFECT := &"spawn_effect"
 const EVENT_COMBO_WINDOW_OPEN := &"combo_window_open"
@@ -97,6 +103,25 @@ var _combo_root: AttackDefinition2D
 ## direction it will swing in. Runtime only.
 var _charging_definition: AttackDefinition2D
 var _charge_elapsed := 0.0
+## R4: the reach of the swing in progress, frozen when it started (a released charge's reach at that charge ratio, else the
+## attack's get_reach()). The slash, the reach gate and a projectile's flight all read it.
+var _active_reach := 0.0
+## R4: reach worked out at release, waiting for _start_swing() to take it. 0 = none.
+var _release_reach := 0.0
+## RD6 step 3: the stage reached by the charge in progress (-1 = none), the stage frozen at release waiting for _start_swing(),
+## and the stage of the swing in progress. Runtime only.
+var _charge_stage_index := -1
+var _release_stage: ChargeStage2D
+var _active_stage: ChargeStage2D
+## RD6 step 4: the timing of the charge in progress, the one frozen at release, and the one of the swing in progress.
+var _charge_timing := 0
+var _release_timing := 0
+var _active_timing := 0
+## RD6 step 5: damage and area multipliers of the charge, frozen at release (1 = none).
+var _release_damage_scale := 1.0
+var _release_area_scale := 1.0
+var _active_damage_scale := 1.0
+var _active_area_scale := 1.0
 var _charge_direction := Vector2.RIGHT
 ## Validated entries of `attacks`, keyed by id (the default attack is not in here).
 var _extra_attacks: Dictionary = {}
@@ -106,6 +131,8 @@ var _connected_player: AnimationPlayer
 var _drawing := false
 ## A charge was released while its draw was still playing; the shot starts when the draw ends.
 var _release_pending := false
+## Track A: spawn_effect has fired for the swing in progress, so aim_follow stops turning it. Cleared by every new swing.
+var _effect_spawned := false
 ## The request remembered by an attack with input_queue_time (empty = none), the aim it was made with, and the seconds
 ## it stays valid. Runtime only; cancel() drops it.
 var _queued_id: StringName = &""
@@ -297,12 +324,19 @@ func _warn_combo_links() -> void:
 ## and plays its charge_animation. The swing starts on release_charge(), or by itself when the
 ## attack's release mode is THRESHOLD and its charge_threshold is reached. False when the attack is
 ## unknown or a swing, charge, dash, stun or cooldown prevents it.
-func begin_charge(attack_id: StringName, direction: Vector2 = Vector2.ZERO) -> bool:
+## `initial_charge` (H9.4.4, D25) is charge time already built up elsewhere: the player held the input while walking
+## to a target that was out of reach, and the charge level reached is kept. It counts as charged seconds from the
+## first frame; a THRESHOLD attack is capped at its threshold, an INPUT_RELEASE attack is not capped.
+func begin_charge(attack_id: StringName, direction: Vector2 = Vector2.ZERO, initial_charge: float = 0.0) -> bool:
 	var chosen := get_attack(attack_id)
 	if not _initialized or chosen == null or context.is_attacking or context.is_dashing or context.is_casting or context.hit_stun_remaining > 0.0 or _cooldown_remaining > 0.0:
 		return false
 	_charging_definition = chosen
-	_charge_elapsed = 0.0
+	_charge_elapsed = maxf(initial_charge, 0.0)
+	if chosen.release_mode == AttackDefinition2D.ReleaseMode.THRESHOLD and chosen.charge_threshold > 0.0:
+		_charge_elapsed = minf(_charge_elapsed, chosen.charge_threshold)
+	_charge_stage_index = -1
+	_charge_timing = chosen.get_release_timing(0.0)
 	_charge_direction = _resolve_attack_direction(direction)
 	context.attack_direction = _charge_direction
 	context.aim_direction = _charge_direction
@@ -335,6 +369,16 @@ func release_charge(direction: Vector2 = Vector2.ZERO) -> bool:
 
 ## The charge `charged` ends and its swing starts. The draw is skipped: a charge has already drawn the bow.
 func _commit_release(charged: AttackDefinition2D, aim: Vector2) -> void:
+	var released_ratio := charged.charge_ratio_at(_charge_elapsed)
+	_release_reach = charged.get_reach_at_charge(released_ratio)
+	var released_stage := charged.get_charge_stage_index(released_ratio)
+	_release_stage = charged.charge_stages[released_stage] if released_stage >= 0 else null
+	_charge_stage_index = -1
+	_release_timing = charged.get_release_timing(released_ratio)
+	_charge_timing = 0
+	_release_damage_scale = charged.get_charge_damage_multiplier(released_ratio)
+	_release_area_scale = charged.get_charge_area_multiplier(released_ratio)
+	charge_released.emit(_release_timing)
 	_charging_definition = null
 	_charge_elapsed = 0.0
 	_release_pending = false
@@ -353,6 +397,79 @@ func update_charge_direction(direction: Vector2) -> void:
 	context.attack_direction = _charge_direction
 	context.aim_direction = _charge_direction
 
+## Track A (A1): turns the attack in progress toward `direction` (the aim the controller wants this frame), at most
+## `aim_turn_speed` degrees per second (0 = no limit), and keeps `attack_direction` and `aim_direction` current so the weapon
+## pivot and facing turn with it. It acts only for an attack with `aim_follow`, from the start of its swing or draw until its
+## spawn_effect event, and for a heavy whose release is waiting for the draw to end. A charge that is still held follows the
+## live aim through update_charge_direction() as before. Does nothing otherwise, for a zero vector or a non-positive delta.
+func update_attack_direction(direction: Vector2, delta: float) -> void:
+	if not _initialized or direction.length_squared() < 0.0001:
+		return
+	var current := Vector2.ZERO
+	var active: AttackDefinition2D = null
+	if _active_definition != null:
+		if _effect_spawned:
+			return
+		active = _active_definition
+		current = context.attack_direction
+	elif _charging_definition != null and _release_pending:
+		active = _charging_definition
+		current = _charge_direction
+	if active == null or not active.aim_follow:
+		return
+	var wanted := direction.normalized()
+	var turned := wanted
+	if active.aim_turn_speed > 0.0 and current.length_squared() > 0.0001:
+		var step := deg_to_rad(active.aim_turn_speed) * maxf(delta, 0.0)
+		turned = current.normalized().rotated(clampf(current.angle_to(wanted), -step, step))
+	if _active_definition == null:
+		_charge_direction = turned
+	context.attack_direction = turned
+	context.aim_direction = turned
+
+## Track A: true while update_attack_direction() would act: an aim_follow attack whose effect has not spawned yet (its draw
+## or its shot), or an aim_follow heavy released during its draw.
+func is_aim_following() -> bool:
+	if _active_definition != null:
+		return _active_definition.aim_follow and not _effect_spawned
+	return _charging_definition != null and _release_pending and _charging_definition.aim_follow
+
+## Track A: true when a charge was released while its draw was still playing (the shot starts when the draw ends).
+func is_release_pending() -> bool:
+	return _charging_definition != null and _release_pending
+
+## RD6 step 3: index of the charge stage reached right now (-1 = none, or not charging), and that stage.
+func get_charge_stage_index() -> int:
+	return _charge_stage_index if _charging_definition != null else -1
+
+func get_charge_stage() -> ChargeStage2D:
+	return _charging_definition.charge_stages[_charge_stage_index] if _charging_definition != null and _charge_stage_index >= 0 else null
+
+## RD6 step 5: the damage and area multipliers the charge would have if released now (1 when not charging or with no curve).
+func get_charge_damage_multiplier() -> float:
+	return _charging_definition.get_charge_damage_multiplier(get_charge_ratio()) if _charging_definition != null else 1.0
+
+func get_charge_area_multiplier() -> float:
+	return _charging_definition.get_charge_area_multiplier(get_charge_ratio()) if _charging_definition != null else 1.0
+
+## RD6 step 4: the release timing the charge would have if released now (NONE when there is no window or no charge).
+func get_release_timing() -> int:
+	return _charge_timing if _charging_definition != null else 0
+
+func _update_charge_stage() -> void:
+	var timing := _charging_definition.get_release_timing(get_charge_ratio())
+	if timing != _charge_timing:
+		_charge_timing = timing
+		release_timing_changed.emit(timing)
+	var reached := _charging_definition.get_charge_stage_index(get_charge_ratio())
+	if reached != _charge_stage_index:
+		_charge_stage_index = reached
+		charge_stage_changed.emit(reached, get_charge_stage())
+
+## RD6 step 6: the attack being charged (null when nothing charges). A charge bar reads its stages and release window from it.
+func get_charging_definition() -> AttackDefinition2D:
+	return _charging_definition
+
 ## True while a charge is in progress.
 func is_charging() -> bool:
 	return _charging_definition != null
@@ -368,6 +485,17 @@ func get_charge_ratio() -> float:
 	if _charging_definition == null or _charging_definition.charge_threshold <= 0.0:
 		return 0.0
 	return clampf(_charge_elapsed / _charging_definition.charge_threshold, 0.0, 1.0)
+
+## R4: the reach of the charge in progress at its current charge level (the live value for the aim preview and assist), or 0
+## when nothing is charging.
+func get_charge_reach() -> float:
+	if _charging_definition == null:
+		return 0.0
+	return _charging_definition.get_reach_at_charge(get_charge_ratio())
+
+## R4: the reach the swing in progress was started with (frozen at release), or 0 when no swing is running.
+func get_active_reach() -> float:
+	return _active_reach if _active_definition != null else 0.0
 
 func _begin_attack(chosen: AttackDefinition2D, direction: Vector2) -> bool:
 	if not _initialized or chosen == null or context.is_attacking or context.is_dashing or context.is_casting or context.hit_stun_remaining > 0.0 or _cooldown_remaining > 0.0:
@@ -473,11 +601,22 @@ func _resolve_attack_direction(direction: Vector2) -> Vector2:
 ## Puts `chosen` into effect and starts its weapon clip. Used for normal starts and for chain links.
 func _start_swing(chosen: AttackDefinition2D, attack_direction: Vector2, with_draw: bool = true) -> void:
 	_active_definition = chosen
+	_active_reach = _release_reach if _release_reach > 0.0 else chosen.get_reach()
+	_release_reach = 0.0
+	_active_stage = _release_stage
+	_release_stage = null
+	_active_timing = _release_timing
+	_release_timing = 0
+	_active_damage_scale = _release_damage_scale
+	_active_area_scale = _release_area_scale
+	_release_damage_scale = 1.0
+	_release_area_scale = 1.0
 	_combo_window_open = false
 	_in_recovery = false
 	_code_recovery = false
 	_drawing = false
 	_release_pending = false
+	_effect_spawned = false
 	context.attack_direction = attack_direction
 	context.aim_direction = attack_direction
 	context.is_attacking = true
@@ -527,8 +666,11 @@ func physics_update(delta: float) -> void:
 			if _code_recovery_elapsed >= _active_definition.recovery_time:
 				_finish_attack()
 		if _charging_definition != null:
-			if not _drawing:
-				_charge_elapsed += delta # the charge starts counting once the draw is over
+			# The charge counts once the draw is over, or from the first frame when the attack opts in (charge_counts_during_draw).
+			# After the button was released during the draw it stops, so the shot fires at the ratio of the release.
+			if (not _drawing or _charging_definition.charge_counts_during_draw) and not _release_pending:
+				_charge_elapsed += delta
+				_update_charge_stage()
 			if _charging_definition.release_mode == AttackDefinition2D.ReleaseMode.THRESHOLD and _charge_elapsed >= _charging_definition.charge_threshold:
 				release_charge()
 
@@ -583,6 +725,7 @@ func _clear_impulse() -> void:
 
 func _spawn_effect() -> void:
 	var active := _active_definition
+	_effect_spawned = true # Track A: the direction is final from this event on
 	_start_impulse(active)
 	var scene: PackedScene = active.effect_scene
 	if scene == null:
@@ -594,7 +737,24 @@ func _spawn_effect() -> void:
 		push_error("AttackComponent2D: effect scene for attack '%s' must have an AttackEffect2D script (such as AttackSlash2D.gd) on its root." % active.id)
 		node.queue_free()
 		return
-	slash.configure(context.character, active.damage, context.attack_direction, active.hitbox_size, active.hitbox_offset, active.hit_layers, active.knockback, active.hit_stun, active.effect_animation, active.max_targets, active.pierce, active.projectile_speed, active.crit_chance, active.crit_multiplier, active.status_effects, active.get_reach())
+	var damage_value := active.damage
+	var crit_value := active.crit_chance
+	# RD6 steps 3 and 4: the stage and the release timing frozen at release scale damage together.
+	var damage_scale := _active_damage_scale
+	if _active_stage != null:
+		damage_scale *= _active_stage.damage_multiplier
+		crit_value += _active_stage.crit_chance_bonus
+	if _active_timing != 0:
+		damage_scale *= active.release_multiplier_for(_active_timing)
+		if _active_timing == AttackDefinition2D.ReleaseTiming.PERFECT:
+			crit_value += active.perfect_crit_bonus
+	if damage_scale != 1.0:
+		damage_value = maxi(roundi(active.damage * damage_scale), 0)
+	crit_value = clampf(crit_value, 0.0, 1.0)
+	var box := active.hitbox_size
+	if slash is AreaEffect2D and _active_area_scale != 1.0: # RD6 step 5: only an area effect has a radius to scale
+		box *= _active_area_scale
+	slash.configure(context.character, damage_value, context.attack_direction, box, active.hitbox_offset, active.hit_layers, active.knockback, active.hit_stun, active.effect_animation, active.max_targets, active.pierce, active.projectile_speed, crit_value, active.crit_multiplier, active.status_effects, _active_reach if _active_reach > 0.0 else active.get_reach())
 	slash.hit_confirmed.connect(_on_slash_hit)
 	# The impact effect belongs to the attack that spawned the slash, which may outlive the swing.
 	slash.hit_contact.connect(_on_slash_contact.bind(active.hit_effect_scene))
@@ -623,8 +783,19 @@ func cancel() -> void:
 	_reset_combo()
 	_charging_definition = null
 	_charge_elapsed = 0.0
+	_charge_stage_index = -1
+	_release_stage = null
+	_active_stage = null
+	_charge_timing = 0
+	_release_timing = 0
+	_active_timing = 0
+	_release_damage_scale = 1.0
+	_release_area_scale = 1.0
+	_active_damage_scale = 1.0
+	_active_area_scale = 1.0
 	_drawing = false
 	_release_pending = false
+	_effect_spawned = false
 	_clear_queue()
 	_clear_impulse()
 	if context == null:

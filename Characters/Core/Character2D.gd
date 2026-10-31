@@ -182,6 +182,9 @@ func _physics_process(delta: float) -> void:
 	# (the direction is still read again at release).
 	if attack_component.is_charging():
 		attack_component.update_charge_direction(_get_attack_direction())
+	# Track A: an attack with aim_follow keeps turning toward what the controller asks for until its effect spawns
+	# (light attacks and a released heavy; a held charge is handled above). Controllers that return zero change nothing.
+	attack_component.update_attack_direction(_get_attack_follow_direction(), delta)
 	attack_component.physics_update(delta)
 	_sample_attack_input(delta)
 	_update_facing_direction()
@@ -193,7 +196,7 @@ func _physics_process(delta: float) -> void:
 		if _get_charge_release_requested() and attack_component.release_charge(_get_attack_direction()):
 			state_machine.transition_to(&"Attack")
 		var charge_id := _get_charge_begin_requested()
-		if charge_id != &"" and attack_component.begin_charge(charge_id, _get_attack_direction()):
+		if charge_id != &"" and attack_component.begin_charge(charge_id, _get_attack_direction(), _get_charge_begin_elapsed()):
 			state_machine.transition_to(&"Attack")
 		# A click made during an attack that remembers input (the bow, input_queue_time) plays once the return is over.
 		var requested_attack := _get_attack_requested()
@@ -304,6 +307,11 @@ func _sample_attack_input(_delta: float) -> void:
 func _get_charge_begin_requested() -> StringName:
 	return &""
 
+## Seconds of charge the begin requested this frame starts with (H9.4.4): zero for an ordinary begin. The player
+## returns the time it held the input while walking to a target that was out of reach.
+func _get_charge_begin_elapsed() -> float:
+	return 0.0
+
 ## True when the charge in progress should be released this frame.
 func _get_charge_release_requested() -> bool:
 	return false
@@ -325,6 +333,12 @@ func _get_aim_direction() -> Vector2:
 
 func _get_attack_direction() -> Vector2:
 	return _get_aim_direction()
+
+## Track A: the direction an attack with aim_follow should be turning toward this frame, or zero to leave it where it is.
+## Called every physics frame; the component only uses it while such an attack is between its start and its spawn_effect.
+## Zero here (every controller but the player's) keeps today's behavior.
+func _get_attack_follow_direction() -> Vector2:
+	return Vector2.ZERO
 
 func _exit_tree() -> void:
 	if is_instance_valid(attack_component):

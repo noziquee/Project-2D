@@ -39,6 +39,40 @@ func _angle_weight() -> float:
 func needs_direction() -> bool:
 	return true
 
+## R1: true for a shape whose `max_range` is the reach of the action it belongs to (a fan's radius, a line's length, a
+## self circle's radius), so it should be drawn and tested at the action's real reach. A placed circle (its range is only
+## the cast distance) and the camera view are not: they keep their own values. A new shape opts in by overriding this.
+func follows_action_reach() -> bool:
+	return false
+
+## Copies kept by with_reach(), keyed by reach in quarter pixels, so asking again for the same reach returns the same
+## object (the indicator and the targeting compare shapes by identity). Runtime only: never saved, never shared.
+var _reach_views: Dictionary = {}
+const MAX_REACH_VIEWS := 8
+
+## R1: the shape to draw and assist inside for an action whose reach is `reach` (its definition's get_reach()). A shape
+## that follows the action's reach and differs from it comes back as a copy with `max_range` set to `reach`, so the picture,
+## the assist and the real reach agree; every other case (no reach, a shape that does not follow it, or one already that
+## long) returns the shape itself. The resource is never changed, because shapes can be shared between definitions. The
+## copy is refreshed from this shape on every call, so editing the shape afterwards is never missed.
+func with_reach(reach: float) -> AimShape2D:
+	if reach <= 0.0 or not follows_action_reach() or absf(reach - max_range) < 0.01:
+		return self
+	var key := roundi(reach * 4.0)
+	var view: AimShape2D = _reach_views.get(key) as AimShape2D
+	if view == null:
+		if _reach_views.size() >= MAX_REACH_VIEWS:
+			_reach_views.clear()
+		view = duplicate() as AimShape2D
+		_reach_views[key] = view
+	else:
+		for property in get_property_list():
+			var property_name: String = property.name
+			if int(property.usage) & PROPERTY_USAGE_STORAGE != 0 and property_name != "script" and not property_name.begins_with("resource_"):
+				view.set(property_name, get(property_name))
+	view.max_range = reach
+	return view
+
 ## True when `point` lies inside the shape drawn from `origin` along `direction` (any length; it is normalised here).
 ## `margin` is the radius of the thing being tested, so a big body just outside the edge still counts.
 func contains(origin: Vector2, direction: Vector2, point: Vector2, margin: float = 0.0) -> bool:

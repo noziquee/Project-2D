@@ -6,6 +6,10 @@ class_name CircleSelfAimShape2D
 func get_kind() -> Kind:
 	return Kind.CIRCLE_SELF
 
+## R1: its `max_range` is the action's reach, so it is drawn and tested at the real reach (see AimShape2D.with_reach).
+func follows_action_reach() -> bool:
+	return true
+
 func needs_direction() -> bool:
 	return false
 

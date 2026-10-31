@@ -11,7 +11,7 @@ A top-down 2D action RPG built with Godot 4.7. The player and enemies use data-d
 - **Left mouse button, hold:** charge the equipped weapon's heavy attack, then release to swing when configured for input release.
 - **Space:** dash.
 - **Q:** switch between the player's Sword and Bow loadout. Switching is refused during a swing or charge; skill cooldowns continue while switching.
-- **1 / 2 / 3:** use the active skill in that slot.
+- **1 / 2 / 3** (or clicking a skill on the hotbar): use the active skill in that slot. With the mouse, an aimed skill first shows its aim shape and follows the cursor; **left click** casts it, **Esc** or **Space** (dash) cancels with no cost. Buffs, self skills and skills with no aim shape cast at once. Touch and controller aiming are unchanged.
   - **Sword:** Lunge, Sword Spin, Empowerment.
   - **Bow:** Power Shot, Multi-shot, Empowerment.
 - **`attack_heavy`:** a separate heavy-attack action with no default key; bind it in Project Settings > Input Map if desired.
@@ -53,9 +53,8 @@ Weapons/
 ├── Bow/
 │   ├── Bow.tscn
 │   ├── Bow_WeaponDefinition.tres
-│   ├── Bow_EnemyWeaponDefinition.tres
 │   ├── bow.gd
-│   ├── Attacks/       # player and enemy arrow attacks
+│   ├── Attacks/       # Bow_ArrowShot, Bow_ArrowHeavy (player and goblin archer)
 │   ├── Skills/        # Bow_PowerShot, Bow_MultiShot
 │   └── Projectile/    # Bow_Arrow.tscn
 └── GoblinSword/
@@ -80,7 +79,7 @@ Data/Examples/         # un-equipped example resources
 - Weapon scenes, definitions, attack resources, skills, and weapon-specific projectiles live under the folder of the weapon that first introduced them.
 - There is deliberately **no `Weapons/Shared/` folder**. When another weapon reuses a resource, it references the original resource in its owning weapon folder.
 - Every weapon-related file includes its weapon name, e.g. `Sword_Slash1.tres`, `Bow_ArrowShot.tres`, and `GoblinSword_Lunge.tres`.
-- Enemy loadouts may use a separate weapon definition while sharing the weapon scene. For example, `Bow_EnemyWeaponDefinition.tres` preserves the goblin archer's enemy arrow settings rather than equipping the player's attacks.
+- Weapon data belongs to the weapon, not to the character holding it. The goblin archer equips the same `Bow_WeaponDefinition.tres` as the player and its AI picks `Bow_ArrowShot.tres`. Character differences live in input handling, AI decisions (`EnemyBehaviorProfile`, including `attack_windup_duration` and `attack_interval`), and explicit owner modifiers, never in a second copy of the weapon's attack.
 - Framework scripts and reusable effect base scenes stay in `Characters/Components/`; they are not duplicated per weapon.
 - `Sword_GroundSlam.tres` is an example skill, not in the default loadout. The canonical example copy is `Data/Examples/WeaponSkills/Sword_GroundSlam.tres`.
 
@@ -99,7 +98,7 @@ A cross-weapon shared attack is valid only when each consuming weapon scene prov
 1. Create `Weapons/<WeaponName>/` with a weapon scene, a `<WeaponName>_WeaponDefinition.tres`, and `Attacks/` and/or `Skills/` folders as needed.
 2. Put the weapon sprite and animation player in the scene; author all clips referenced by its attacks. Add a projectile folder when it owns a projectile scene.
 3. Create the attack and skill resources with weapon-prefixed filenames. Reuse an existing resource by reference only when its behavior and required animation-clip contract match.
-4. Configure `weapon_scene`, `basic_combo`, `heavy_attack`, active skills and passives on the weapon definition. For enemy variants, create a separate definition if they need different attack data while reusing the same visual weapon scene.
+4. Configure `weapon_scene`, `basic_combo`, `heavy_attack`, active skills and passives on the weapon definition. Enemies equip the same definition; pace or tune them in their `EnemyBehaviorProfile`. Create a separate definition only for a distinct weapon identity (like the Goblin Sword).
 5. Equip it through the character's `WeaponController2D`, add it to the player's loadout if it should be switchable, then import and run smoke tests.
 
 ## Documentation

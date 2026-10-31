@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bddw52d2igqtf" path="res://Characters/Components/Skills/SkillDefinition2D.gd" id="1_skill"]
 [ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="2_attack"]
+[ext_resource type="Script" uid="uid://ctinphlu7bj7s" path="res://Characters/Components/Combat/ChargeStage2D.gd" id="2_tqjb7"]
 [ext_resource type="PackedScene" uid="uid://cn4kci1dwd8gx" path="res://Weapons/Bow/Projectile/Bow_Arrow.tscn" id="3_arrow"]
 [ext_resource type="Script" uid="uid://b6wfrpt7lkfob" path="res://Characters/Components/Status/StatusEffectDefinition2D.gd" id="4_0jmdj"]
 [ext_resource type="PackedScene" uid="uid://buuimquyuurcf" path="res://Characters/Effects/HitEffect.tscn" id="4_hit"]
@@ -11,7 +12,7 @@
 [sub_resource type="Resource" id="aim_shape_sub"]
 script = ExtResource("aimshape_fan")
 angle_degrees = 40.0
-max_range = 300.0
+max_range = 200.0
 
 [sub_resource type="Resource" id="Resource_multi_shot_attack"]
 script = ExtResource("2_attack")
@@ -25,7 +26,8 @@ effect_scene = ExtResource("3_arrow")
 hit_effect_scene = ExtResource("4_hit")
 hitbox_size = Vector2(16, 8)
 hitbox_offset = Vector2(8, 0)
-projectile_speed = 520.0
+projectile_speed = 600.0
+attack_range = 150.0
 
 [resource]
 script = ExtResource("1_skill")
@@ -36,7 +38,7 @@ slot = 1
 cost_resource = 1
 cost_amount = 25.0
 cooldown = 6.5
-max_range = 300.0
+max_range = 200.0
 aim_shape = SubResource("aim_shape_sub")
 attack = SubResource("Resource_multi_shot_attack")
 projectile_count = 3

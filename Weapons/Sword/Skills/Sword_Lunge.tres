@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bddw52d2igqtf" path="res://Characters/Components/Skills/SkillDefinition2D.gd" id="1_skill"]
 [ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="2_attack"]
+[ext_resource type="Script" uid="uid://ctinphlu7bj7s" path="res://Characters/Components/Combat/ChargeStage2D.gd" id="2_u8fku"]
 [ext_resource type="PackedScene" path="res://Characters/Components/Combat/AreaEffect2D.tscn" id="3_area"]
 [ext_resource type="Script" uid="uid://b6wfrpt7lkfob" path="res://Characters/Components/Status/StatusEffectDefinition2D.gd" id="4_4bjn4"]
 [ext_resource type="PackedScene" uid="uid://buuimquyuurcf" path="res://Characters/Effects/HitEffect.tscn" id="4_hit"]
@@ -11,6 +12,7 @@
 [sub_resource type="Resource" id="aim_shape_sub"]
 script = ExtResource("aimshape_line")
 width = 32.0
+max_range = 78.0
 
 [sub_resource type="Resource" id="Resource_lunge_attack"]
 script = ExtResource("2_attack")
@@ -30,7 +32,7 @@ display_name = "Lunge"
 icon = ExtResource("5_icon")
 behavior = 2
 cooldown = 4.0
-max_range = 120.0
+max_range = 50.0
 aim_shape = SubResource("aim_shape_sub")
 dash_speed = 600.0
 attack = SubResource("Resource_lunge_attack")

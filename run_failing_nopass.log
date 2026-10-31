@@ -1,0 +1,76 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: PassiveController2D rejected passive 'pas_ok': its id is listed more than once.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_passives (res://Characters/Components/Passives/PassiveController2D.gd:81)
+       [1] run_core_phase14_p_checks (res://tests/smoke_checks.gd:5786)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: PassiveController2D rejected passive: passive 'pas_inv': needs a status_effect (the status it applies).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_passives (res://Characters/Components/Passives/PassiveController2D.gd:78)
+       [1] run_core_phase14_p_checks (res://tests/smoke_checks.gd:5786)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK FAIL  EVT9 a real swing that lands heals the player by the passive's amount (player 20, goblin 400, started true, equipped true)
+CHECK FAIL  EVT10 a real swing puts the passive's status on the goblin it hits (and the replaced heal passive no longer heals)
+PART core_phase14_p passes=53 failures=2
+CHECK FAIL  BC34 after bow_heavy_shoot finishes with a click waiting, bow_draw plays again ([&"bow_draw", &"bow_heavy_shoot"])
+CHECK FAIL  BC35 the click became a light attack chained after the heavy one ([])
+PART bow_cycle passes=43 failures=2
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_enemy_ai_heavy_checks (res://tests/smoke_checks.gd:10086)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK FAIL  C1-3 the swing goes where the charge was aimed, not where the player moved to ((1.0, 0.0))
+PART enemy_ai_heavy passes=2 failures=1
+CHECK FAIL  H8-130 a tap starts one light attack and presses no aim (swings 0)
+PART h8_touch passes=21 failures=1
+CHECK FAIL  H8-165 while the heavy attack charges its own aim shape is drawn
+PART h8_indicator passes=71 failures=1
+PART h9_visuals passes=4 failures=0
+CHECK FAIL  H9-114 holding all the way: the charge starts at arrival with the held walking time (charge 0.01666666666667, walk 1.55)
+PART h9_heavy passes=14 failures=1
+CHECK FAIL  SA30 a click confirms: the skill casts, mana is spent, the cooldown starts
+CHECK FAIL  SA33 clicking an aimed skill on the hotbar enters preview as well
+CHECK FAIL  SA34 clicking a skill with no aim shape on the hotbar casts at once
+CHECK FAIL  SA35 with skill_aim_preview off an aimed skill casts at once
+PART smart_aim passes=34 failures=4
+CHECK FAIL  S-7 early in the charge no stage is reached and no signal came
+CHECK FAIL  S-8 past half a charge the mid stage is live and was announced once (0, [1, 0])
+CHECK FAIL  S-11 an arrow released in the mid stage deals x2 damage and gets the crit bonus (27)
+PART r7_stages passes=11 failures=3
+CHECK FAIL  T-8 a release inside the window deals x2 with the crit bonus, and the live timing and the release agree ({ "damage": 9, "crit": 0.0, "live": 3, "released": [3] })
+CHECK FAIL  T-14 the timing leaves the reach as the charge set it (200.0)
+PART r7_timed passes=12 failures=2
+CHECK FAIL  B-8 inside the window the fill takes the perfect color
+CHECK FAIL  B-12 a charge with no charge_threshold shows no bar: its ratio never rises
+PART r7_bar passes=10 failures=2
+CHECK FAIL  D-2 with the option on the ratio rises while the draw plays (0.33333333333333)
+PART r7_draw passes=6 failures=1
+ERROR: H4.4 hookup probe
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] run_error_gate_checks (res://tests/smoke_checks.gd:702)
+       [1] _initialize (res://tests/smoke_checks.gd:631)
+       [2] _run (res://tests/smoke_checks.gd:646)
+       [3] run_r7_draw_checks (res://tests/smoke_checks.gd:8996)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: H4.4 warning probe
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] run_error_gate_checks (res://tests/smoke_checks.gd:703)
+       [1] _initialize (res://tests/smoke_checks.gd:631)
+       [2] _run (res://tests/smoke_checks.gd:646)
+       [3] run_r7_draw_checks (res://tests/smoke_checks.gd:8996)
+       [4] phys (res://tests/smoke_checks.gd:25)
+PARTIAL RUN: only smart_aim, r7_stages, r7_timed, r7_bar, r7_draw, bow_cycle, core_phase14_p, h8_touch, h8_indicator, h9_heavy, h9_visuals, enemy_ai_heavy. Not comparable to the full total in docs/STATUS.md.
+SUMMARY passes=289 failures=20
+WARNING: 19 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 5 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:822)

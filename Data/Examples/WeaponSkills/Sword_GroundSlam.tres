@@ -6,6 +6,12 @@
 [ext_resource type="Script" uid="uid://b6wfrpt7lkfob" path="res://Characters/Components/Status/StatusEffectDefinition2D.gd" id="4_exuv8"]
 [ext_resource type="PackedScene" uid="uid://buuimquyuurcf" path="res://Characters/Effects/HitEffect.tscn" id="4_hit"]
 [ext_resource type="Texture2D" uid="uid://b0ycwgotjvgww" path="res://UI/HUD/Icons/GroundSlamIcon.tres" id="5_icon"]
+[ext_resource type="Script" uid="uid://bvsx8fpys1wkc" path="res://Characters/Components/Aim/LineAimShape2D.gd" id="aimshape_line"]
+
+[sub_resource type="Resource" id="aim_shape_sub"]
+script = ExtResource("aimshape_line")
+width = 80.0
+max_range = 72.0
 
 [sub_resource type="Resource" id="Resource_groundslam_attack"]
 script = ExtResource("2_attack")
@@ -29,4 +35,5 @@ cost_resource = 1
 cost_amount = 15.0
 cooldown = 6.0
 area_radius = 40.0
+aim_shape = SubResource("aim_shape_sub")
 attack = SubResource("Resource_groundslam_attack")

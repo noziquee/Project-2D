@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="EnemyBehaviorProfile" format=3]
+
+[ext_resource type="Script" uid="uid://bysdgsi3ih8o" path="res://Characters/Controllers/EnemyBehaviorProfile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+attack_windup_duration = 0.5
+attack_interval = 1.2
+preferred_combo_length = 2
+combo_recovery_pause = 0.4
+heavy_wait_for_opening = 1.5
+skill_usage_priority = 0.5
+telegraph_all_attacks = true

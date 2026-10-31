@@ -157,7 +157,9 @@ func get_action_target() -> Node2D:
 ##   last_aim   the last valid aim direction (zero when unknown)
 ##   facing     the last non-zero facing (zero when unknown)
 ##   manual     true for a deliberate drag: the direction is used as given and no target is searched
-func resolve(origin: Vector2, intended: Vector2, shape: AimShape2D, last_aim: Vector2 = Vector2.ZERO, facing: Vector2 = Vector2.ZERO, manual: bool = false) -> AimResult:
+##   prefer_nearest  true for a PC action: the nearest eligible target inside the shape wins (no lining-up score, no stay-put
+##                   bonus). Default false keeps the scored pick.
+func resolve(origin: Vector2, intended: Vector2, shape: AimShape2D, last_aim: Vector2 = Vector2.ZERO, facing: Vector2 = Vector2.ZERO, manual: bool = false, prefer_nearest: bool = false) -> AimResult:
 	var result := AimResult.new()
 	var axis := Vector2.ZERO
 	var axis_source := Source.DEFAULT
@@ -178,7 +180,10 @@ func resolve(origin: Vector2, intended: Vector2, shape: AimShape2D, last_aim: Ve
 		return result
 	var target: Node2D = null
 	if shape != null:
-		target = _action_target if _still_good(_action_target, origin, shape) else _pick(origin, axis, shape)
+		if prefer_nearest:
+			target = _pick_nearest(origin, axis, shape)
+		else:
+			target = _action_target if _still_good(_action_target, origin, shape) else _pick(origin, axis, shape)
 	_action_target = target
 	if target != null:
 		_last_target = target
@@ -196,11 +201,15 @@ func resolve(origin: Vector2, intended: Vector2, shape: AimShape2D, last_aim: Ve
 func pick_target(origin: Vector2, axis: Vector2, shape: AimShape2D) -> Node2D:
 	return _pick(origin, axis, shape)
 
-## The target the marker shows: the same rule as pick_target(), but the previously marked target keeps the stay-put
-## bonus while it stays valid, so the marker is stable. Changes only the marker's memory, never the action's target.
+## The nearest eligible target inside `shape` (smart aim): no lining-up score, no stay-put bonus, so it never sticks to an
+## earlier target or prefers the aim angle. Ties go to the earlier node in the group so the result is stable. No action state.
+func pick_nearest_target(origin: Vector2, axis: Vector2, shape: AimShape2D) -> Node2D:
+	return _pick_nearest(origin, axis, shape)
+
+## The target the marker shows: the nearest eligible target inside the shape (see pick_nearest_target()). Only the
+## marker's memory changes, never the action's target.
 func pick_marked_target(origin: Vector2, axis: Vector2, shape: AimShape2D) -> Node2D:
-	var remembered: Node2D = _marked_target if is_instance_valid(_marked_target) else null
-	var picked := _pick(origin, axis, shape, remembered)
+	var picked := _pick_nearest(origin, axis, shape)
 	_marked_target = picked
 	return picked
 
@@ -250,6 +259,23 @@ func is_eligible(node: Variant) -> bool:
 	if not node.is_in_group(GROUP):
 		return false
 	return true
+
+func _pick_nearest(origin: Vector2, axis: Vector2, shape: AimShape2D) -> Node2D:
+	if shape == null or not is_inside_tree():
+		return null
+	var best: Node2D = null
+	var best_distance := INF
+	for node in get_tree().get_nodes_in_group(GROUP):
+		if not is_eligible(node):
+			continue
+		var candidate: Node2D = node
+		if shape.score(origin, axis, candidate.global_position, target_margin) < 0.0:
+			continue
+		var distance := origin.distance_to(candidate.global_position)
+		if distance < best_distance:
+			best = candidate
+			best_distance = distance
+	return best
 
 func _pick(origin: Vector2, axis: Vector2, shape: AimShape2D, sticky: Node2D = null) -> Node2D:
 	if shape == null or not is_inside_tree():

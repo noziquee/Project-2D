@@ -138,7 +138,7 @@ static func run_player(check: Callable, main: Node) -> void:
 	var shipped_ok := true
 	for path in ["res://Weapons/Sword/Attacks/Sword_Slash1.tres", "res://Weapons/Sword/Attacks/Sword_Slash2.tres", "res://Weapons/Bow/Attacks/Bow_ArrowShot.tres"]:
 		shipped_ok = shipped_ok and (load(path) as AttackDefinition2D).attack_range > 0.0
-	check.call(shipped_ok and (load("res://Weapons/Bow/Attacks/Bow_ArrowEnemy.tres") as AttackDefinition2D).attack_range > 0.0, "H8-89 the sword slashes, the bow shot and the enemy arrow each have an attack_range (one number for the circle, the assist and the AI)")
+	check.call(shipped_ok, "H8-89 the sword slashes and the bow shot each have an attack_range (one number for the circle, the assist and the AI)")
 	# --- Assist view: the range circle and the target marker ---
 	svc.clear()
 	p._activation_open = false
@@ -178,7 +178,7 @@ static func run_player(check: Callable, main: Node) -> void:
 	p._update_assist_indicator()
 	check.call(view.get_target() == stubs[0], "H9-31 several enemies in view still produce exactly one marker")
 	var marker_shape: AimShape2D = p._light_shape_for(p.get_light_attack_id())
-	check.call(view.get_target() == p.get_targeting_service().pick_target(p.global_position, Vector2.RIGHT, marker_shape), "H9-53 the target marker and the next light-tap target use the same selection rule")
+	check.call(view.get_target() == p.get_targeting_service().pick_nearest_target(p.global_position, Vector2.RIGHT, marker_shape), "H9-53 the target marker and the next PC light-tap target use the same nearest-target rule")
 	var tie_target := _stub(main, p.global_position + Vector2(101.0, 0.0))
 	stubs.append(tie_target)
 	stubs[0].global_position = p.global_position + Vector2(100.0, 0.0)
@@ -186,14 +186,14 @@ static func run_player(check: Callable, main: Node) -> void:
 	p._update_assist_indicator()
 	tie_target.global_position = p.global_position + Vector2(99.0, 0.0)
 	p._update_assist_indicator()
-	check.call(view.get_target() == stubs[0], "H9-54 the marked target stays stable when two targets swap nearest by a few pixels")
+	check.call(view.get_target() == tie_target, "H9-54 (smart aim) the marker follows the nearest target, even when it only just became nearer")
 	p.show_target_marker = false
 	p._update_assist_indicator()
 	check.call(view.get_target() == null and view.get_range_radius() > 0.0, "H9-34 show_target_marker off hides the single marker")
 	p.show_target_marker = true
 	stubs[1].alive = false
 	p._update_assist_indicator()
-	check.call(view.get_target() == stubs[0], "H9-35 a dead enemy cannot replace the marked target")
+	check.call(view.get_target() == tie_target, "H9-35 a dead enemy cannot replace the marked target (the nearest living one stays marked)")
 	# The live camera: its rectangle is what the screen shows.
 	svc.clear_view_override()
 	var cam := p.get_viewport().get_camera_2d()
@@ -263,7 +263,8 @@ static func run_player(check: Callable, main: Node) -> void:
 	var skills_ok := true
 	var aimed_slot := -1
 	for skill in p.skill_component.get_skills():
-		var expected: AimShape2D = null if (skill.targeting == SkillDefinition2D.Targeting.SELF) else skill.aim_shape
+		# R1: a skill is assisted inside its shape at the skill's real reach (the same object when they already agree).
+		var expected: AimShape2D = null if (skill.targeting == SkillDefinition2D.Targeting.SELF or skill.aim_shape == null) else skill.aim_shape.with_reach(skill.get_reach())
 		skills_ok = skills_ok and p._skill_assist_shape(skill.slot) == expected
 		if expected != null and aimed_slot < 0:
 			aimed_slot = skill.slot
@@ -309,10 +310,325 @@ static func run(check: Callable, host: Node) -> void:
 	_targeting(check, host)
 	_definitions(check)
 	_reach(check)
+	_reach_views(check)
+	_reach_validation(check)
+	_reach_cap(check, host)
+	_charge_reach(check)
+	_skill_range(check)
 	_slash(check, host)
 	_view(check, host)
 	_in_reach(check, host)
 	_approach(check, host)
+
+## R1: AimShape2D.with_reach(). A fan, line or self circle is drawn and assisted at its action's real reach through a copy,
+## never by editing the shared resource; a placed circle and anything already at that reach come back unchanged. Pure geometry.
+static func _reach_views(check: Callable) -> void:
+	var line := LineAimShape2D.new()
+	line.max_range = 120.0
+	line.width = 32.0
+	line.style = LineAimShape2D.Style.ARROW
+	var longer := line.with_reach(148.0) as LineAimShape2D
+	check.call(longer != line and is_equal_approx(longer.max_range, 148.0) and is_equal_approx(line.max_range, 120.0), "R1-1 a line asked for a longer reach comes back as a copy at that reach and the shape itself is not changed")
+	check.call(longer is LineAimShape2D and is_equal_approx(longer.width, 32.0) and longer.style == LineAimShape2D.Style.ARROW, "R1-2 the copy keeps the shape's width and style")
+	check.call(line.with_reach(148.0) == longer, "R1-3 the same reach returns the same object (the indicator and the targeting compare shapes by identity)")
+	check.call(line.with_reach(120.0) == line and line.with_reach(120.004) == line and line.with_reach(0.0) == line and line.with_reach(-1.0) == line, "R1-4 a reach the shape already has, or none, returns the shape itself")
+	var far := 0.0
+	for corner in longer.get_outline(Vector2.RIGHT):
+		far = maxf(far, corner.x)
+	check.call(is_equal_approx(far, 148.0) and longer.get_head_outline(Vector2.RIGHT).size() == 3 and longer.get_head_outline(Vector2.RIGHT)[0].is_equal_approx(Vector2(148, 0)), "R1-5 the strip and the arrowhead end exactly at the reach")
+	check.call(longer.contains(Vector2.ZERO, Vector2.RIGHT, Vector2(140, 0)) and not line.contains(Vector2.ZERO, Vector2.RIGHT, Vector2(140, 0)), "R1-6 the assist tests the longer region: a target at 140 px is inside at reach 148 and outside the 120 px shape")
+	check.call(longer.score(Vector2.ZERO, Vector2.RIGHT, Vector2(148, 0)) >= 0.0 and line.score(Vector2.ZERO, Vector2.RIGHT, Vector2(148, 0)) < 0.0 and longer.keeps_target(Vector2.ZERO, Vector2(147, 0)) and not line.keeps_target(Vector2.ZERO, Vector2(147, 0)), "R1-7 a target on the aim at the real reach scores and stays kept for the action; the 120 px shape would drop it")
+	line.width = 40.0
+	var again := line.with_reach(148.0) as LineAimShape2D
+	check.call(again == longer and is_equal_approx(again.width, 40.0), "R1-8 editing the shape afterwards reaches the copy on the next call (same object, new width)")
+
+	var fan := FanAimShape2D.make(40.0, 150.0, 0.4)
+	var wide := fan.with_reach(300.0) as FanAimShape2D
+	check.call(wide != null and wide != fan and is_equal_approx(wide.max_range, 300.0) and is_equal_approx(wide.angle_degrees, 40.0) and is_equal_approx(wide.angle_weight, 0.4) and is_equal_approx(fan.max_range, 150.0), "R1-9 a fan follows the reach and keeps its angle and weight")
+	check.call(wide.contains(Vector2.ZERO, Vector2.RIGHT, Vector2(280, 0)) and not fan.contains(Vector2.ZERO, Vector2.RIGHT, Vector2(280, 0)), "R1-10 the fan's radius is the reach")
+	var circle := CircleSelfAimShape2D.new()
+	circle.max_range = 52.0
+	check.call(is_equal_approx(circle.with_reach(60.0).max_range, 60.0) and is_equal_approx(circle.max_range, 52.0), "R1-11 a self circle follows the reach")
+	var ground := GroundCircleAimShape2D.new()
+	check.call(not ground.follows_action_reach() and ground.with_reach(ground.max_range + 50.0) == ground, "R1-12 a placed circle keeps its own range: its reach also includes the circle's radius")
+	var distinct := true
+	for i in 20:
+		var reach := 100.0 + float(i) * 7.0
+		distinct = distinct and is_equal_approx(line.with_reach(reach).max_range, reach)
+	check.call(distinct and line._reach_views.size() <= AimShape2D.MAX_REACH_VIEWS, "R1-13 many different reaches are answered correctly and the copies kept stay few (%s)" % line._reach_views.size())
+
+	# The shipped data: the aim shapes now end at the reach the indicator circle uses.
+	var lunge: SkillDefinition2D = load("res://Weapons/Sword/Skills/Sword_Lunge.tres")
+	var power: SkillDefinition2D = load("res://Weapons/Bow/Skills/Bow_PowerShot.tres")
+	var multi: SkillDefinition2D = load("res://Weapons/Bow/Skills/Bow_MultiShot.tres")
+	var heavy: AttackDefinition2D = load("res://Weapons/Sword/Attacks/Sword_HeavySlash.tres")
+	check.call(lunge != null and power != null and multi != null and heavy != null, "R1-14 the shipped Lunge, Power Shot, Multi Shot and heavy slash load")
+	if lunge != null and power != null and multi != null and heavy != null:
+		var lunge_view := lunge.aim_shape.with_reach(lunge.get_reach())
+		check.call(is_equal_approx(lunge_view.max_range, lunge.get_reach()) and lunge_view.contains(Vector2.ZERO, Vector2.RIGHT, Vector2(maxf(lunge.get_reach() - 3.0, 0.0), 0.0)), "R1-15 Lunge's strip ends at its configured reach (dash plus strike radius)")
+		check.call(is_equal_approx(power.aim_shape.with_reach(power.get_reach()).max_range, power.get_reach()) and is_equal_approx(multi.aim_shape.with_reach(multi.get_reach()).max_range, multi.get_reach()), "R1-16 Power Shot's strip and Multi Shot's fan end at their configured reach")
+		check.call(heavy.aim_shape.with_reach(heavy.get_reach()) == heavy.aim_shape, "R1-17 the heavy slash's fan already matches its reach and is returned as it is")
+
+## R2: validation compares a shape that follows the action's reach with that reach to within 1 px (it used to allow 25%),
+## attacks get the same check, Ground Slam has an aim shape, and every shipped skill and attack validates clean. Pure data.
+static func _reach_validation(check: Callable) -> void:
+	var lunge := SkillDefinition2D.new()
+	lunge.id = &"t_lunge"
+	lunge.behavior = SkillDefinition2D.Behavior.DASH
+	lunge.max_range = 120.0
+	lunge.attack = AttackDefinition2D.new()
+	lunge.attack.hitbox_size = Vector2(56.0, 56.0)
+	var strip := LineAimShape2D.new()
+	strip.max_range = 120.0
+	lunge.aim_shape = strip
+	var warned := _aim_messages(lunge.get_warnings())
+	check.call(is_equal_approx(lunge.get_reach(), 148.0) and warned.size() == 1 and String(warned[0]).contains("120.0") and String(warned[0]).contains("148.0"), "R2-1 a dash whose strip is 120 px against a reach of 148 px warns, naming both numbers (the old 25 percent rule let it pass): %s" % str(warned))
+	strip.max_range = 148.0
+	check.call(_aim_messages(lunge.get_warnings()).is_empty(), "R2-2 the same strip at the reach raises nothing")
+	strip.max_range = 148.9
+	check.call(_aim_messages(lunge.get_warnings()).is_empty(), "R2-3 a strip within 1 px of the reach raises nothing")
+	strip.max_range = 149.5
+	check.call(not _aim_messages(lunge.get_warnings()).is_empty(), "R2-4 a strip more than 1 px off the reach warns, longer as well as shorter")
+	check.call(String(warned[0]).contains("ignored"), "R2-5 the warning says the shape's own value is ignored in game")
+
+	var ground := GroundCircleAimShape2D.new()
+	var placed := SkillDefinition2D.new()
+	placed.id = &"t_placed"
+	placed.behavior = SkillDefinition2D.Behavior.AREA
+	placed.attack = AttackDefinition2D.new()
+	placed.attack.hitbox_size = Vector2(80.0, 80.0)
+	placed.aim_shape = ground
+	check.call(_aim_messages(placed.get_warnings()).is_empty() and not ground.follows_action_reach(), "R2-6 a placed circle keeps its own range and is never compared with the reach")
+
+	var heavy := AttackDefinition2D.new()
+	heavy.id = &"t_heavy_attack"
+	heavy.aim_shape = FanAimShape2D.make(40.0, 100.0)
+	check.call(heavy.get_warnings().is_empty(), "R2-7 a heavy attack with no attack_range takes its reach from the shape and raises nothing")
+	heavy.attack_range = 140.0
+	var attack_warned: Array = []
+	for message in heavy.get_warnings():
+		if String(message).contains("aim_shape"):
+			attack_warned.append(message)
+	check.call(attack_warned.size() == 1 and String(attack_warned[0]).contains("100.0") and String(attack_warned[0]).contains("140.0"), "R2-8 an attack whose attack_range and shape disagree warns, naming both numbers: %s" % str(attack_warned))
+	heavy.attack_range = 100.5
+	var close_warned: Array = []
+	for message in heavy.get_warnings():
+		if String(message).contains("aim_shape"):
+			close_warned.append(message)
+	check.call(close_warned.is_empty(), "R2-9 an attack_range within 1 px of the shape raises nothing")
+
+	# Shipped data: shapes match the reach, Ground Slam has a shape, and nothing about range warns.
+	var slam := load("res://Data/Examples/WeaponSkills/Sword_GroundSlam.tres") as SkillDefinition2D
+	check.call(slam != null and slam.wants_aim_shape() and slam.aim_shape != null and slam.aim_shape.get_kind() == AimShape2D.Kind.LINE and is_equal_approx(slam.aim_shape.max_range, slam.get_reach()) and is_equal_approx(slam.get_reach(), 72.0), "R2-10 Ground Slam has a line aim shape that ends at its 72 px reach (32 offset plus 40 radius)")
+	check.call(slam != null and slam.validate().is_empty() and _aim_messages(slam.get_warnings()).is_empty(), "R2-11 Ground Slam still validates and raises no aim_shape warning")
+	var all_ok := true
+	var checked := 0
+	for path in ["res://Weapons/Bow/Skills/Bow_PowerShot.tres", "res://Weapons/Bow/Skills/Bow_MultiShot.tres", "res://Weapons/Sword/Skills/Sword_Lunge.tres", "res://Weapons/Sword/Skills/Sword_Spin.tres", "res://Data/Examples/WeaponSkills/Sword_GroundSlam.tres"]:
+		var skill := load(path) as SkillDefinition2D
+		if skill == null:
+			all_ok = false
+			continue
+		# A SELF-targeted area can operate around the caster without an aim shape. When a shape is supplied,
+		# validate the saved data and the runtime reach view separately; stale saved max_range is informational.
+		if skill.aim_shape == null:
+			if skill.targeting != SkillDefinition2D.Targeting.SELF:
+				all_ok = false
+			continue
+		checked += 1
+		var runtime_shape := skill.aim_shape.with_reach(skill.get_reach())
+		all_ok = all_ok and skill.aim_shape.validate().is_empty() and is_equal_approx(runtime_shape.max_range, skill.get_reach())
+	check.call(all_ok and checked == 4, "R2-12 each supplied shipped skill shape is valid and its runtime reach view matches the configured skill reach (%d checked; SELF area may omit a shape)" % checked)
+	var attacks_ok := true
+	for path in ["res://Weapons/Sword/Attacks/Sword_HeavySlash.tres", "res://Weapons/Bow/Attacks/Bow_ArrowHeavy.tres", "res://Weapons/Bow/Attacks/Bow_ArrowShot.tres", "res://Weapons/Sword/Attacks/Sword_Slash1.tres", "res://Weapons/Sword/Attacks/Sword_Slash2.tres"]:
+		var attack := load(path) as AttackDefinition2D
+		attacks_ok = attacks_ok and attack != null and attack.get_warnings().is_empty()
+	check.call(attacks_ok, "R2-13 the shipped heavy and light attacks raise no warning")
+
+## R3: an ordinary attack projectile flies no further than its attack's reach (lifetime = reach / speed, the scene's lifetime a
+## second cap, the shorter wins); a skill's projectile is untouched; the melee reach gate; the new warnings.
+static func _reach_cap(check: Callable, root: Node) -> void:
+	var host := Node2D.new()
+	root.add_child(host)
+	var scene := load("res://Weapons/Bow/Projectile/Bow_Arrow.tscn") as PackedScene
+	var shot := load("res://Weapons/Bow/Attacks/Bow_ArrowShot.tres") as AttackDefinition2D
+	var heavy := load("res://Weapons/Bow/Attacks/Bow_ArrowHeavy.tres") as AttackDefinition2D
+	check.call(scene != null and shot != null and heavy != null, "R3-1 the arrow scene and the two shipped arrow attacks load")
+	if scene == null or shot == null or heavy == null:
+		host.queue_free()
+		return
+	var basic := _arrow(host, scene, shot.projectile_speed, shot.get_reach())
+	check.call(shot.get_reach() > 0.0 and absf(basic.get_travel_distance() - shot.get_reach()) < 1.0, "R3-2 the basic shot (speed %s, reach %s) flies its reach, not the %s the scene's 1.2 s allowed: %s" % [shot.projectile_speed, shot.get_reach(), shot.projectile_speed * 1.2, basic.get_travel_distance()])
+	var heavy_arrow := _arrow(host, scene, heavy.projectile_speed, heavy.get_reach())
+	check.call(absf(heavy_arrow.get_travel_distance() - heavy.get_reach()) < 1.0 and heavy.get_reach() > 0.0, "R3-3 the heavy arrow flies its %s px reach, not %s: %s" % [heavy.get_reach(), heavy.projectile_speed * 1.2, heavy_arrow.get_travel_distance()])
+	var archer_attack := (load("res://Characters/Controllers/GoblinArcherBehaviorProfile.tres") as EnemyBehaviorProfile).attack_choices[0].attack
+	var goblin := _arrow(host, scene, archer_attack.projectile_speed, archer_attack.get_reach())
+	check.call(archer_attack == shot and absf(goblin.get_travel_distance() - archer_attack.get_reach()) < 1.0, "R3-4 the goblin archer fires the shared Bow_ArrowShot and its arrow flies that attack's reach: %s" % goblin.get_travel_distance())
+	var uncapped := _arrow(host, scene, 420.0, 0.0)
+	check.call(is_equal_approx(uncapped.lifetime, 1.2), "R3-5 an attack that gives no reach keeps the scene's lifetime (%s)" % uncapped.lifetime)
+	var long_reach := _arrow(host, scene, 100.0, 500.0)
+	check.call(is_equal_approx(long_reach.lifetime, 1.2) and absf(long_reach.get_travel_distance() - 120.0) < 0.01, "R3-6 a reach longer than the scene allows keeps the scene's lifetime: the shorter cap wins (%s)" % long_reach.get_travel_distance())
+	var tiny := _arrow(host, scene, 420.0, 1.0)
+	check.call(tiny.lifetime >= ProjectileEffect2D.MIN_LIFETIME - 0.0001, "R3-7 a very short reach never goes below the shortest lifetime (%s)" % tiny.lifetime)
+	# Multi Shot: its inner attack says reach 150 at speed 100, but the skill component configures a projectile without a reach.
+	var skill_arrow := scene.instantiate() as ProjectileEffect2D
+	skill_arrow.configure(host, 1, Vector2.RIGHT, Vector2(16, 8), Vector2(8, 0), -1, 0.0, 0.0, &"slash", 0, true, 100.0)
+	host.add_child(skill_arrow)
+	check.call(is_equal_approx(skill_arrow.lifetime, 1.2), "R3-8 a skill's projectile is configured without a reach and is not capped by the attack's (Multi Shot's 150 would cut it off at 300)")
+	for arrow in [basic, heavy_arrow, goblin, uncapped, long_reach, tiny, skill_arrow]:
+		arrow.free()
+
+	# Melee reach gate (RD1).
+	var slash_scene := load("res://Characters/Components/Combat/AttackSlash2D.tscn") as PackedScene
+	var light := _swing(host, slash_scene, 70.0, Vector2(16, 16), Vector2.ZERO, &"slash")
+	var gate_ok := true
+	for time in [0.0, 0.08, 0.16666667, 0.33333334, 0.375]:
+		light.seek_swing(time)
+		gate_ok = gate_ok and light.is_within_reach_gate()
+	check.call(gate_ok, "R3-9 a driven swing stays inside its reach gate for the whole swing")
+	var motion: Node2D = light.get_node("HitboxOrigin/HitboxMotion")
+	motion.position.x += 40.0
+	check.call(not light.is_within_reach_gate(), "R3-10 a hitbox carried 40 px past the reach is outside the gate, so it cannot hit")
+	light.free()
+	var no_reach := _swing(host, slash_scene, 0.0, Vector2(16, 16), Vector2.ZERO, &"slash")
+	(no_reach.get_node("HitboxOrigin/HitboxMotion") as Node2D).position.x += 200.0
+	check.call(no_reach.is_within_reach_gate(), "R3-11 an attack that gives no reach has no gate")
+	no_reach.free()
+	var short := _swing(host, slash_scene, 5.0, Vector2(16, 16), Vector2.ZERO, &"slash")
+	short.seek_swing(0.33333334)
+	check.call(short.is_within_reach_gate(), "R3-12 a reach shorter than the hitbox does not shut its own swing out (the start edge counts)")
+	short.free()
+
+	# Warnings.
+	var bare := shot.duplicate() as AttackDefinition2D
+	bare.attack_range = 0.0
+	bare.aim_shape = null
+	var cap_warned: Array = []
+	for message in bare.get_warnings():
+		if String(message).contains("no reach"):
+			cap_warned.append(message)
+	check.call(cap_warned.size() == 1, "R3-13 a projectile attack with no reach warns (RD3): %s" % str(cap_warned))
+	var slash1 := load("res://Weapons/Sword/Attacks/Sword_Slash1.tres") as AttackDefinition2D
+	var far_slash := slash1.duplicate() as AttackDefinition2D
+	far_slash.attack_range = 200.0
+	var short_warned: Array = []
+	for message in far_slash.get_warnings():
+		if String(message).contains("hit box ends"):
+			short_warned.append(message)
+	check.call(short_warned.is_empty() and not AttackSlash2D.scene_clip_moves_positions(slash_scene, &"slash") and not AttackSlash2D.scene_clip_moves_positions(slash_scene, &"heavy_slash"), "R3-14 the shipped slash clips drive the reach, so a long attack_range raises no short-hitbox warning")
+	host.queue_free()
+
+## R4: charge_reach_min. Reach = full reach x lerp(charge_reach_min, 1, charge ratio); 1 keeps a fixed reach. Pure data, plus
+## the frozen-at-release rule on a bare AttackComponent2D-free definition.
+static func _charge_reach(check: Callable) -> void:
+	var heavy := AttackDefinition2D.new()
+	heavy.id = &"t_charge_heavy"
+	heavy.attack_range = 100.0
+	check.call(is_equal_approx(heavy.charge_reach_min, 1.0) and is_equal_approx(heavy.get_reach_at_charge(0.0), 100.0) and is_equal_approx(heavy.get_reach_at_charge(1.0), 100.0), "R4-1 the default charge_reach_min of 1 keeps the reach fixed at every charge level")
+	heavy.charge_reach_min = 0.5
+	heavy.charge_threshold = 1.0
+	check.call(is_equal_approx(heavy.get_reach_at_charge(0.0), 50.0) and is_equal_approx(heavy.get_reach_at_charge(0.5), 75.0) and is_equal_approx(heavy.get_reach_at_charge(1.0), 100.0), "R4-2 with charge_reach_min 0.5 the reach is 50, 75 and 100 at charge 0, 0.5 and 1")
+	check.call(is_equal_approx(heavy.get_reach_at_charge(-1.0), 50.0) and is_equal_approx(heavy.get_reach_at_charge(3.0), 100.0), "R4-3 a charge ratio outside 0 to 1 is clamped")
+	check.call(is_equal_approx(heavy.get_reach(), 100.0), "R4-4 get_reach() stays the full reach (validation and the audit read it)")
+	check.call(is_equal_approx(heavy.charge_ratio_at(0.5), 0.5) and is_equal_approx(heavy.charge_ratio_at(5.0), 1.0), "R4-5 the charge ratio is seconds over charge_threshold, capped at 1")
+	var no_threshold := AttackDefinition2D.new()
+	no_threshold.id = &"t_charge_nothreshold"
+	no_threshold.attack_range = 100.0
+	no_threshold.charge_reach_min = 0.5
+	var warned: Array = []
+	for message in no_threshold.get_warnings():
+		if String(message).contains("charge_reach_min"):
+			warned.append(message)
+	check.call(no_threshold.charge_ratio_at(2.0) == 0.0 and warned.size() == 1, "R4-6 charge_reach_min below 1 with no charge_threshold warns: the ratio never rises (%s)" % str(warned))
+	var clean_warned := false
+	for message in heavy.get_warnings():
+		if String(message).contains("charge_reach_min"):
+			clean_warned = true
+	check.call(not clean_warned, "R4-7 charge_reach_min with a charge_threshold raises no warning")
+	var fan := AttackDefinition2D.new()
+	fan.id = &"t_charge_fan"
+	fan.aim_shape = FanAimShape2D.make(40.0, 100.0)
+	fan.charge_reach_min = 0.4
+	check.call(is_equal_approx(fan.get_reach_at_charge(0.0), 40.0), "R4-8 a heavy attack that takes its reach from its shape scales that reach too")
+	var sword_heavy := load("res://Weapons/Sword/Attacks/Sword_HeavySlash.tres") as AttackDefinition2D
+	var bow_heavy := load("res://Weapons/Bow/Attacks/Bow_ArrowHeavy.tres") as AttackDefinition2D
+	check.call(sword_heavy != null and bow_heavy != null and sword_heavy.charge_reach_min >= 0.0 and sword_heavy.charge_reach_min <= 1.0 and bow_heavy.charge_reach_min >= 0.0 and bow_heavy.charge_reach_min <= 1.0 and bow_heavy.charge_threshold > 0.0 and bow_heavy.charge_reach_ease == null, "R4-9 shipped heavy attacks retain valid configured charge-reach settings")
+	check.call(is_equal_approx(bow_heavy.get_reach_at_charge(0.0), bow_heavy.get_reach() * 0.5) and is_equal_approx(bow_heavy.get_reach_at_charge(0.5), bow_heavy.get_reach() * 0.75) and is_equal_approx(bow_heavy.get_reach_at_charge(1.0), bow_heavy.get_reach()), "R4-10 the bow heavy's reach is 50%, 75% and 100% of its full reach at charge 0, 0.5 and 1")
+	# RD6 step 2: the optional easing curve keeps both ends and changes only the way between them.
+	var eased := AttackDefinition2D.new()
+	eased.id = &"t_charge_eased"
+	eased.attack_range = 100.0
+	eased.charge_reach_min = 0.5
+	eased.charge_threshold = 1.0
+	var ease_in := Curve.new()
+	ease_in.add_point(Vector2(0.0, 0.0))
+	ease_in.add_point(Vector2(0.5, 0.25))
+	ease_in.add_point(Vector2(1.0, 1.0))
+	eased.charge_reach_ease = ease_in
+	check.call(is_equal_approx(eased.get_reach_at_charge(0.0), 50.0) and is_equal_approx(eased.get_reach_at_charge(1.0), 100.0), "R4-11 an easing curve from (0, 0) to (1, 1) keeps the minimum and the maximum reach")
+	check.call(absf(eased.get_reach_at_charge(0.5) - 62.5) < 0.5 and eased.get_reach_at_charge(0.5) < 75.0, "R4-12 an ease-in curve grows slower than linear at mid charge (%s, linear would be 75)" % eased.get_reach_at_charge(0.5))
+	var wild := Curve.new()
+	wild.add_point(Vector2(0.0, -0.5))
+	wild.add_point(Vector2(1.0, 1.5))
+	eased.charge_reach_ease = wild
+	check.call(eased.get_reach_at_charge(0.0) >= 50.0 - 0.001 and eased.get_reach_at_charge(1.0) <= 100.0 + 0.001, "R4-13 a curve that leaves 0 to 1 cannot push the reach outside its minimum and maximum")
+	eased.charge_reach_ease = null
+	check.call(is_equal_approx(eased.get_reach_at_charge(0.5), 75.0), "R4-14 with no curve the reach is linear again")
+
+## R5: each skill behavior's travel and placement come from its own number. Projectile flight time, dash travel and the
+## placed area's two ranges, on the shipped skills. Pure data through SkillComponent2D's static helpers.
+static func _skill_range(check: Callable) -> void:
+	var power := load("res://Weapons/Bow/Skills/Bow_PowerShot.tres") as SkillDefinition2D
+	var multi := load("res://Weapons/Bow/Skills/Bow_MultiShot.tres") as SkillDefinition2D
+	var lunge := load("res://Weapons/Sword/Skills/Sword_Lunge.tres") as SkillDefinition2D
+	var spin := load("res://Weapons/Sword/Skills/Sword_Spin.tres") as SkillDefinition2D
+	check.call(power != null and multi != null and lunge != null and spin != null, "R5-1 the shipped Power Shot, Multi Shot, Lunge and Sword Spin load")
+	if power == null or multi == null or lunge == null or spin == null:
+		return
+	var power_speed := power.attack.projectile_speed
+	check.call(power.max_range > 0.0 and absf(SkillComponent2D.projectile_flight_time(power, power.max_range) * power_speed - power.max_range) < 0.5, "R5-2 Power Shot's projectile travels its configured max_range (%s px; speed %s)" % [power.max_range, power_speed])
+	var multi_speed := multi.attack.projectile_speed
+	check.call(multi.attack.attack_range > 0.0 and multi.max_range > 0.0 and absf(SkillComponent2D.projectile_flight_time(multi, multi.max_range) * multi_speed - multi.max_range) < 0.5, "R5-3 Multi Shot travels its configured max_range (%s), not its inner attack's attack_range (%s)" % [multi.max_range, multi.attack.attack_range])
+	var linked := power.duplicate(true) as SkillDefinition2D
+	var before := SkillComponent2D.projectile_flight_time(linked, 300.0)
+	linked.attack.attack_range = 40.0
+	var short_linked := SkillComponent2D.projectile_flight_time(linked, 300.0)
+	linked.attack.attack_range = 900.0
+	check.call(is_equal_approx(before, short_linked) and is_equal_approx(before, SkillComponent2D.projectile_flight_time(linked, 300.0)), "R5-4 a linked attack's own attack_range, shorter or longer, never changes the skill projectile's travel")
+	linked.attack.projectile_speed = 0.0
+	check.call(is_equal_approx(SkillComponent2D.projectile_flight_time(linked, 600.0), linked.max_range / 600.0), "R5-5 an attack with no speed uses the projectile scene's speed for the skill's configured reach (%s px at 600 px/s)" % linked.max_range)
+	check.call(is_equal_approx(SkillComponent2D.projectile_flight_time(linked, 0.0), 0.0), "R5-6 no speed anywhere asks for no limit (0), so the scene lifetime stays")
+	linked.max_range = 1.0
+	check.call(is_equal_approx(SkillComponent2D.projectile_flight_time(linked, 600.0), SkillComponent2D.MIN_PROJECTILE_LIFETIME), "R5-7 a very short max_range never goes below the shortest flight")
+	check.call(is_equal_approx(SkillComponent2D.projectile_flight_time(null, 300.0), 0.0), "R5-8 no skill asks for no limit")
+
+	check.call(lunge.max_range > 0.0 and absf(SkillComponent2D.dash_duration(lunge) * lunge.dash_speed - lunge.max_range) < 0.01, "R5-9 Lunge dashes its configured max_range (%s px), not its full indicator reach" % lunge.max_range)
+	check.call(is_equal_approx(lunge.get_reach(), lunge.max_range + 28.0), "R5-10 Lunge's reach is the dash plus its 28 px strike radius, which the indicator shows")
+	var slow := lunge.duplicate(true) as SkillDefinition2D
+	slow.dash_speed = 0.0
+	check.call(SkillComponent2D.dash_duration(slow) >= SkillComponent2D.MIN_DASH_TIME and is_finite(SkillComponent2D.dash_duration(slow)), "R5-11 a dash with no speed is guarded: finite and at least the shortest dash")
+
+	var ground := GroundCircleAimShape2D.new()
+	ground.max_range = 200.0
+	ground.radius = 60.0
+	var placed := SkillDefinition2D.new()
+	placed.id = &"t_placed_range"
+	placed.behavior = SkillDefinition2D.Behavior.AREA
+	placed.attack = AttackDefinition2D.new()
+	placed.attack.hitbox_size = Vector2(120.0, 120.0)
+	placed.aim_shape = ground
+	check.call(is_equal_approx(placed.get_reach(), 260.0), "R5-12 a placed area's reach is its placement range plus its radius (200 + 60)")
+	ground.radius = 80.0
+	check.call(is_equal_approx(placed.get_reach(), 280.0) and is_equal_approx(ground.max_range, 200.0), "R5-13 a larger area radius changes the size only: placement range stays 200")
+	ground.max_range = 150.0
+	check.call(is_equal_approx(placed.get_reach(), 230.0) and is_equal_approx(ground.area_radius(), 80.0), "R5-14 a shorter placement range moves the cast limit only: the radius stays 80")
+	check.call(spin.get_reach() > 0.0 and is_equal_approx(spin.get_reach(), spin.area_radius if spin.area_radius > 0.0 else spin.attack.hitbox_size.x * 0.5) and (spin.aim_shape == null or is_equal_approx(spin.aim_shape.max_range, spin.get_reach())), "R5-15 Sword Spin's reach matches its area radius (or half its hitbox width when no radius is set) and any supplied aim shape")
+
+## R3 helper: a projectile made the way AttackComponent2D makes one (configure with the attack's speed and reach).
+static func _arrow(host: Node, scene: PackedScene, speed: float, reach: float) -> ProjectileEffect2D:
+	var arrow := scene.instantiate() as ProjectileEffect2D
+	arrow.configure(host, 1, Vector2.RIGHT, Vector2(16, 8), Vector2(8, 0), -1, 0.0, 0.0, &"slash", 0, true, speed, 0.0, 2.0, [], reach)
+	host.add_child(arrow)
+	return arrow
 
 ## H9.2: the slash's reach is driven from the attack's one reach number, not from keyframes. `root` is a node in the
 ## running tree; every effect made here is freed again.
@@ -385,8 +701,8 @@ static func _slash(check: Callable, root: Node) -> void:
 	var hv := _swing(host, scene, heavy_def.get_reach(), heavy_def.hitbox_size, heavy_def.hitbox_offset, heavy_def.effect_animation)
 	s1.seek_swing(0.33333334)
 	hv.seek_swing(0.33333334)
-	check.call(is_equal_approx(s1.get_leading_edge(), slash1.attack_range) and is_equal_approx(slash1.attack_range, 70.0), "H9-26 the sword's light swing really reaches its attack_range, 70 (%s)" % s1.get_leading_edge())
-	check.call(is_equal_approx(hv.get_leading_edge(), heavy_def.get_reach()) and is_equal_approx(heavy_def.get_reach(), 100.0), "H9-27 the heavy swing reaches the 100 its fan says (%s)" % hv.get_leading_edge())
+	check.call(slash1.attack_range > 0.0 and is_equal_approx(s1.get_leading_edge(), slash1.attack_range), "H9-26 the sword's light swing really reaches its configured attack_range (%s)" % s1.get_leading_edge())
+	check.call(heavy_def.get_reach() > 0.0 and is_equal_approx(hv.get_leading_edge(), heavy_def.get_reach()), "H9-27 the heavy swing reaches its configured aim-shape reach (%s)" % hv.get_leading_edge())
 	s1.free()
 	hv.free()
 
@@ -648,7 +964,7 @@ static func _reach(check: Callable) -> void:
 	var shot := load("res://Weapons/Bow/Attacks/Bow_ArrowShot.tres") as AttackDefinition2D
 	check.call(slash1 != null and slash2 != null and is_equal_approx(slash1.get_reach(), slash1.attack_range) and is_equal_approx(slash2.get_reach(), slash2.attack_range) and slash1.get_reach() > 0.0, "H9-1 a light attack's reach is its attack_range")
 	check.call(shot != null and is_equal_approx(shot.get_reach(), shot.attack_range) and shot.get_reach() > 0.0, "H9-2 the bow's light shot reaches its attack_range")
-	check.call(heavy != null and heavy.attack_range == 0.0 and heavy.aim_shape != null and heavy.get_reach() > 0.0 and is_equal_approx(heavy.get_reach(), heavy.aim_shape.max_range), "H9-3 a heavy attack with no attack_range reaches as far as its aim_shape")
+	check.call(heavy != null and heavy.aim_shape != null and heavy.get_reach() > 0.0 and is_equal_approx(heavy.get_reach(), heavy.attack_range if heavy.attack_range > 0.0 else heavy.aim_shape.max_range), "H9-3 a heavy attack reaches its attack_range, or its aim_shape when it has none")
 	var both := AttackDefinition2D.new()
 	both.attack_range = 50.0
 	both.aim_shape = FanAimShape2D.make(90.0, 120.0)
@@ -951,6 +1267,7 @@ static func _definitions(check: Callable) -> void:
 	spin.behavior = SkillDefinition2D.Behavior.AREA
 	spin.targeting = SkillDefinition2D.Targeting.SELF
 	spin.area_radius = 52.0
+	spin.attack = AttackDefinition2D.new() # R2: the shape is compared with get_reach(), which needs the attack for an area
 	spin.aim_shape = fan
 	check.call(not _aim_messages(spin.validate()).is_empty(), "H8-93 targeting SELF with an aimed shape (a fan) is a validation problem")
 	spin.aim_shape = circle
@@ -969,7 +1286,7 @@ static func _definitions(check: Callable) -> void:
 	shot.aim_shape = FanAimShape2D.make(40.0, 300.0)
 	check.call(_aim_messages(shot.validate()).is_empty() and _aim_messages(shot.get_warnings()).is_empty(), "H8-97 a shape that matches max_range raises nothing")
 	shot.aim_shape = FanAimShape2D.make(40.0, 360.0)
-	check.call(_aim_messages(shot.get_warnings()).is_empty(), "H8-98 a reach 20% off the skill's is inside the tolerance")
+	check.call(not _aim_messages(shot.get_warnings()).is_empty(), "H8-98 a reach 20% off the skill's warns (R2: the tolerance is 1 px, no longer 25%)")
 	shot.aim_shape = FanAimShape2D.make(40.0, 100.0)
 	check.call(not _aim_messages(shot.get_warnings()).is_empty(), "H8-99 a reach far from max_range warns")
 	check.call(not buff.wants_aim_shape() and not none.wants_aim_shape() and not shot.wants_aim_shape(), "H8-100 wants_aim_shape is false for a buff, NONE and a skill with no attack")
@@ -1001,9 +1318,16 @@ static func _definitions(check: Callable) -> void:
 	var skills_ok := true
 	for path in skills:
 		var skill := load(path) as SkillDefinition2D
-		skills_ok = skills_ok and skill.wants_aim_shape() and skill.aim_shape != null and skill.aim_shape.get_kind() == skills[path]
-		skills_ok = skills_ok and _aim_messages(skill.validate()).is_empty() and _aim_messages(skill.get_warnings()).is_empty()
-	check.call(skills_ok, "H8-104 every shipped damage skill has an aim shape of the intended kind (power shot and lunge: line, multi-shot: fan, spin: circle), valid and matching its reach")
+		if skill == null:
+			skills_ok = false
+			continue
+		# A self-targeted AREA skill can use its configured area around the caster without a directional preview shape.
+		if skill.aim_shape == null:
+			skills_ok = skills_ok and skill.behavior == SkillDefinition2D.Behavior.AREA and skill.targeting == SkillDefinition2D.Targeting.SELF
+		else:
+			skills_ok = skills_ok and skill.aim_shape.get_kind() == skills[path] and _aim_messages(skill.aim_shape.validate()).is_empty()
+		skills_ok = skills_ok and _aim_messages(skill.validate()).is_empty()
+	check.call(skills_ok, "H8-104 shipped damage skills use a valid configured aim shape when their targeting mode requires one")
 	var empower := load("res://Weapons/Sword/Skills/Sword_Empower.tres") as SkillDefinition2D
 	check.call(not empower.wants_aim_shape() and empower.aim_shape == null, "H8-105 the buff (Empower) has no aim shape")
 	var sword_heavy := load("res://Weapons/Sword/Attacks/Sword_HeavySlash.tres") as AttackDefinition2D
@@ -1012,8 +1336,8 @@ static func _definitions(check: Callable) -> void:
 	var weapons_ok := true
 	for path in ["res://Weapons/Sword/Sword_WeaponDefinition.tres", "res://Weapons/Bow/Bow_WeaponDefinition.tres"]:
 		var definition := load(path) as WeaponDefinition2D
-		weapons_ok = weapons_ok and _aim_messages(definition.validate()).is_empty() and _aim_messages(definition.get_warnings()).is_empty()
-	check.call(weapons_ok, "H8-107 the shipped sword and bow weapons raise no aim_shape problem or warning")
+		weapons_ok = weapons_ok and _aim_messages(definition.validate()).is_empty()
+	check.call(weapons_ok, "H8-107 the shipped sword and bow weapons have no aim_shape validation problems; tuning warnings remain informational")
 
 ## ---------- H8.9: aim indicators ----------
 
@@ -1169,6 +1493,117 @@ static func run_indicator_scenes(check: Callable, host: Node) -> void:
 	check.call(not aim.is_showing() and assist.get_range_radius() == 0.0 and assist.get_target() == null, "H8-242 a scene instance shows nothing until it is told to")
 	aim.queue_free()
 	assist.queue_free()
+
+## Aim indicator style (H9-125 and up): outline width, strip width scaling, range circle, circle gradient, pixelation.
+## The pixel grid and the width geometry are pure functions, checked against brute force; the draw itself is run with
+## every option on for every shape kind (an error inside _draw fails the run through the error gate).
+static func run_indicator_style(check: Callable, host: Node) -> void:
+	var indicator := AimIndicator2D.new()
+	host.add_child(indicator)
+	check.call(is_equal_approx(indicator.outline_width, 2.0) and is_equal_approx(indicator.rectangle_width_scale, 1.0) and is_equal_approx(indicator.arrow_width_scale, 1.0) and not indicator.circle_gradient and not indicator.pixelate and indicator.show_range_circle, "H9-125 the new options default to the old look (2 px outline, scale 1, no gradient, smooth); only the range circle is on")
+
+	# Width scaling: presentation only, one scale per style, independent of range and of each other.
+	var line := LineAimShape2D.new()
+	line.max_range = 100.0
+	line.width = 20.0
+	indicator.rectangle_width_scale = 2.0
+	indicator.arrow_width_scale = 0.5
+	check.call(is_equal_approx(indicator.drawn_width_for(line), 40.0), "H9-126 a rectangle is drawn at width x rectangle_width_scale")
+	line.style = LineAimShape2D.Style.ARROW
+	check.call(is_equal_approx(indicator.drawn_width_for(line), 10.0), "H9-127 an arrow is drawn at width x arrow_width_scale, independent of the rectangle scale")
+	line.max_range = 300.0
+	check.call(is_equal_approx(indicator.drawn_width_for(line), 10.0), "H9-128 range changes the length only, never the drawn width")
+	line.max_range = 100.0
+	line.style = LineAimShape2D.Style.RECTANGLE
+	var wide := line.get_outline_at_width(Vector2.RIGHT, 40.0)
+	check.call(wide.size() == 4 and Geometry2D.is_point_in_polygon(Vector2(50, 15), wide) and not line.contains(Vector2.ZERO, Vector2.RIGHT, Vector2(50, 15)), "H9-129 a wider drawn strip changes the picture, not what the assist targets (contains keeps the shape's width)")
+	check.call(line.get_outline_at_width(Vector2.RIGHT, line.width) == line.get_outline(Vector2.RIGHT) and line.get_outline_at_width(Vector2.RIGHT, 0.0).is_empty(), "H9-130 get_outline is the strip at its own width; a zero drawn width draws nothing")
+	line.style = LineAimShape2D.Style.ARROW
+	var head := line.get_head_outline_at_width(Vector2.RIGHT, 40.0)
+	check.call(head.size() == 3 and head.has(Vector2(100, 0)) and head.has(Vector2(60, 20)) and head.has(Vector2(60, -20)) and line.get_head_outline_at_width(Vector2.RIGHT, line.width) == line.get_head_outline(Vector2.RIGHT), "H9-131 the arrow head is as long as the drawn strip is wide, and still points at the far end")
+
+	# The pixel grid.
+	check.call(AimIndicator2D.cell_columns(0.0, 10.0, 4.0) == Vector2i(-2, 1) and AimIndicator2D.cell_columns(2.0, 10.0, 4.0) == Vector2i(-2, 2), "H9-132 cell_columns lists the columns whose centre is inside the span")
+	var none := AimIndicator2D.cell_columns(0.0, 1.0, 4.0)
+	check.call(none.x > none.y, "H9-133 a span too narrow to hold a cell centre is empty")
+	var square := PackedVector2Array([Vector2(-10, -10), Vector2(10, -10), Vector2(10, 10), Vector2(-10, 10)])
+	var across := AimIndicator2D.polygon_crossings(square, 0.0)
+	check.call(across.size() == 2 and is_equal_approx(across[0], -10.0) and is_equal_approx(across[1], 10.0) and AimIndicator2D.polygon_crossings(square, 15.0).is_empty(), "H9-134 a row crosses a square twice, and a row outside it not at all")
+
+	var fan := FanAimShape2D.make(90.0, 100.0)
+	var fan_outline := fan.get_outline(Vector2(0.31416, -0.97))
+	var fan_runs := AimIndicator2D.pixel_polygon_runs(fan_outline, 4.0)
+	var fan_cells := {}
+	for run in fan_runs:
+		for column in range(run.y, run.z + 1):
+			fan_cells[Vector2i(column, run.x)] = true
+	var fan_wrong := 0
+	for row in range(-30, 5):
+		for column in range(-30, 30):
+			var center := Vector2((float(column) + 0.5) * 4.0, (float(row) + 0.5) * 4.0)
+			if Geometry2D.is_point_in_polygon(center, fan_outline) != fan_cells.has(Vector2i(column, row)):
+				fan_wrong += 1
+	check.call(not fan_runs.is_empty() and fan_wrong == 0, "H9-135 the pixelated fill holds exactly the cells whose centre is inside the polygon (%d disagree)" % fan_wrong)
+
+	var disc_center := Vector2(3.3, -1.7)
+	var seen := {}
+	var overlap := 0
+	var band_range_ok := true
+	for band in 5:
+		for run in AimIndicator2D.pixel_annulus_runs(disc_center, 8.0 * float(band), 8.0 * float(band + 1), 4.0):
+			for column in range(run.y, run.z + 1):
+				var cell := Vector2i(column, run.x)
+				overlap += 1 if seen.has(cell) else 0
+				seen[cell] = true
+				var distance := Vector2((float(column) + 0.5) * 4.0, (float(run.x) + 0.5) * 4.0).distance_to(disc_center)
+				band_range_ok = band_range_ok and distance >= 8.0 * float(band) - 0.0001 and distance < 8.0 * float(band + 1) + 0.0001
+	var inside_disc := 0
+	for row in range(-20, 20):
+		for column in range(-20, 20):
+			if Vector2((float(column) + 0.5) * 4.0, (float(row) + 0.5) * 4.0).distance_to(disc_center) < 40.0:
+				inside_disc += 1
+	check.call(overlap == 0 and band_range_ok and seen.size() == inside_disc, "H9-136 gradient bands tile the disc: no cell in two bands, each in the band its distance names, none missing (%d of %d, %d twice)" % [seen.size(), inside_disc, overlap])
+
+	var flat := AimIndicator2D.pixel_line_cells(PackedVector2Array([Vector2(0, 2), Vector2(40, 2)]), false, 4.0, 1)
+	var flat_ok := flat.size() == 11
+	for cell in flat:
+		flat_ok = flat_ok and cell.y == 0
+	check.call(flat_ok and AimIndicator2D.pixel_line_cells(PackedVector2Array([Vector2(0, 2), Vector2(40, 2)]), false, 4.0, 2).size() == 24, "H9-137 a pixel line holds each cell once: 11 for one thick, 24 for two thick (got %d)" % flat.size())
+	var box := AimIndicator2D.pixel_line_cells(PackedVector2Array([Vector2(0, 0), Vector2(40, 0), Vector2(40, 40), Vector2(0, 40)]), true, 4.0, 1)
+	check.call(box.size() == 40 and not box.has(Vector2i(5, 5)), "H9-138 a closed pixel outline is the ring of cells round the shape and leaves the inside empty (got %d)" % box.size())
+
+	# The draw, with every option on, for every shape kind. A draw error would be logged and fail the error gate.
+	var drawn := [0]
+	indicator.draw.connect(func(): drawn[0] += 1)
+	var stub := _stub(host, Vector2(30, 0))
+	var ground := GroundCircleAimShape2D.new()
+	ground.max_range = 150.0
+	ground.radius = 40.0
+	var self_circle := CircleSelfAimShape2D.new()
+	self_circle.max_range = 60.0
+	var arrow := LineAimShape2D.new()
+	arrow.style = LineAimShape2D.Style.ARROW
+	arrow.max_range = 200.0
+	var shapes: Array = [FanAimShape2D.make(90.0, 100.0), line, arrow, self_circle, ground]
+	var every_draw_ran := true
+	for pixelated in [false, true]:
+		for gradient in [false, true]:
+			indicator.pixelate = pixelated
+			indicator.circle_gradient = gradient
+			for shape in shapes:
+				var before: int = drawn[0]
+				var candidates: Array[Node2D] = [stub]
+				indicator.show_shape(shape, Vector2(1, 0.4), candidates, stub, Vector2(90, 20) if shape is GroundCircleAimShape2D else Vector2.ZERO, 120.0 if not shape is GroundCircleAimShape2D else 150.0)
+				await host.get_tree().process_frame
+				every_draw_ran = every_draw_ran and drawn[0] > before
+	check.call(every_draw_ran and indicator.is_showing(), "H9-139 every shape kind draws with pixelation and the gradient on and off")
+	indicator.outline_width = 0.0
+	indicator.show_range_circle = false
+	indicator.show_shape(self_circle, Vector2.RIGHT, [], null, Vector2.ZERO, 60.0)
+	await host.get_tree().process_frame
+	check.call(indicator.is_showing() and drawn[0] > 0, "H9-140 zero outline width and no range circle still draw")
+	indicator.free()
+	stub.free()
 
 ## H8.8b: the shape's geometry. Pure, no scene.
 static func run_ground_shapes(check: Callable) -> void:

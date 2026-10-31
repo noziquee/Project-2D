@@ -21,7 +21,7 @@ Legend: **S** = under 2 hours, **M** = half a day to a day, **L** = more than a 
 | C | Rig and weapon-player discovery rely on fallback names | **Confirmed** | `CharacterContext2D.gd` falls back to `HandAnim` / `WeaponAnimation` (line 26) and `MainHand` / `Weapon` (line 79). Partly mitigated: `WeaponController2D.equip()` already refuses to swap during a swing, charge or cast (lines 159 to 162). |
 | D | Duck-typed property reads | **Confirmed, four sites** | `CombatResolver2D.gd` lines 55 and 65 (`status_controller`, `passive_controller`), `AttackEffect2D.gd` lines 132 and 133 (`team`), `PassiveController2D.gd` line 188. |
 | E | No effect-scene validators | **Confirmed** | Scene validation exists only for weapons (`WeaponDefinition2D.validate_scene`) and for the slash clip (`AttackSlash2D.scene_lacks_animation`). Area and projectile effect scenes have none. |
-| F | Goblin slash reuse changes hit-interrupt behavior | **Confirmed** | The goblin's basic combo is `Sword_Slash1` and `Sword_Slash2`. The only attacks with `interruptible = true` are `Bow_ArrowEnemy` and `GoblinSword_Lunge`. So a hit no longer interrupts the goblin's slash. |
+| F | Goblin slash reuse changes hit-interrupt behavior (the archer now has the same property after D26: `Bow_ArrowShot` is not interruptible) | **Confirmed** | The goblin's basic combo is `Sword_Slash1` and `Sword_Slash2`. The only attacks with `interruptible = true` are `Bow_ArrowEnemy` and `GoblinSword_Lunge`. So a hit no longer interrupts the goblin's slash. |
 | G | Roadmap mixes "not implemented / unverified / smoke-tested" | **Confirmed** | See A. |
 | H | Archive contains `.git/` and `.godot/` | **Partly confirmed** | `.gitignore` already excludes `.godot/`; the cache is in the archive because the working folder was zipped. A packaging habit, not a repository problem. I did not measure the sizes. |
 
@@ -109,7 +109,7 @@ Order matters: truth first, then decisions, then fixes, then validation and test
 | H2.3 | Hide `channel_time` (D7). | S | Not in the Inspector; validation message kept for old data. |
 | H2.4 | Combatant accessors: one helper each for team, status controller, passive controller, health; replace the four `get("...")` sites. | M | No `get("status_controller")`, `get("team")` left outside the helpers; tests for character, projectile, null and non-character sources. |
 | H2.5 | Goblin interruptibility (D2), if you want it. | S | Goblin flinch behavior matches the decision, with a check. |
-| H2.6 | Range naming (D8): rename the fields and migrate the resources. | M | Each behavior has one clearly named distance; a test measures real travel distance. |
+| H2.6 | Range naming (D8): rename the fields and migrate the resources. | M | Each behavior has one clearly named distance; a test measures real travel distance. Track R (docs/trackR/R6-notes.md) leaves all field names alone and lists what to migrate; re-run tools/range_audit.py afterwards. |
 
 ### Phase H3: Validation (M to L)
 | Step | Work | Size | Done when |

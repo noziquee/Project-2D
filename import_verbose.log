@@ -1,0 +1,369 @@
+WorkerThreadPool: 12 threads, 9 max low-priority.
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+TextServer: Added interface "Dummy"
+TextServer: Added interface "ICU / HarfBuzz / Graphite (Built-in)"
+Using "default" pen tablet driver...
+
+TextServer: Primary interface set to: "ICU / HarfBuzz / Graphite (Built-in)".
+CORE API HASH: 2004498165
+EDITOR API HASH: 1696660745
+SceneTreeFTI: traversal method DEFAULT
+Loading resource: C:/Users/Nozique/AppData/Roaming/Godot/editor_settings-4.7.tres remapped: C:/Users/Nozique/AppData/Roaming/Godot/editor_settings-4.7.tres
+Completed load for: 'C:/Users/Nozique/AppData/Roaming/Godot/editor_settings-4.7.tres' remapped 'C:/Users/Nozique/AppData/Roaming/Godot/editor_settings-4.7.tres' at thread -1
+EditorSettings: Load OK!
+EditorTheme: Generating new theme for the config '3810048042'.
+EditorTheme: Generating new icons.
+EditorTheme: Generating new fonts.
+EditorTheme: Generating new styles.
+Loading resource: C:/Users/Nozique/AppData/Local/Godot/editor_doc_cache-4.7.res remapped: C:/Users/Nozique/AppData/Local/Godot/editor_doc_cache-4.7.res
+Loaded system CA certificates
+Completed load for: 'C:/Users/Nozique/AppData/Local/Godot/editor_doc_cache-4.7.res' remapped 'C:/Users/Nozique/AppData/Local/Godot/editor_doc_cache-4.7.res' at thread -1
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Loading editor (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Loading editor layout...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Loading docks...[39m[0m
+[  33% ] [90m[1mloading_editor_layout[22m | Reopening scenes...[39m[0m
+Loading resource: res://Main.tscn remapped: res://Main.tscn
+Loading resource: res://player.tscn remapped: res://player.tscn
+Loading resource: res://Shader/hit_flash_material.tres remapped: res://Shader/hit_flash_material.tres
+Loading resource: res://Shader/hit_flash.tres remapped: res://Shader/hit_flash.tres
+Completed load for: 'res://Shader/hit_flash.tres' remapped 'res://Shader/hit_flash.tres' at thread -1
+Completed load for: 'res://Shader/hit_flash_material.tres' remapped 'res://Shader/hit_flash_material.tres' at thread -1
+Loading resource: res://2D_RPG_Assets/Player/Legs/Legs_spritesheet.png remapped: res://2D_RPG_Assets/Player/Legs/Legs_spritesheet.png
+Loading resource: res://.godot/imported/Legs_spritesheet.png-499fb4e719ce8a8c449fcacd2457dac2.ctex remapped: res://.godot/imported/Legs_spritesheet.png-499fb4e719ce8a8c449fcacd2457dac2.ctex
+Completed load for: 'res://2D_RPG_Assets/Player/Legs/Legs_spritesheet.png' remapped 'res://2D_RPG_Assets/Player/Legs/Legs_spritesheet.png' at thread -1
+Loading resource: res://2D_RPG_Assets/Player/Head/Head_01_spritesheet.png remapped: res://2D_RPG_Assets/Player/Head/Head_01_spritesheet.png
+Loading resource: res://.godot/imported/Head_01_spritesheet.png-fc35363493fba0ae71938650d7272f5b.ctex remapped: res://.godot/imported/Head_01_spritesheet.png-fc35363493fba0ae71938650d7272f5b.ctex
+Completed load for: 'res://2D_RPG_Assets/Player/Head/Head_01_spritesheet.png' remapped 'res://2D_RPG_Assets/Player/Head/Head_01_spritesheet.png' at thread -1
+Loading resource: res://2D_RPG_Assets/Player/Hair/Hair_01_spritesheet.png remapped: res://2D_RPG_Assets/Player/Hair/Hair_01_spritesheet.png
+Loading resource: res://.godot/imported/Hair_01_spritesheet.png-1e63f05922f73961050a9d162d26409c.ctex remapped: res://.godot/imported/Hair_01_spritesheet.png-1e63f05922f73961050a9d162d26409c.ctex
+Completed load for: 'res://2D_RPG_Assets/Player/Hair/Hair_01_spritesheet.png' remapped 'res://2D_RPG_Assets/Player/Hair/Hair_01_spritesheet.png' at thread -1
+Loading resource: res://2D_RPG_Assets/Player/Torso/Torso_01_spritesheet.png remapped: res://2D_RPG_Assets/Player/Torso/Torso_01_spritesheet.png
+Loading resource: res://.godot/imported/Torso_01_spritesheet.png-3a4faf876a277c3b6f16019590c6af98.ctex remapped: res://.godot/imported/Torso_01_spritesheet.png-3a4faf876a277c3b6f16019590c6af98.ctex
+Completed load for: 'res://2D_RPG_Assets/Player/Torso/Torso_01_spritesheet.png' remapped 'res://2D_RPG_Assets/Player/Torso/Torso_01_spritesheet.png' at thread -1
+Loading resource: res://player.gd remapped: res://player.gd
+Loading resource: res://Characters/Components/Aim/AssistIndicator2D.tscn remapped: res://Characters/Components/Aim/AssistIndicator2D.tscn
+Loading resource: res://Characters/Components/Aim/AssistIndicator2D.gd remapped: res://Characters/Components/Aim/AssistIndicator2D.gd
+Completed load for: 'res://Characters/Components/Aim/AssistIndicator2D.gd' remapped 'res://Characters/Components/Aim/AssistIndicator2D.gd' at thread -1
+Completed load for: 'res://Characters/Components/Aim/AssistIndicator2D.tscn' remapped 'res://Characters/Components/Aim/AssistIndicator2D.tscn' at thread -1
+Loading resource: res://Characters/Components/Aim/AimIndicator2D.tscn remapped: res://Characters/Components/Aim/AimIndicator2D.tscn
+Completed load for: 'res://Characters/Components/Aim/AimIndicator2D.tscn' remapped 'res://Characters/Components/Aim/AimIndicator2D.tscn' at thread -1
+Completed load for: 'res://player.gd' remapped 'res://player.gd' at thread -1
+Loading resource: res://Characters/StateMachine/States/IdleState.gd remapped: res://Characters/StateMachine/States/IdleState.gd
+Completed load for: 'res://Characters/StateMachine/States/IdleState.gd' remapped 'res://Characters/StateMachine/States/IdleState.gd' at thread -1
+Loading resource: res://Characters/StateMachine/States/MoveState.gd remapped: res://Characters/StateMachine/States/MoveState.gd
+Completed load for: 'res://Characters/StateMachine/States/MoveState.gd' remapped 'res://Characters/StateMachine/States/MoveState.gd' at thread -1
+Loading resource: res://Characters/StateMachine/States/DashState.gd remapped: res://Characters/StateMachine/States/DashState.gd
+Completed load for: 'res://Characters/StateMachine/States/DashState.gd' remapped 'res://Characters/StateMachine/States/DashState.gd' at thread -1
+Loading resource: res://Characters/StateMachine/States/AttackState.gd remapped: res://Characters/StateMachine/States/AttackState.gd
+Completed load for: 'res://Characters/StateMachine/States/AttackState.gd' remapped 'res://Characters/StateMachine/States/AttackState.gd' at thread -1
+Loading resource: res://Weapons/Sword/Attacks/Sword_Slash2.tres remapped: res://Weapons/Sword/Attacks/Sword_Slash2.tres
+Loading resource: res://Characters/Components/Combat/AttackSlash2D.tscn remapped: res://Characters/Components/Combat/AttackSlash2D.tscn
+Loading resource: res://2D_RPG_Assets/slash_effect_anim_spritesheet.png remapped: res://2D_RPG_Assets/slash_effect_anim_spritesheet.png
+Loading resource: res://.godot/imported/slash_effect_anim_spritesheet.png-16f0615e94bc3fbc5f86f6b8bfa8c481.ctex remapped: res://.godot/imported/slash_effect_anim_spritesheet.png-16f0615e94bc3fbc5f86f6b8bfa8c481.ctex
+Completed load for: 'res://2D_RPG_Assets/slash_effect_anim_spritesheet.png' remapped 'res://2D_RPG_Assets/slash_effect_anim_spritesheet.png' at thread -1
+Completed load for: 'res://Characters/Components/Combat/AttackSlash2D.tscn' remapped 'res://Characters/Components/Combat/AttackSlash2D.tscn' at thread -1
+Loading resource: res://Characters/Effects/HitEffect.tscn remapped: res://Characters/Effects/HitEffect.tscn
+Loading resource: res://2D_RPG_Assets/hit_effect_anim_spritesheet.png remapped: res://2D_RPG_Assets/hit_effect_anim_spritesheet.png
+Loading resource: res://.godot/imported/hit_effect_anim_spritesheet.png-bd01fc73d8d7f6047e4fbb474c86304a.ctex remapped: res://.godot/imported/hit_effect_anim_spritesheet.png-bd01fc73d8d7f6047e4fbb474c86304a.ctex
+Completed load for: 'res://2D_RPG_Assets/hit_effect_anim_spritesheet.png' remapped 'res://2D_RPG_Assets/hit_effect_anim_spritesheet.png' at thread -1
+Completed load for: 'res://Characters/Effects/HitEffect.tscn' remapped 'res://Characters/Effects/HitEffect.tscn' at thread -1
+Completed load for: 'res://Weapons/Sword/Attacks/Sword_Slash2.tres' remapped 'res://Weapons/Sword/Attacks/Sword_Slash2.tres' at thread -1
+Loading resource: res://Weapons/Sword/Attacks/Sword_HeavySlash.tres remapped: res://Weapons/Sword/Attacks/Sword_HeavySlash.tres
+Loading resource: res://Characters/Components/Aim/FanAimShape2D.gd remapped: res://Characters/Components/Aim/FanAimShape2D.gd
+Completed load for: 'res://Characters/Components/Aim/FanAimShape2D.gd' remapped 'res://Characters/Components/Aim/FanAimShape2D.gd' at thread -1
+Completed load for: 'res://Weapons/Sword/Attacks/Sword_HeavySlash.tres' remapped 'res://Weapons/Sword/Attacks/Sword_HeavySlash.tres' at thread -1
+Loading resource: res://Weapons/Sword/Sword.tscn remapped: res://Weapons/Sword/Sword.tscn
+Loading resource: res://2D_RPG_Assets/Weapon/Sword.png remapped: res://2D_RPG_Assets/Weapon/Sword.png
+Loading resource: res://.godot/imported/Sword.png-e6a8859553a81508e39f88702e523a0f.ctex remapped: res://.godot/imported/Sword.png-e6a8859553a81508e39f88702e523a0f.ctex
+Completed load for: 'res://2D_RPG_Assets/Weapon/Sword.png' remapped 'res://2D_RPG_Assets/Weapon/Sword.png' at thread -1
+Completed load for: 'res://Weapons/Sword/Sword.tscn' remapped 'res://Weapons/Sword/Sword.tscn' at thread -1
+Loading resource: res://Weapons/Sword/Sword_WeaponDefinition.tres remapped: res://Weapons/Sword/Sword_WeaponDefinition.tres
+Loading resource: res://Weapons/Sword/Skills/Sword_Spin.tres remapped: res://Weapons/Sword/Skills/Sword_Spin.tres
+Loading resource: res://Characters/Components/Combat/AreaEffect2D.tscn remapped: res://Characters/Components/Combat/AreaEffect2D.tscn
+Completed load for: 'res://Characters/Components/Combat/AreaEffect2D.tscn' remapped 'res://Characters/Components/Combat/AreaEffect2D.tscn' at thread -1
+Loading resource: res://UI/HUD/Icons/SpinIcon.tres remapped: res://UI/HUD/Icons/SpinIcon.tres
+Completed load for: 'res://UI/HUD/Icons/SpinIcon.tres' remapped 'res://UI/HUD/Icons/SpinIcon.tres' at thread -1
+Completed load for: 'res://Weapons/Sword/Skills/Sword_Spin.tres' remapped 'res://Weapons/Sword/Skills/Sword_Spin.tres' at thread -1
+Loading resource: res://Weapons/Sword/Attacks/Sword_Slash1.tres remapped: res://Weapons/Sword/Attacks/Sword_Slash1.tres
+Completed load for: 'res://Weapons/Sword/Attacks/Sword_Slash1.tres' remapped 'res://Weapons/Sword/Attacks/Sword_Slash1.tres' at thread -1
+Loading resource: res://Weapons/Sword/Skills/Sword_Lunge.tres remapped: res://Weapons/Sword/Skills/Sword_Lunge.tres
+Loading resource: res://UI/HUD/Icons/LungeIcon.tres remapped: res://UI/HUD/Icons/LungeIcon.tres
+Completed load for: 'res://UI/HUD/Icons/LungeIcon.tres' remapped 'res://UI/HUD/Icons/LungeIcon.tres' at thread -1
+Completed load for: 'res://Weapons/Sword/Skills/Sword_Lunge.tres' remapped 'res://Weapons/Sword/Skills/Sword_Lunge.tres' at thread -1
+Loading resource: res://Weapons/Sword/Skills/Sword_Empower.tres remapped: res://Weapons/Sword/Skills/Sword_Empower.tres
+Loading resource: res://Characters/Components/Status/EmpoweredStatusDefinition.tres remapped: res://Characters/Components/Status/EmpoweredStatusDefinition.tres
+Completed load for: 'res://Characters/Components/Status/EmpoweredStatusDefinition.tres' remapped 'res://Characters/Components/Status/EmpoweredStatusDefinition.tres' at thread -1
+Loading resource: res://UI/HUD/Icons/EmpowerIcon.tres remapped: res://UI/HUD/Icons/EmpowerIcon.tres
+Completed load for: 'res://UI/HUD/Icons/EmpowerIcon.tres' remapped 'res://UI/HUD/Icons/EmpowerIcon.tres' at thread -1
+Completed load for: 'res://Weapons/Sword/Skills/Sword_Empower.tres' remapped 'res://Weapons/Sword/Skills/Sword_Empower.tres' at thread -1
+Completed load for: 'res://Weapons/Sword/Sword_WeaponDefinition.tres' remapped 'res://Weapons/Sword/Sword_WeaponDefinition.tres' at thread -1
+Loading resource: res://Weapons/Bow/Bow_WeaponDefinition.tres remapped: res://Weapons/Bow/Bow_WeaponDefinition.tres
+Loading resource: res://Weapons/Bow/Skills/Bow_PowerShot.tres remapped: res://Weapons/Bow/Skills/Bow_PowerShot.tres
+Loading resource: res://Weapons/Bow/Projectile/Bow_Arrow.tscn remapped: res://Weapons/Bow/Projectile/Bow_Arrow.tscn
+Loading resource: res://2D_RPG_Assets/Weapon/Arrow.png remapped: res://2D_RPG_Assets/Weapon/Arrow.png
+Loading resource: res://.godot/imported/Arrow.png-88681e4e2c3dd40b0a8a472fc72159e6.ctex remapped: res://.godot/imported/Arrow.png-88681e4e2c3dd40b0a8a472fc72159e6.ctex
+Completed load for: 'res://2D_RPG_Assets/Weapon/Arrow.png' remapped 'res://2D_RPG_Assets/Weapon/Arrow.png' at thread -1
+Completed load for: 'res://Weapons/Bow/Projectile/Bow_Arrow.tscn' remapped 'res://Weapons/Bow/Projectile/Bow_Arrow.tscn' at thread -1
+Loading resource: res://UI/HUD/Icons/PowerShotIcon.tres remapped: res://UI/HUD/Icons/PowerShotIcon.tres
+Completed load for: 'res://UI/HUD/Icons/PowerShotIcon.tres' remapped 'res://UI/HUD/Icons/PowerShotIcon.tres' at thread -1
+Completed load for: 'res://Weapons/Bow/Skills/Bow_PowerShot.tres' remapped 'res://Weapons/Bow/Skills/Bow_PowerShot.tres' at thread -1
+Loading resource: res://Weapons/Bow/Skills/Bow_MultiShot.tres remapped: res://Weapons/Bow/Skills/Bow_MultiShot.tres
+Loading resource: res://UI/HUD/Icons/MultiShotIcon.tres remapped: res://UI/HUD/Icons/MultiShotIcon.tres
+Completed load for: 'res://UI/HUD/Icons/MultiShotIcon.tres' remapped 'res://UI/HUD/Icons/MultiShotIcon.tres' at thread -1
+Completed load for: 'res://Weapons/Bow/Skills/Bow_MultiShot.tres' remapped 'res://Weapons/Bow/Skills/Bow_MultiShot.tres' at thread -1
+Loading resource: res://Weapons/Bow/Attacks/Bow_ArrowShot.tres remapped: res://Weapons/Bow/Attacks/Bow_ArrowShot.tres
+Completed load for: 'res://Weapons/Bow/Attacks/Bow_ArrowShot.tres' remapped 'res://Weapons/Bow/Attacks/Bow_ArrowShot.tres' at thread -1
+Loading resource: res://Weapons/Bow/Attacks/Bow_ArrowHeavy.tres remapped: res://Weapons/Bow/Attacks/Bow_ArrowHeavy.tres
+Completed load for: 'res://Weapons/Bow/Attacks/Bow_ArrowHeavy.tres' remapped 'res://Weapons/Bow/Attacks/Bow_ArrowHeavy.tres' at thread -1
+Loading resource: res://Weapons/Bow/Bow.tscn remapped: res://Weapons/Bow/Bow.tscn
+Loading resource: res://Weapons/Bow/bow.gd remapped: res://Weapons/Bow/bow.gd
+Completed load for: 'res://Weapons/Bow/bow.gd' remapped 'res://Weapons/Bow/bow.gd' at thread -1
+Loading resource: res://2D_RPG_Assets/Weapon/Bow.png remapped: res://2D_RPG_Assets/Weapon/Bow.png
+Loading resource: res://.godot/imported/Bow.png-3cde4d19d84c0c7d9af1e1603b337a76.ctex remapped: res://.godot/imported/Bow.png-3cde4d19d84c0c7d9af1e1603b337a76.ctex
+Completed load for: 'res://2D_RPG_Assets/Weapon/Bow.png' remapped 'res://2D_RPG_Assets/Weapon/Bow.png' at thread -1
+Completed load for: 'res://Weapons/Bow/Bow.tscn' remapped 'res://Weapons/Bow/Bow.tscn' at thread -1
+Completed load for: 'res://Weapons/Bow/Bow_WeaponDefinition.tres' remapped 'res://Weapons/Bow/Bow_WeaponDefinition.tres' at thread -1
+Completed load for: 'res://player.tscn' remapped 'res://player.tscn' at thread -1
+Loading resource: res://Characters/Enemies/GoblinArcher.tscn remapped: res://Characters/Enemies/GoblinArcher.tscn
+Loading resource: res://Characters/Enemies/BasicEnemy2D.tscn remapped: res://Characters/Enemies/BasicEnemy2D.tscn
+Loading resource: res://Characters/Enemies/BasicEnemy2D.gd remapped: res://Characters/Enemies/BasicEnemy2D.gd
+Completed load for: 'res://Characters/Enemies/BasicEnemy2D.gd' remapped 'res://Characters/Enemies/BasicEnemy2D.gd' at thread -1
+Loading resource: res://2D_RPG_Assets/enemies/goblin/goblin_idle_spritesheet.png remapped: res://2D_RPG_Assets/enemies/goblin/goblin_idle_spritesheet.png
+Loading resource: res://.godot/imported/goblin_idle_spritesheet.png-5962f4bb2c9a052f408f8c9d6b27c294.ctex remapped: res://.godot/imported/goblin_idle_spritesheet.png-5962f4bb2c9a052f408f8c9d6b27c294.ctex
+Completed load for: 'res://2D_RPG_Assets/enemies/goblin/goblin_idle_spritesheet.png' remapped 'res://2D_RPG_Assets/enemies/goblin/goblin_idle_spritesheet.png' at thread -1
+Loading resource: res://2D_RPG_Assets/enemies/goblin/goblin_run_spritesheet.png remapped: res://2D_RPG_Assets/enemies/goblin/goblin_run_spritesheet.png
+Loading resource: res://.godot/imported/goblin_run_spritesheet.png-709efe590a2c76c6acfd029c6aa3e928.ctex remapped: res://.godot/imported/goblin_run_spritesheet.png-709efe590a2c76c6acfd029c6aa3e928.ctex
+Completed load for: 'res://2D_RPG_Assets/enemies/goblin/goblin_run_spritesheet.png' remapped 'res://2D_RPG_Assets/enemies/goblin/goblin_run_spritesheet.png' at thread -1
+Loading resource: res://UI/HUD/EnemyHealthBar.tscn remapped: res://UI/HUD/EnemyHealthBar.tscn
+Loading resource: res://UI/HUD/HealthBar.tscn remapped: res://UI/HUD/HealthBar.tscn
+Loading resource: res://UI/HUD/HealthBar.gd remapped: res://UI/HUD/HealthBar.gd
+Completed load for: 'res://UI/HUD/HealthBar.gd' remapped 'res://UI/HUD/HealthBar.gd' at thread -1
+Loading resource: res://UI/HUD/Styles/health_gradient.tres remapped: res://UI/HUD/Styles/health_gradient.tres
+Completed load for: 'res://UI/HUD/Styles/health_gradient.tres' remapped 'res://UI/HUD/Styles/health_gradient.tres' at thread -1
+Loading resource: res://UI/HUD/Styles/hud_font.tres remapped: res://UI/HUD/Styles/hud_font.tres
+Loading resource: res://UI/HUD/Fredoka-Variable.ttf remapped: res://UI/HUD/Fredoka-Variable.ttf
+Loading resource: res://.godot/imported/Fredoka-Variable.ttf-eed4a0a9641c80c465f61fbd36107976.fontdata remapped: res://.godot/imported/Fredoka-Variable.ttf-eed4a0a9641c80c465f61fbd36107976.fontdata
+Completed load for: 'res://UI/HUD/Fredoka-Variable.ttf' remapped 'res://UI/HUD/Fredoka-Variable.ttf' at thread -1
+Completed load for: 'res://UI/HUD/Styles/hud_font.tres' remapped 'res://UI/HUD/Styles/hud_font.tres' at thread -1
+Loading resource: res://UI/HUD/Styles/panel.tres remapped: res://UI/HUD/Styles/panel.tres
+Completed load for: 'res://UI/HUD/Styles/panel.tres' remapped 'res://UI/HUD/Styles/panel.tres' at thread -1
+Loading resource: res://UI/HUD/Styles/bar_background.tres remapped: res://UI/HUD/Styles/bar_background.tres
+Completed load for: 'res://UI/HUD/Styles/bar_background.tres' remapped 'res://UI/HUD/Styles/bar_background.tres' at thread -1
+Loading resource: res://UI/HUD/Styles/damage_fill.tres remapped: res://UI/HUD/Styles/damage_fill.tres
+Completed load for: 'res://UI/HUD/Styles/damage_fill.tres' remapped 'res://UI/HUD/Styles/damage_fill.tres' at thread -1
+Loading resource: res://UI/HUD/Styles/bar_fill.tres remapped: res://UI/HUD/Styles/bar_fill.tres
+Completed load for: 'res://UI/HUD/Styles/bar_fill.tres' remapped 'res://UI/HUD/Styles/bar_fill.tres' at thread -1
+Completed load for: 'res://UI/HUD/HealthBar.tscn' remapped 'res://UI/HUD/HealthBar.tscn' at thread -1
+Loading resource: res://UI/HUD/Styles/bar_background_compact.tres remapped: res://UI/HUD/Styles/bar_background_compact.tres
+Completed load for: 'res://UI/HUD/Styles/bar_background_compact.tres' remapped 'res://UI/HUD/Styles/bar_background_compact.tres' at thread -1
+Loading resource: res://UI/HUD/Styles/damage_fill_compact.tres remapped: res://UI/HUD/Styles/damage_fill_compact.tres
+Completed load for: 'res://UI/HUD/Styles/damage_fill_compact.tres' remapped 'res://UI/HUD/Styles/damage_fill_compact.tres' at thread -1
+Loading resource: res://UI/HUD/Styles/bar_fill_compact.tres remapped: res://UI/HUD/Styles/bar_fill_compact.tres
+Completed load for: 'res://UI/HUD/Styles/bar_fill_compact.tres' remapped 'res://UI/HUD/Styles/bar_fill_compact.tres' at thread -1
+Completed load for: 'res://UI/HUD/EnemyHealthBar.tscn' remapped 'res://UI/HUD/EnemyHealthBar.tscn' at thread -1
+Loading resource: res://Characters/Effects/DeathEffect.tscn remapped: res://Characters/Effects/DeathEffect.tscn
+Loading resource: res://2D_RPG_Assets/enemy_afterdead_explosion_anim_spritesheet.png remapped: res://2D_RPG_Assets/enemy_afterdead_explosion_anim_spritesheet.png
+Loading resource: res://.godot/imported/enemy_afterdead_explosion_anim_spritesheet.png-13263981a525e66ea23c5ebcf6fcf767.ctex remapped: res://.godot/imported/enemy_afterdead_explosion_anim_spritesheet.png-13263981a525e66ea23c5ebcf6fcf767.ctex
+Completed load for: 'res://2D_RPG_Assets/enemy_afterdead_explosion_anim_spritesheet.png' remapped 'res://2D_RPG_Assets/enemy_afterdead_explosion_anim_spritesheet.png' at thread -1
+Completed load for: 'res://Characters/Effects/DeathEffect.tscn' remapped 'res://Characters/Effects/DeathEffect.tscn' at thread -1
+Loading resource: res://Characters/Controllers/GoblinBehaviorProfile.tres remapped: res://Characters/Controllers/GoblinBehaviorProfile.tres
+Loading resource: res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres remapped: res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres
+Completed load for: 'res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres' remapped 'res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres' at thread -1
+Completed load for: 'res://Characters/Controllers/GoblinBehaviorProfile.tres' remapped 'res://Characters/Controllers/GoblinBehaviorProfile.tres' at thread -1
+Loading resource: res://Weapons/GoblinSword/GoblinSword_WeaponDefinition.tres remapped: res://Weapons/GoblinSword/GoblinSword_WeaponDefinition.tres
+Loading resource: res://Weapons/GoblinSword/GoblinSword.tscn remapped: res://Weapons/GoblinSword/GoblinSword.tscn
+Loading resource: res://2D_RPG_Assets/enemies/goblin/goblin_knife.png remapped: res://2D_RPG_Assets/enemies/goblin/goblin_knife.png
+Loading resource: res://.godot/imported/goblin_knife.png-95f42a983ca212373bf7e9feea95ff08.ctex remapped: res://.godot/imported/goblin_knife.png-95f42a983ca212373bf7e9feea95ff08.ctex
+Completed load for: 'res://2D_RPG_Assets/enemies/goblin/goblin_knife.png' remapped 'res://2D_RPG_Assets/enemies/goblin/goblin_knife.png' at thread -1
+Completed load for: 'res://Weapons/GoblinSword/GoblinSword.tscn' remapped 'res://Weapons/GoblinSword/GoblinSword.tscn' at thread -1
+Completed load for: 'res://Weapons/GoblinSword/GoblinSword_WeaponDefinition.tres' remapped 'res://Weapons/GoblinSword/GoblinSword_WeaponDefinition.tres' at thread -1
+Completed load for: 'res://Characters/Enemies/BasicEnemy2D.tscn' remapped 'res://Characters/Enemies/BasicEnemy2D.tscn' at thread -1
+Loading resource: res://Characters/Controllers/GoblinArcherBehaviorProfile.tres remapped: res://Characters/Controllers/GoblinArcherBehaviorProfile.tres
+Completed load for: 'res://Characters/Controllers/GoblinArcherBehaviorProfile.tres' remapped 'res://Characters/Controllers/GoblinArcherBehaviorProfile.tres' at thread -1
+Completed load for: 'res://Characters/Enemies/GoblinArcher.tscn' remapped 'res://Characters/Enemies/GoblinArcher.tscn' at thread -1
+Loading resource: res://UI/HUD/ManaBar.tscn remapped: res://UI/HUD/ManaBar.tscn
+Loading resource: res://UI/HUD/ManaBar.gd remapped: res://UI/HUD/ManaBar.gd
+Completed load for: 'res://UI/HUD/ManaBar.gd' remapped 'res://UI/HUD/ManaBar.gd' at thread -1
+Loading resource: res://UI/HUD/Styles/mana_bar_fill.tres remapped: res://UI/HUD/Styles/mana_bar_fill.tres
+Completed load for: 'res://UI/HUD/Styles/mana_bar_fill.tres' remapped 'res://UI/HUD/Styles/mana_bar_fill.tres' at thread -1
+Completed load for: 'res://UI/HUD/ManaBar.tscn' remapped 'res://UI/HUD/ManaBar.tscn' at thread -1
+Loading resource: res://UI/HUD/SkillBar.tscn remapped: res://UI/HUD/SkillBar.tscn
+Loading resource: res://UI/HUD/SkillBar.gd remapped: res://UI/HUD/SkillBar.gd
+Completed load for: 'res://UI/HUD/SkillBar.gd' remapped 'res://UI/HUD/SkillBar.gd' at thread -1
+Loading resource: res://UI/HUD/SkillSlot.tscn remapped: res://UI/HUD/SkillSlot.tscn
+Loading resource: res://UI/HUD/Styles/skill_slot_panel.tres remapped: res://UI/HUD/Styles/skill_slot_panel.tres
+Completed load for: 'res://UI/HUD/Styles/skill_slot_panel.tres' remapped 'res://UI/HUD/Styles/skill_slot_panel.tres' at thread -1
+Completed load for: 'res://UI/HUD/SkillSlot.tscn' remapped 'res://UI/HUD/SkillSlot.tscn' at thread -1
+Completed load for: 'res://UI/HUD/SkillBar.tscn' remapped 'res://UI/HUD/SkillBar.tscn' at thread -1
+Loading resource: res://World/CameraBounds2D.gd remapped: res://World/CameraBounds2D.gd
+Completed load for: 'res://World/CameraBounds2D.gd' remapped 'res://World/CameraBounds2D.gd' at thread -1
+Loading resource: res://UI/Touch/MobileControls.gd remapped: res://UI/Touch/MobileControls.gd
+Completed load for: 'res://UI/Touch/MobileControls.gd' remapped 'res://UI/Touch/MobileControls.gd' at thread -1
+Loading resource: res://UI/HUD/ChargeBar.gd remapped: res://UI/HUD/ChargeBar.gd
+Completed load for: 'res://UI/HUD/ChargeBar.gd' remapped 'res://UI/HUD/ChargeBar.gd' at thread -1
+Completed load for: 'res://Main.tscn' remapped 'res://Main.tscn' at thread -1
+Loading resource: res://Characters/Enemies/GoblinArcher.tscn remapped: res://Characters/Enemies/GoblinArcher.tscn
+Completed load for: 'res://Characters/Enemies/GoblinArcher.tscn' remapped 'res://Characters/Enemies/GoblinArcher.tscn' at thread -1
+Loading resource: res://TrackEArena.tscn remapped: res://TrackEArena.tscn
+Loading resource: res://player.tscn remapped: res://player.tscn
+Completed load for: 'res://player.tscn' remapped 'res://player.tscn' at thread -1
+Loading resource: res://Characters/Enemies/GoblinArcher.tscn remapped: res://Characters/Enemies/GoblinArcher.tscn
+Completed load for: 'res://Characters/Enemies/GoblinArcher.tscn' remapped 'res://Characters/Enemies/GoblinArcher.tscn' at thread -1
+Loading resource: res://UI/HUD/ManaBar.tscn remapped: res://UI/HUD/ManaBar.tscn
+Completed load for: 'res://UI/HUD/ManaBar.tscn' remapped 'res://UI/HUD/ManaBar.tscn' at thread -1
+Loading resource: res://UI/HUD/SkillBar.tscn remapped: res://UI/HUD/SkillBar.tscn
+Completed load for: 'res://UI/HUD/SkillBar.tscn' remapped 'res://UI/HUD/SkillBar.tscn' at thread -1
+Loading resource: res://Characters/Enemies/GoblinElite.tscn remapped: res://Characters/Enemies/GoblinElite.tscn
+Loading resource: res://Characters/Controllers/Profiles/GoblinEliteProfile.tres remapped: res://Characters/Controllers/Profiles/GoblinEliteProfile.tres
+Completed load for: 'res://Characters/Controllers/Profiles/GoblinEliteProfile.tres' remapped 'res://Characters/Controllers/Profiles/GoblinEliteProfile.tres' at thread -1
+Completed load for: 'res://Characters/Enemies/GoblinElite.tscn' remapped 'res://Characters/Enemies/GoblinElite.tscn' at thread -1
+Loading resource: res://Characters/Controllers/Profiles/AggressiveMeleeProfile.tres remapped: res://Characters/Controllers/Profiles/AggressiveMeleeProfile.tres
+Completed load for: 'res://Characters/Controllers/Profiles/AggressiveMeleeProfile.tres' remapped 'res://Characters/Controllers/Profiles/AggressiveMeleeProfile.tres' at thread -1
+Loading resource: res://Characters/Controllers/Profiles/PatientMeleeProfile.tres remapped: res://Characters/Controllers/Profiles/PatientMeleeProfile.tres
+Completed load for: 'res://Characters/Controllers/Profiles/PatientMeleeProfile.tres' remapped 'res://Characters/Controllers/Profiles/PatientMeleeProfile.tres' at thread -1
+Loading resource: res://Characters/Controllers/Profiles/SimpleCommonProfile.tres remapped: res://Characters/Controllers/Profiles/SimpleCommonProfile.tres
+Completed load for: 'res://Characters/Controllers/Profiles/SimpleCommonProfile.tres' remapped 'res://Characters/Controllers/Profiles/SimpleCommonProfile.tres' at thread -1
+Loading resource: res://Characters/Controllers/Profiles/RangedSkirmisherProfile.tres remapped: res://Characters/Controllers/Profiles/RangedSkirmisherProfile.tres
+Completed load for: 'res://Characters/Controllers/Profiles/RangedSkirmisherProfile.tres' remapped 'res://Characters/Controllers/Profiles/RangedSkirmisherProfile.tres' at thread -1
+Completed load for: 'res://TrackEArena.tscn' remapped 'res://TrackEArena.tscn' at thread -1
+Loading resource: res://Characters/Enemies/BasicEnemy2D.tscn remapped: res://Characters/Enemies/BasicEnemy2D.tscn
+Completed load for: 'res://Characters/Enemies/BasicEnemy2D.tscn' remapped 'res://Characters/Enemies/BasicEnemy2D.tscn' at thread -1
+Loading resource: res://player.tscn remapped: res://player.tscn
+Completed load for: 'res://player.tscn' remapped 'res://player.tscn' at thread -1
+[  50% ] [90m[1mloading_editor_layout[22m | Loading central editor layout...[39m[0m
+[  66% ] [90m[1mloading_editor_layout[22m | Loading plugin window layout...[39m[0m
+[  83% ] [90m[1mloading_editor_layout[22m | Editor layout ready.[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m
+Script docs haven't been properly loaded or regenerated, so don't save them to disk.
+EditorSettings: Save OK!
+XR: Clearing primary interface
+XR: Removed interface "Native mobile"
+XR: Removed interface "OpenXR"
+Leaked instance: GDScriptNativeClass:9223372053682324427 - Reference count: 3
+Leaked instance: GDScript:9223373580476160823 - Reference count: 1
+Leaked instance: GDScript:9223373582120328003 - Reference count: 1
+Leaked instance: GDScript:9223373583126960972 - Reference count: 1
+Hint: Leaked instances typically happen when nodes are removed from the scene tree (with `remove_child()`) but not freed (with `free()` or `queue_free()`).
+Resource still in use: res://Characters/Components/Status/StatusEffectDefinition2D.gd (GDScript)
+Resource still in use: res://Characters/Components/Combat/ChargeStage2D.gd (GDScript)
+Resource still in use: res://Characters/Components/Combat/AttackDefinition2D.gd (GDScript)
+Orphan StringName: duration (static: 0, total: 4)
+Orphan StringName: StatusEffectDefinition2D.StackRule (static: 0, total: 1)
+Orphan StringName: stack_rule (static: 0, total: 4)
+Orphan StringName: @group_37_Aim assist (static: 0, total: 1)
+Orphan StringName: impulse_duration (static: 0, total: 4)
+Orphan StringName: aim_weapon (static: 0, total: 4)
+Orphan StringName: max_stacks (static: 0, total: 4)
+Orphan StringName: ChargeStage2D (static: 0, total: 3)
+Orphan StringName: @group_3_Critical (static: 0, total: 1)
+Orphan StringName: crit_chance_bonus (static: 0, total: 4)
+Orphan StringName: @group_27_Effect + Hitbox (static: 0, total: 1)
+Orphan StringName: charge_ratio_at (static: 0, total: 1)
+Orphan StringName: @group_56_Timed release (static: 0, total: 1)
+Orphan StringName: has_release_window (static: 0, total: 1)
+Orphan StringName: pierce (static: 0, total: 4)
+Orphan StringName: _reach_cap_warnings (static: 0, total: 1)
+Orphan StringName: effect_animation (static: 0, total: 4)
+Orphan StringName: @group_42_Input queue (static: 0, total: 1)
+Orphan StringName: effect_scene (static: 0, total: 3)
+Orphan StringName: @group_21_Hit (static: 0, total: 1)
+Orphan StringName: hit_stun (static: 0, total: 4)
+Orphan StringName: charge_damage_curve (static: 0, total: 3)
+Orphan StringName: tick_damage (static: 0, total: 4)
+Orphan StringName: @group_63_Charge (static: 0, total: 1)
+Orphan StringName: AttackDefinition2D.ReleaseMode (static: 0, total: 1)
+Orphan StringName: recovery_time (static: 0, total: 4)
+Orphan StringName: aim_turn_speed (static: 0, total: 4)
+Orphan StringName: aim_follow (static: 0, total: 4)
+Orphan StringName: sword_return (static: 0, total: 2)
+Orphan StringName: ReleaseTiming (static: 0, total: 1)
+Orphan StringName: input_queue_time (static: 0, total: 4)
+Orphan StringName: charge_area_curve (static: 0, total: 3)
+Orphan StringName: aim_shape (static: 0, total: 3)
+Orphan StringName: get_charge_damage_multiplier (static: 0, total: 1)
+Orphan StringName: charge_reach_ease (static: 0, total: 3)
+Orphan StringName: get_charge_stage_index (static: 0, total: 1)
+Orphan StringName: get_reach_at_charge (static: 0, total: 1)
+Orphan StringName: combo_sequence (static: 0, total: 3)
+Orphan StringName: StatusEffectDefinition2D (static: 0, total: 3)
+Orphan StringName: perfect_release_multiplier (static: 0, total: 4)
+Orphan StringName: release_mode (static: 0, total: 4)
+Orphan StringName: draw_animation (static: 0, total: 4)
+Orphan StringName: Resource (static: 1, total: 5)
+Orphan StringName: charge_threshold (static: 0, total: 4)
+Orphan StringName: id (static: 0, total: 12)
+Orphan StringName: AttackDefinition2D (static: 0, total: 3)
+Orphan StringName: SHAPE_REACH_TOLERANCE_PX (static: 0, total: 1)
+Orphan StringName: perfect_crit_bonus (static: 0, total: 4)
+Orphan StringName: perfect_window_start (static: 0, total: 4)
+Orphan StringName: status (static: 0, total: 2)
+Orphan StringName: recovery_animation (static: 0, total: 4)
+Orphan StringName: charge_stages (static: 0, total: 3)
+Orphan StringName: cooldown_duration (static: 0, total: 4)
+Orphan StringName: get_reach (static: 0, total: 1)
+Orphan StringName: early_release_multiplier (static: 0, total: 4)
+Orphan StringName: StackRule (static: 0, total: 1)
+Orphan StringName: crit_chance (static: 0, total: 4)
+Orphan StringName: _aim_shape_reach_warnings (static: 0, total: 1)
+Orphan StringName: @group_44_Aim follow (static: 0, total: 1)
+Orphan StringName: get_warnings (static: 0, total: 1)
+Orphan StringName: damage (static: 0, total: 4)
+Orphan StringName: @group_1_Damage (static: 0, total: 1)
+Orphan StringName: eased_charge_ratio (static: 0, total: 1)
+Orphan StringName: movement_multiplier (static: 0, total: 4)
+Orphan StringName: attack_range (static: 0, total: 4)
+Orphan StringName: at_ratio (static: 0, total: 4)
+Orphan StringName: tick_interval (static: 0, total: 4)
+Orphan StringName: next_attack (static: 0, total: 3)
+Orphan StringName: light (static: 0, total: 2)
+Orphan StringName: damage_multiplier (static: 0, total: 8)
+Orphan StringName: charge_reach_min (static: 0, total: 4)
+Orphan StringName: hit_layers (static: 0, total: 4)
+Orphan StringName: @group_47_Charge (static: 0, total: 1)
+Orphan StringName: @group_6_Status (static: 0, total: 1)
+Orphan StringName: Node (static: 8, total: 9)
+Orphan StringName: _validate_property (static: 0, total: 1)
+Orphan StringName: @group_53_Charge scaling (static: 0, total: 1)
+Orphan StringName: @group_14_Animation (static: 0, total: 1)
+Orphan StringName: get_release_timing (static: 0, total: 1)
+Orphan StringName: interruptible (static: 0, total: 4)
+Orphan StringName: status_effects (static: 0, total: 3)
+Orphan StringName: hitbox_offset (static: 0, total: 4)
+Orphan StringName: @group_35_Range (static: 0, total: 1)
+Orphan StringName: _uses_non_animated_effect_scene (static: 0, total: 1)
+Orphan StringName: charge_counts_during_draw (static: 0, total: 4)
+Orphan StringName: ReleaseMode (static: 0, total: 1)
+Orphan StringName: late_release_multiplier (static: 0, total: 4)
+Orphan StringName: weapon_animation (static: 0, total: 4)
+Orphan StringName: DEFAULT_EFFECT_ANIMATION (static: 0, total: 1)
+Orphan StringName: perfect_window_end (static: 0, total: 4)
+Orphan StringName: @group_8_Timing (static: 0, total: 1)
+Orphan StringName: get_charge_area_multiplier (static: 0, total: 1)
+Orphan StringName: slash (static: 0, total: 4)
+Orphan StringName: recovery_ease (static: 0, total: 3)
+Orphan StringName: projectile_speed (static: 0, total: 4)
+Orphan StringName: release_multiplier_for (static: 0, total: 1)
+Orphan StringName: @group_33_Projectile (static: 0, total: 1)
+Orphan StringName: charge_animation (static: 0, total: 4)
+Orphan StringName: knockback (static: 0, total: 4)
+Orphan StringName: forward_impulse (static: 0, total: 4)
+Orphan StringName: crit_multiplier (static: 0, total: 4)
+Orphan StringName: @group_39_Combo (static: 0, total: 1)
+Orphan StringName: hit_effect_scene (static: 0, total: 3)
+Orphan StringName: max_targets (static: 0, total: 4)
+Orphan StringName: hitbox_size (static: 0, total: 4)
+StringName: 105 unclaimed string names at exit.
+WARNING: 4 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 3 resources still in use at exit.
+   at: clear (core/io/resource.cpp:817)

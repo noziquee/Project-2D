@@ -22,6 +22,10 @@ func _angle_weight() -> float:
 func get_kind() -> Kind:
 	return Kind.FAN
 
+## R1: its `max_range` is the action's reach, so it is drawn and tested at the real reach (see AimShape2D.with_reach).
+func follows_action_reach() -> bool:
+	return true
+
 ## Degrees between two points of the drawn arc (H8.9). Fine enough that the chord never strays visibly from the arc.
 const OUTLINE_STEP_DEGREES := 6.0
 

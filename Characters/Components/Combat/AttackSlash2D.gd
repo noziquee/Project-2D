@@ -28,6 +28,9 @@ const ANIMATION_PLAYER_PATH := "SlashEffectAnimSpritesheet/AnimationPlayer"
 ## Reach used when the attack names none (attack_range 0 and no aim shape): the swing's old fixed distance.
 @export_range(1.0, 1000.0, 1.0) var fallback_reach: float = 70.0
 
+## R3 (RD1): how far past its reach, in pixels, the hitbox's leading edge may be before the swing can no longer hit.
+const REACH_GATE_TOLERANCE_PX := 2.0
+
 ## True when `scene` has an effect AnimationPlayer (the one its own animation_player_path names) but not the clip
 ## `clip`. A scene with no such player, or one that cannot be instantiated, is not judged here (false), and neither
 ## is an empty clip name.
@@ -55,6 +58,8 @@ var _reach_driven := false
 var _motion_start_x := 0.0
 var _motion_end_x := 0.0
 var _window_end := 0.001
+## R3 reach gate: the furthest the leading edge may be and still hit. Negative = no gate (the attack gave no reach).
+var _edge_limit := -1.0
 
 func _ready() -> void:
 	if not _resolve_nodes():
@@ -80,6 +85,7 @@ func _ready() -> void:
 		queue_free()
 		return
 	_setup_reach_motion()
+	_setup_reach_gate()
 	_slash_animation_player.play(effect_animation)
 
 ## Looks up the four nodes through the exported paths. A path that leads to nothing (or to the wrong kind of
@@ -194,9 +200,23 @@ static func _hit_window_end(clip: Animation) -> float:
 		break
 	return clip.length
 
-## The hit window: the hitbox is monitoring and the animated CollisionShape2D:disabled track has enabled it.
+## R3 (RD1): a hit beyond the attack's reach is rejected, never extended. The limit is the reach, or the edge the scene
+## starts with when that is already further (a reach shorter than the hitbox, see H9-24), plus a small tolerance. For a
+## driven swing the edge ends exactly at the reach, so this only matters when a clip moves the hitbox by itself or the
+## hit shape grows past the reach. No reach given (0): no gate.
+func _setup_reach_gate() -> void:
+	_edge_limit = -1.0
+	if attack_range > 0.0:
+		_edge_limit = maxf(attack_range, get_leading_edge()) + REACH_GATE_TOLERANCE_PX
+
+## True while the hitbox's leading edge is inside the reach gate (always true when there is no gate).
+func is_within_reach_gate() -> bool:
+	return _edge_limit < 0.0 or get_leading_edge() <= _edge_limit
+
+## The hit window: the hitbox is monitoring and the animated CollisionShape2D:disabled track has enabled it, and (R3)
+## the hitbox has not been carried past the attack's reach.
 func _can_hit() -> bool:
-	return _hitbox != null and _collision_shape != null and _hitbox.monitoring and not _collision_shape.disabled
+	return _hitbox != null and _collision_shape != null and _hitbox.monitoring and not _collision_shape.disabled and is_within_reach_gate()
 
 func _get_hit_origin() -> Vector2:
 	return _hitbox.global_position if _hitbox != null else global_position
@@ -228,6 +248,22 @@ func get_scene_warnings() -> Array[String]:
 			if clip_name != &"RESET" and _clip_moves_positions(player.get_animation(clip_name)):
 				found.append("AttackSlash2D: clip '%s' still animates a position track, so the swing's reach (H9.2) is not applied to it. Remove the sprite and HitboxMotion position tracks and the attack's range drives the swing." % clip_name)
 	return found
+
+## R3: true when the effect clip `clip` of `scene` animates a position itself, so the reach driver stays off for it and
+## the hitbox goes where the clip puts it. False for a scene that cannot be instantiated or has no such clip.
+static func scene_clip_moves_positions(scene: PackedScene, clip: StringName) -> bool:
+	if scene == null or not scene.can_instantiate():
+		return false
+	var instance := scene.instantiate()
+	var moves := false
+	var player := instance.get_node_or_null(ANIMATION_PLAYER_PATH) as AnimationPlayer
+	var custom: Variant = instance.get("animation_player_path")
+	if custom is NodePath and not (custom as NodePath).is_empty():
+		player = instance.get_node_or_null(custom) as AnimationPlayer
+	if player != null and player.has_animation(clip):
+		moves = _clip_moves_positions(player.get_animation(clip))
+	instance.free()
+	return moves
 
 static func _clip_opens_hit_window(clip: Animation) -> bool:
 	for i in clip.get_track_count():

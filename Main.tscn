@@ -9,6 +9,7 @@
 [ext_resource type="Script" uid="uid://bchk0perwcupk" path="res://World/CameraBounds2D.gd" id="6_camera_bounds"]
 [ext_resource type="Script" uid="uid://du5r3jcpkpcxu" path="res://Platform/InputModeManager.gd" id="7_input_mode"]
 [ext_resource type="Script" uid="uid://c071efngqo78c" path="res://UI/Touch/MobileControls.gd" id="8_mobile_controls"]
+[ext_resource type="Script" uid="uid://cufaao6isctb6" path="res://UI/HUD/ChargeBar.gd" id="99_charge_bar"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_arena_wall"]
 size = Vector2(900, 24)
@@ -16,6 +17,7 @@ size = Vector2(900, 24)
 [node name="Main" type="Node2D" unique_id=1568768922]
 
 [node name="ArenaFloor" type="Polygon2D" parent="." unique_id=1684351582]
+modulate = Color(4.2308087, 2.6990786, 1.7381306, 1)
 z_index = -20
 color = Color(0.105, 0.12, 0.14, 1)
 polygon = PackedVector2Array(-500, -320, 500, -320, 500, 320, -500, 320)
@@ -107,6 +109,17 @@ offset_top = 82.0
 offset_right = 362.0
 offset_bottom = 146.0
 mana_source = NodePath("../../Player/ManaComponent2D")
+
+[node name="PlayerChargeBar" type="Control" parent="HUD" unique_id=41934473]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 6.0
+offset_top = 152.0
+offset_right = 362.0
+offset_bottom = 170.0
+mouse_filter = 2
+script = ExtResource("99_charge_bar")
+attack_source = NodePath("../../Player/AttackComponent2D")
 
 [node name="PlayerSkillBar" parent="HUD" unique_id=409305538 instance=ExtResource("5_skill_bar")]
 anchors_preset = 7

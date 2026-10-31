@@ -1,0 +1,746 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PART core_basics passes=44 failures=0
+ERROR: AttackComponent2D rejected definition: attack 'test_bad_weapon' on 'Player': weapon AnimationPlayer has no clip 'no_such_weapon_clip' (weapon_animation).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_attack_definition (res://Characters/Components/Combat/AttackComponent2D.gd:215)
+       [1] run_core_phase2_5_checks (res://tests/smoke_checks.gd:925)
+       [2] fresh (res://tests/smoke_checks.gd:58)
+       [3] phys (res://tests/smoke_checks.gd:25)
+ERROR: AttackComponent2D rejected definition: attack 'test_bad_recovery' on 'Player': weapon AnimationPlayer has no clip 'no_such_recovery_clip' (recovery_animation).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_attack_definition (res://Characters/Components/Combat/AttackComponent2D.gd:215)
+       [1] @attack_definition_setter (res://Characters/Core/Character2D.gd:83)
+       [2] run_core_phase2_5_checks (res://tests/smoke_checks.gd:926)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+ERROR: AttackComponent2D rejected definition: attack 'test_no_effect' on 'Player': no effect_scene (every attack needs its own effect scene).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_attack_definition (res://Characters/Components/Combat/AttackComponent2D.gd:215)
+       [1] @attack_definition_setter (res://Characters/Core/Character2D.gd:83)
+       [2] run_core_phase2_5_checks (res://tests/smoke_checks.gd:1021)
+       [3] phys (res://tests/smoke_checks.gd:25)
+PART core_phase2_5 passes=81 failures=0
+ERROR: Character2D '@CharacterBody2D@3' is missing required component node(s): MovementComponent2D. Add them as children in the scene. The character is disabled.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _ready (res://Characters/Core/Character2D.gd:128)
+       [1] _ready (res://Characters/Enemies/BasicEnemy2D.gd:10)
+       [2] run_core_phase6_8_checks (res://tests/smoke_checks.gd:1314)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+ERROR: Character2D '@CharacterBody2D@5' is missing required component node(s): CharacterStateMachine. Add them as children in the scene. The character is disabled.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _ready (res://Characters/Core/Character2D.gd:128)
+       [1] _ready (res://Characters/Enemies/BasicEnemy2D.gd:10)
+       [2] run_core_phase6_8_checks (res://tests/smoke_checks.gd:1360)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+PART core_phase6_8 passes=121 failures=0
+WARNING: AttackComponent2D on 'Player': no attack with id 'no_such_attack' (known: [&"sword_slash1", &"sword_slash2", &"sword_heavy_slash"]).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] try_start_attack (res://Characters/Components/Combat/AttackComponent2D.gd:242)
+       [1] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1745)
+       [2] fresh (res://tests/smoke_checks.gd:58)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1756)
+       [3] phys (res://tests/smoke_checks.gd:25)
+ERROR: AttackComponent2D rejected attack: attack 'test_bad_clip' on 'Player': weapon AnimationPlayer has no clip 'no_such_clip' (weapon_animation).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _register_extra_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:651)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:277)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1782)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: duplicate attack id 'test_good' in 'attacks'; the first one is kept.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _register_extra_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:646)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:277)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1782)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: ignoring an attack with an empty id (an empty id means 'no attack').
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _register_extra_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:640)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:277)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1782)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' in 'attacks' has the same id as the default attack and is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _register_extra_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:643)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:277)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1782)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: ignoring an empty entry in 'attacks'.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _register_extra_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:637)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:277)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1782)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1782)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] initialize (res://Characters/Components/Combat/AttackComponent2D.gd:161)
+       [2] _ready (res://Characters/Core/Character2D.gd:135)
+       [3] _ready (res://player.gd:100)
+       [4] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1806)
+       [5] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1818)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1869)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1895)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1964)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: EnemyAIController2D on 'BasicEnemy2D': attack choice 'v_missing' is not registered on its AttackComponent2D (add it to 'attacks'); ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _pick_attack (res://Characters/Controllers/EnemyAIController2D.gd:698)
+       [1] get_chosen_attack (res://Characters/Controllers/EnemyAIController2D.gd:659)
+       [2] get_chosen_attack_id (res://Characters/Controllers/EnemyAIController2D.gd:666)
+       [3] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:1995)
+       [4] fresh (res://tests/smoke_checks.gd:58)
+       [5] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:2023)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:2462)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:2537)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'Player': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_core_phase9_attacks_checks (res://tests/smoke_checks.gd:2697)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+PART core_phase9_attacks passes=172 failures=0
+WARNING: CharacterContext2D: weapon 'Bare' has no AnimationPlayer; keeping the current weapon.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] bind_weapon (res://Characters/Core/CharacterContext2D.gd:133)
+       [1] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:2946)
+       [2] cleanup (res://tests/smoke_checks.gd:118)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'duelist': cannot be equipped during a swing or charge.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3163)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+ERROR: AttackComponent2D rejected attack: attack 'ghost' on 'Player': weapon AnimationPlayer has no clip 'no_such_clip' (weapon_animation).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _register_extra_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:651)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:277)
+       [2] _set_attacks_from (res://Characters/Components/Weapons/WeaponController2D.gd:242)
+       [3] _apply_attacks (res://Characters/Components/Weapons/WeaponController2D.gd:253)
+       [4] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3175)
+       [5] fresh (res://tests/smoke_checks.gd:58)
+       [6] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'brokenish': attack 'ghost' needs clip 'no_such_clip' (weapon_animation) on the weapon AnimationPlayer.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3178)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'brokenish': attack 'ghost' has no effect_scene (every attack needs its own effect scene).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3178)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'sword_copy': cannot be equipped during a swing or charge.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3245)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'sword_copy': the attack component rejected the weapon's attacks; the previous weapon is kept.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] _fail_with (res://Characters/Components/Weapons/WeaponController2D.gd:260)
+       [2] equip (res://Characters/Components/Weapons/WeaponController2D.gd:104)
+       [3] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3257)
+       [4] phys (res://tests/smoke_checks.gd:25)
+ERROR: AttackComponent2D rejected definition: attack 'pp_bad' on 'Player': effect_scene has no clip 'no_such_effect_clip' (effect_animation).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_attack_definition (res://Characters/Components/Combat/AttackComponent2D.gd:215)
+       [1] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3383)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: AttackSlash2D requires the animation player 'SlashEffectAnimSpritesheet/AnimationPlayer' to have the animation 'no_such_effect_clip'.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _ready (res://Characters/Components/Combat/AttackSlash2D.gd:84)
+       [1] run_core_phase9_weapons_checks (res://tests/smoke_checks.gd:3394)
+       [2] phys (res://tests/smoke_checks.gd:25)
+PART core_phase9_weapons passes=151 failures=0
+ERROR: AttackComponent2D rejected definition: attack 'qq_no_fx' on 'Player': no effect_scene (every attack needs its own effect scene).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_attack_definition (res://Characters/Components/Combat/AttackComponent2D.gd:215)
+       [1] run_core_phase10_11_checks (res://tests/smoke_checks.gd:3422)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: AttackComponent2D needs a character context, an attack_definition, and a weapon AnimationPlayer.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] initialize (res://Characters/Components/Combat/AttackComponent2D.gd:152)
+       [1] run_core_phase10_11_checks (res://tests/smoke_checks.gd:3428)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: AttackComponent2D: effect scene for attack 'rr_plain' must have an AttackEffect2D script (such as AttackSlash2D.gd) on its root.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _spawn_effect (res://Characters/Components/Combat/AttackComponent2D.gd:737)
+       [1] handle_event (res://Characters/Components/Combat/AttackComponent2D.gd:688)
+       [2] attack_event (res://Characters/Core/Character2D.gd:221)
+ERROR: AttackSlash2D: hitbox_path 'Nowhere' does not lead to an Area2D.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _resolve_nodes (res://Characters/Components/Combat/AttackSlash2D.gd:104)
+       [1] _ready (res://Characters/Components/Combat/AttackSlash2D.gd:65)
+       [2] run_core_phase10_11_checks (res://tests/smoke_checks.gd:3567)
+       [3] phys (res://tests/smoke_checks.gd:25)
+WARNING: Character2D 'Player' has a child named AttackSpawnPoint that is not a Marker2D; effects spawn at the character's origin.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _resolve_spawn_point (res://Characters/Core/Character2D.gd:166)
+       [1] _ready (res://Characters/Core/Character2D.gd:110)
+       [2] _ready (res://player.gd:100)
+       [3] fresh_far_prepared (res://tests/smoke_checks.gd:308)
+       [4] run_core_phase10_11_checks (res://tests/smoke_checks.gd:3702)
+       [5] cleanup (res://tests/smoke_checks.gd:118)
+       [6] phys (res://tests/smoke_checks.gd:25)
+ERROR: AttackComponent2D rejected definition: attack 'ww_bad_scene' on 'Player': no effect_scene (every attack needs its own effect scene).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_attack_definition (res://Characters/Components/Combat/AttackComponent2D.gd:215)
+       [1] run_core_phase10_11_checks (res://tests/smoke_checks.gd:3916)
+       [2] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'yy_broken': attack 'yy_broken_attack' needs clip 'no_such_clip' (weapon_animation) on the weapon AnimationPlayer.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] equip_next (res://Characters/Components/Weapons/WeaponController2D.gd:128)
+       [3] run_core_phase10_11_checks (res://tests/smoke_checks.gd:4036)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'yy_broken': attack 'yy_broken_attack' needs clip 'no_such_clip' (weapon_animation) on the weapon AnimationPlayer.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] equip_next (res://Characters/Components/Weapons/WeaponController2D.gd:128)
+       [3] run_core_phase10_11_checks (res://tests/smoke_checks.gd:4039)
+       [4] phys (res://tests/smoke_checks.gd:25)
+PART core_phase10_11 passes=113 failures=0
+PART core_phase12 passes=46 failures=0
+WARNING: SkillComponent2D: duplicate skill id 'fireball'; the first one is kept.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:104)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4504)
+       [2] phys (res://tests/smoke_checks.gd:25)
+WARNING: SkillComponent2D: skill 'other' wants slot 0, which 'fireball' already holds; it is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:107)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4504)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill (unnamed): id is empty.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4504)
+       [2] phys (res://tests/smoke_checks.gd:25)
+WARNING: SkillComponent2D: ignoring an empty entry in the skills.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:97)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4504)
+       [2] phys (res://tests/smoke_checks.gd:25)
+WARNING: SkillComponent2D: no skill with id 'no_such_skill' (known: [&"fireball", &"heal"]).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] try_use_skill (res://Characters/Components/Skills/SkillComponent2D.gd:162)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4544)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'no_attack': a projectile skill needs an attack (AttackDefinition2D).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4653)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'power_shot': the attack's effect_scene root must be a ProjectileEffect2D (such as Arrow.tscn), not a melee effect.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4653)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'power_shot': a projectile skill needs targeting AIM_DIRECTION, not SELF.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4653)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'area_no_attack': an area skill needs an attack (AttackDefinition2D).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4784)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'ground_slam': the attack's effect_scene root must be an AreaEffect2D (such as AreaEffect2D.tscn), not a melee or projectile effect.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4784)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'ground_slam': the attack's effect_scene root must be an AreaEffect2D (such as AreaEffect2D.tscn), not a melee or projectile effect.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4784)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'lunge': a dash skill needs max_range above 0 (the distance of the dash).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4937)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'lunge': the dash strike's effect_scene root must be an AreaEffect2D (such as AreaEffect2D.tscn).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4937)
+       [2] phys (res://tests/smoke_checks.gd:25)
+WARNING: SkillComponent2D: skill 'plain_dash' wants slot 0, which 'lunge' already holds; it is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:107)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:4965)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'empower': a buff skill needs a status_effect (StatusEffectDefinition2D).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:5137)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: SkillComponent2D rejected skill: skill 'empower': the status_effect has no duration; it would never start.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:101)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:5137)
+       [2] phys (res://tests/smoke_checks.gd:25)
+WARNING: SkillComponent2D: no skill with id 'no_such_skill' (known: [&"quick", &"free", &"slow"]).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] try_use_skill (res://Characters/Components/Skills/SkillComponent2D.gd:162)
+       [1] run_core_phase13_skills_checks (res://tests/smoke_checks.gd:5263)
+       [2] phys (res://tests/smoke_checks.gd:25)
+PART core_phase13_skills passes=121 failures=0
+WARNING: ManaBar 'UnboundManaBar': mana_source does not point to a ManaComponent2D.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _ready (res://UI/HUD/ManaBar.gd:45)
+       [1] run_core_phase13_hud_checks (res://tests/smoke_checks.gd:5528)
+       [2] phys (res://tests/smoke_checks.gd:25)
+PART core_phase13_hud passes=39 failures=0
+ERROR: PassiveController2D rejected passive 'pas_ok': its id is listed more than once.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_passives (res://Characters/Components/Passives/PassiveController2D.gd:81)
+       [1] run_core_phase14_p_checks (res://tests/smoke_checks.gd:5786)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: PassiveController2D rejected passive: passive 'pas_inv': needs a status_effect (the status it applies).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_passives (res://Characters/Components/Passives/PassiveController2D.gd:78)
+       [1] run_core_phase14_p_checks (res://tests/smoke_checks.gd:5786)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK FAIL  EVT9 a real swing that lands heals the player by the passive's amount (player 20, goblin 400, started true, equipped true)
+CHECK FAIL  EVT10 a real swing puts the passive's status on the goblin it hits (and the replaced heal passive no longer heals)
+PART core_phase14_p passes=53 failures=2
+PART p9 passes=31 failures=0
+PART p10 passes=13 failures=0
+CHECK FAIL  BC34 after bow_heavy_shoot finishes with a click waiting, bow_draw plays again ([&"bow_draw", &"bow_heavy_shoot"])
+CHECK FAIL  BC35 the click became a light attack chained after the heavy one ([])
+PART bow_cycle passes=43 failures=2
+PART track_w passes=2 failures=0
+WARNING: WeaponController2D: weapon 'sword': weapon_mount '../NoSuchMount' does not resolve to a Node2D, so its weapon cannot be swapped.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_weapon_mount_checks (res://tests/smoke_checks.gd:6950)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+PART weapon_mount passes=6 failures=0
+PART goblin_sword passes=7 failures=0
+PART goblin_sword_wiring passes=14 failures=0
+PART goblin_archer_bow passes=12 failures=0
+PART track_w7 passes=5 failures=0
+WARNING: CharacterContext2D: '' rig path 'NoSuchPivot' does not resolve to a node.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _rig_node (res://Characters/Core/CharacterContext2D.gd:101)
+       [1] _init (res://Characters/Core/CharacterContext2D.gd:81)
+       [2] run_p2_checks (res://tests/smoke_checks.gd:7179)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+PART p2 passes=9 failures=0
+PART p3 passes=4 failures=0
+PART p4 passes=4 failures=0
+PART p5 passes=4 failures=0
+PART p6 passes=7 failures=0
+PART p7 passes=6 failures=0
+PART h2 passes=15 failures=0
+PART h2_skill_clip passes=6 failures=0
+WARNING: WeaponController2D: weapon 'h3_slot_clash': skills 'h3_b' and 'h3_c' both use slot 1.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_checks (res://tests/smoke_checks.gd:7489)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_dup_id': skill id 'h3_same' is listed more than once (active_skills ids must be unique).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_checks (res://tests/smoke_checks.gd:7495)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: SkillComponent2D: skill 'h3_c' wants slot 1, which 'h3_b' already holds; it is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] set_skills (res://Characters/Components/Skills/SkillComponent2D.gd:107)
+       [1] run_h3_checks (res://tests/smoke_checks.gd:7499)
+       [2] fresh_far (res://tests/smoke_checks.gd:83)
+       [3] phys (res://tests/smoke_checks.gd:25)
+PART h3 passes=4 failures=0
+PART h3_table passes=19 failures=0
+WARNING: WeaponController2D: weapon 'h3_bad_fx_weapon': attack 'h3_bad_fx': AttackSlash2D: hitbox_path 'HitboxOrigin/HitboxMotion/Area2D' does not lead to an Area2D.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_scene_checks (res://tests/smoke_checks.gd:7713)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_bad_fx_weapon': attack 'h3_bad_fx': AttackSlash2D: collision_shape_path 'HitboxOrigin/HitboxMotion/Area2D/CollisionShape2D' does not lead to a CollisionShape2D.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_scene_checks (res://tests/smoke_checks.gd:7713)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+PART h3_scene passes=10 failures=0
+PART enemy_ai_combo passes=7 failures=0
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_enemy_ai_heavy_checks (res://tests/smoke_checks.gd:10086)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK FAIL  C1-3 the swing goes where the charge was aimed, not where the player moved to ((1.0, 0.0))
+PART enemy_ai_heavy passes=2 failures=1
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] heavy_wait_run (res://tests/smoke_checks.gd:10149)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] heavy_wait_run (res://tests/smoke_checks.gd:10149)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] heavy_wait_run (res://tests/smoke_checks.gd:10149)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] heavy_wait_run (res://tests/smoke_checks.gd:10149)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] heavy_wait_run (res://tests/smoke_checks.gd:10149)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] heavy_wait_run (res://tests/smoke_checks.gd:10149)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+PART enemy_ai_heavy_wait passes=7 failures=0
+PART enemy_ai_skill passes=14 failures=0
+PART enemy_ai_profiles passes=29 failures=0
+PART enemy_ai_slots passes=10 failures=0
+WARNING: WeaponController2D: weapon 'h3_broken': skills 'h3_a' and 'h3_b' both use slot 1.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7797)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': skill id 'h3_a' is listed more than once (active_skills ids must be unique).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7797)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': attack 'h3_broken_attack' needs clip 'nope_clip' (weapon_animation) on the weapon AnimationPlayer.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7797)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': attack 'h3_broken_attack': AttackSlash2D: hitbox_path 'HitboxOrigin/HitboxMotion/Area2D' does not lead to an Area2D.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7797)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': attack 'h3_broken_attack': AttackSlash2D: collision_shape_path 'HitboxOrigin/HitboxMotion/Area2D/CollisionShape2D' does not lead to a CollisionShape2D.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7797)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': attack 'h3_broken_attack': status_effects[0] has an empty id.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7797)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': attack 'h3_broken_attack': status '' needs a duration above 0.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7797)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h3_broken': attack 'h3_broken_attack': status 'h3_tickless' has tick_damage 3 but tick_interval 0, so it never ticks.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h3_report_checks (res://tests/smoke_checks.gd:7797)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+PART h3_report passes=4 failures=0
+WARNING: WeaponController2D: weapon 'h4_no_player': weapon_scene has no AnimationPlayer child (expected one called HandAnim, or any AnimationPlayer).
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h4_equip_checks (res://tests/smoke_checks.gd:7866)
+       [3] fresh_far (res://tests/smoke_checks.gd:83)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h4_missing_clip': attack 'bow_arrow_shot' needs clip 'h4_missing_clip' (weapon_animation) on the weapon AnimationPlayer.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] equip (res://Characters/Components/Weapons/WeaponController2D.gd:83)
+       [2] run_h4_equip_checks (res://tests/smoke_checks.gd:7878)
+       [3] h4_swing_finishes (res://tests/smoke_checks.gd:7845)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'bow': the attack component rejected the weapon's attacks; the previous weapon is kept.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] _fail_with (res://Characters/Components/Weapons/WeaponController2D.gd:260)
+       [2] equip (res://Characters/Components/Weapons/WeaponController2D.gd:104)
+       [3] run_h4_equip_checks (res://tests/smoke_checks.gd:7888)
+       [4] h4_swing_finishes (res://tests/smoke_checks.gd:7845)
+       [5] phys (res://tests/smoke_checks.gd:25)
+WARNING: CharacterContext2D: weapon 'MainHand' has no AnimationPlayer; keeping the current weapon.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] bind_weapon (res://Characters/Core/CharacterContext2D.gd:133)
+       [1] _swap_mount (res://Characters/Components/Weapons/WeaponController2D.gd:209)
+       [2] equip (res://Characters/Components/Weapons/WeaponController2D.gd:93)
+       [3] run_h4_equip_checks (res://tests/smoke_checks.gd:7903)
+       [4] h4_swing_finishes (res://tests/smoke_checks.gd:7845)
+       [5] phys (res://tests/smoke_checks.gd:25)
+WARNING: WeaponController2D: weapon 'h4_unbindable': the new weapon could not be bound to the character; the previous weapon is kept.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _fail (res://Characters/Components/Weapons/WeaponController2D.gd:264)
+       [1] _fail_with (res://Characters/Components/Weapons/WeaponController2D.gd:260)
+       [2] equip (res://Characters/Components/Weapons/WeaponController2D.gd:96)
+       [3] run_h4_equip_checks (res://tests/smoke_checks.gd:7903)
+       [4] h4_swing_finishes (res://tests/smoke_checks.gd:7845)
+       [5] phys (res://tests/smoke_checks.gd:25)
+PART h4_equip passes=6 failures=0
+PART h4_rules passes=14 failures=0
+PART h4_determinism passes=2 failures=0
+PART h7_input passes=9 failures=0
+PART h7_display passes=8 failures=0
+PART h7_hotbar passes=10 failures=0
+PART h7_device passes=12 failures=0
+PART h7_touch passes=26 failures=0
+PART h7_prompts passes=4 failures=0
+PART h7_matrix passes=6 failures=0
+PART h8_aim passes=231 failures=0
+CHECK FAIL  H9-35 a dead enemy cannot replace the marked target
+PART h8_aim_state passes=54 failures=1
+CHECK FAIL  H8-130 a tap starts one light attack and presses no aim (swings 0)
+PART h8_touch passes=21 failures=1
+CHECK FAIL  H8-165 while the heavy attack charges its own aim shape is drawn
+PART h8_indicator passes=71 failures=1
+PART h8_ground passes=35 failures=0
+PART h8_layout passes=7 failures=0
+PART h8_skillface passes=7 failures=0
+PART h9_visuals passes=4 failures=0
+CHECK FAIL  H9-114 holding all the way: the charge starts at arrival with the held walking time (charge 0.01666666666667, walk 1.55)
+PART h9_heavy passes=14 failures=1
+CHECK FAIL  SA30 a click confirms: the skill casts, mana is spent, the cooldown starts
+CHECK FAIL  SA33 clicking an aimed skill on the hotbar enters preview as well
+CHECK FAIL  SA34 clicking a skill with no aim shape on the hotbar casts at once
+CHECK FAIL  SA35 with skill_aim_preview off an aimed skill casts at once
+PART smart_aim passes=34 failures=4
+PART a_follow passes=36 failures=0
+CHECK FAIL  S-7 early in the charge no stage is reached and no signal came
+CHECK FAIL  S-8 past half a charge the mid stage is live and was announced once (0, [1, 0])
+CHECK FAIL  S-11 an arrow released in the mid stage deals x2 damage and gets the crit bonus (27)
+PART r7_stages passes=11 failures=3
+CHECK FAIL  T-8 a release inside the window deals x2 with the crit bonus, and the live timing and the release agree ({ "damage": 9, "crit": 0.0, "live": 3, "released": [3] })
+CHECK FAIL  T-14 the timing leaves the reach as the charge set it (200.0)
+PART r7_timed passes=12 failures=2
+PART r7_scaling passes=12 failures=0
+CHECK FAIL  B-8 inside the window the fill takes the perfect color
+CHECK FAIL  B-12 a charge with no charge_threshold shows no bar: its ratio never rises
+PART r7_bar passes=10 failures=2
+CHECK FAIL  D-2 with the option on the ratio rises while the draw plays (0.33333333333333)
+PART r7_draw passes=6 failures=1
+ERROR: H4.4 hookup probe
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] run_error_gate_checks (res://tests/smoke_checks.gd:702)
+       [1] _initialize (res://tests/smoke_checks.gd:631)
+       [2] _run (res://tests/smoke_checks.gd:646)
+       [3] run_r7_draw_checks (res://tests/smoke_checks.gd:8996)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: H4.4 warning probe
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] run_error_gate_checks (res://tests/smoke_checks.gd:703)
+       [1] _initialize (res://tests/smoke_checks.gd:631)
+       [2] _run (res://tests/smoke_checks.gd:646)
+       [3] run_r7_draw_checks (res://tests/smoke_checks.gd:8996)
+       [4] phys (res://tests/smoke_checks.gd:25)
+SUMMARY passes=1905 failures=21
+ERROR: 1 RID allocations of type 'P12GodotShape2D' were leaked at exit.
+ERROR: 2 RID allocations of type 'PN13RendererDummy14TextureStorage12DummyTextureE' were leaked at exit.
+WARNING: 46 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 17 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:822)

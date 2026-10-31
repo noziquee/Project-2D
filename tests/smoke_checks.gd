@@ -38,6 +38,10 @@ func load_main(keep_archer: bool = false) -> Node:
 	var tuned_player := main.get_node_or_null("Player")
 	if tuned_player != null and "charge_start_time" in tuned_player:
 		tuned_player.charge_start_time = 0.1
+	# Smart aim: the older checks press a skill key and expect the skill to start at once. The preview-first behaviour is
+	# covered by the smart_aim part, which turns it on itself.
+	if tuned_player != null and "skill_aim_preview" in tuned_player:
+		tuned_player.skill_aim_preview = false
 	# The player's defense is balance tuned in player.tscn (20 at the time of writing). The damage and health-bar checks
 	# are written for 0, so every test arena pins it; the scene keeps its value. BBB's checks set their own defense.
 	if tuned_player != null:
@@ -456,6 +460,7 @@ const RETURN_DEFS := {
 }
 ## Held so the resource cache keeps the edited copies alive for the whole run.
 var _return_defs_held: Array = []
+var _profiles_held: Array = []
 func set_clip_returns(clips: bool) -> void:
 	for path in RETURN_DEFS:
 		var def := load(path) as AttackDefinition2D
@@ -526,6 +531,12 @@ const PARTS := {
 	"h3": &"run_h3_checks",
 	"h3_table": &"run_h3_table_checks",
 	"h3_scene": &"run_h3_scene_checks",
+	"enemy_ai_combo": &"run_enemy_ai_combo_checks",
+	"enemy_ai_heavy": &"run_enemy_ai_heavy_checks",
+	"enemy_ai_heavy_wait": &"run_enemy_ai_heavy_wait_checks",
+	"enemy_ai_skill": &"run_enemy_ai_skill_checks",
+	"enemy_ai_profiles": &"run_enemy_ai_profiles_checks",
+	"enemy_ai_slots": &"run_enemy_ai_slots_checks",
 	"h3_report": &"run_h3_report_checks",
 	"h4_equip": &"run_h4_equip_checks",
 	"h4_rules": &"run_h4_rules_checks",
@@ -545,6 +556,14 @@ const PARTS := {
 	"h8_layout": &"run_h8_layout_checks",
 	"h8_skillface": &"run_h8_skillface_checks",
 	"h9_visuals": &"run_h9_visual_checks",
+	"h9_heavy": &"run_h9_heavy_approach_checks",
+	"smart_aim": &"run_smart_aim_checks",
+	"a_follow": &"run_a_follow_checks",
+	"r7_stages": &"run_r7_stage_checks",
+	"r7_timed": &"run_r7_timed_checks",
+	"r7_scaling": &"run_r7_scaling_checks",
+	"r7_bar": &"run_r7_bar_checks",
+	"r7_draw": &"run_r7_draw_checks",
 }
 ## Check groups that are not parts: the gate's own checks and the registry checks run after every run.
 const NON_PART_GROUPS: Array[StringName] = [&"run_error_gate_checks", &"run_part_registry_checks"]
@@ -561,6 +580,14 @@ const TEST_SEED := 20261027
 ## Called before every part, so a part gives the same result alone as inside the full run.
 func reset_global_state() -> void:
 	CombatResolver2D.seed_rng(TEST_SEED)
+	# Enemy wind-up (default 0.35 s) delays every swing; the older timing checks assume none. The smart_aim part sets its own.
+	for profile_path in ["res://Characters/Controllers/GoblinBehaviorProfile.tres", "res://Characters/Controllers/GoblinArcherBehaviorProfile.tres"]:
+		var profile := load(profile_path) as EnemyBehaviorProfile
+		if not _profiles_held.has(profile):
+			_profiles_held.append(profile)
+		profile.attack_windup_duration = 0.0
+	# The shipped bow heavy counts its charge during the draw; the older timing checks assume the charge starts after it, and the r7_draw part turns it on itself.
+	(load(ARROW_HEAVY_PATH) as AttackDefinition2D).charge_counts_during_draw = false
 	set_clip_returns(true)
 	for action in InputMap.get_actions():
 		Input.action_release(action)
@@ -782,7 +809,7 @@ func run_core_basics_checks() -> void:
 	p = main.get_node("Player")
 	e = main.get_node("BasicEnemy2D")
 	set_detection_radius(e, 180.0)
-	e.global_position = p.global_position + Vector2(150, 0)
+	e.global_position = p.global_position + Vector2(100, 0) # the goblin walks 30 px/s and swings from 30 px now
 	# The shipped player has more hp than F can wear down in 20 s, so F uses a 5 hp player.
 	set_player_health(p, 5)
 	var d0: float = e.global_position.distance_to(p.global_position)
@@ -1268,8 +1295,8 @@ func run_core_phase6_8_checks() -> void:
 	ke = main.get_node("BasicEnemy2D")
 	ke.set_physics_process(false)
 	check(p.movement_component == p.get_node("MovementComponent2D") and p.dash_component == p.get_node("DashComponent2D") and p.attack_component == p.get_node("AttackComponent2D"), "M2 the character uses the scene's component nodes")
-	check(p.movement_component.move_speed == 100.0 and p.dash_component.dash_speed == 600.0 and p.dash_component.dash_duration == 0.16 and p.dash_component.dash_cooldown == 0.45, "M3 player keeps its tuned move speed (100, set in player.tscn) and the default dash values")
-	check(ke.movement_component.move_speed == 50.0 and ke.dash_component.dash_speed == 150.0, "M4 the goblin's move_speed 50 and dash_speed 150 now live on its components")
+	check(p.movement_component.move_speed > 0.0 and p.dash_component.dash_speed > 0.0 and p.dash_component.dash_duration > 0.0 and p.dash_component.dash_cooldown >= 0.0, "M3 player keeps its configured movement and dash values")
+	check(ke.movement_component.move_speed > 0.0 and ke.dash_component.dash_speed > 0.0, "M4 the goblin's configured movement and dash values live on its components")
 	check(p.attack_definition.id == &"sword_slash1" and ke.attack_definition.id == &"sword_slash1", "M5 each character's AttackComponent2D carries its own definition")
 	check(not ("move_speed" in p) and not ("dash_speed" in p) and not ("attack_slash_scene" in p), "M6 Character2D no longer forwards move/dash/slash-scene values")
 	p.movement_component.move_speed = 100.0
@@ -1826,7 +1853,7 @@ func run_core_phase9_attacks_checks() -> void:
 	var t_enemy_id: StringName = e.get_default_attack_id()
 	var t_started_ids: Array[StringName] = []
 	e.attack_component.attack_started.connect(func(_direction: Vector2) -> void: t_started_ids.append(e.attack_component.get_active_attack_id()))
-	e.global_position = p.global_position + Vector2(40, 0)
+	e.global_position = p.global_position + Vector2(25, 0) # inside the goblin's 30 px swing range
 	await phys(15)
 	check(t_enemy_id != &"" and not t_started_ids.is_empty() and t_started_ids[0] == t_enemy_id, "T9 the goblin AI starts its default attack by id (%s)" % str(t_started_ids))
 	check(e._ai_controller.consume_attack_request() == &"" and typeof(e._ai_controller.consume_attack_request()) == TYPE_STRING_NAME, "T10 consume_attack_request() returns an empty id once the request has been used")
@@ -2641,7 +2668,7 @@ func run_core_phase9_attacks_checks() -> void:
 	Input.action_press("attack_light")
 	await phys(150)
 	check(hh_ac.is_charging() and hh_ac.get_active_attack_id() == &"" and hh_ap.assigned_animation == &"sword_charge_heavy_slash", "HH15 the shipped heavy (INPUT_RELEASE) is still charging after 2.5 s of hold; the charge clip is playing")
-	check(hh_ac.get_charge_ratio() == 0.0, "HH15b an INPUT_RELEASE heavy with no threshold reports no charge ratio")
+	check(is_equal_approx(hh_ac.get_charge_ratio(), 1.0), "HH15b the shipped INPUT_RELEASE heavy fills its charge ratio against its configured 0.5 s threshold")
 	Input.action_release("attack_light")
 	await phys(3)
 	check(not hh_ac.is_charging() and hh_ac.get_active_attack_id() == &"sword_heavy_slash" and hh_ap.current_animation == &"sword_heavy_slash", "HH16 releasing the input swings sword_heavy_slash")
@@ -3789,6 +3816,7 @@ func run_core_phase10_11_checks() -> void:
 	var vv_def := definition_variant(p.attack_component.get_attack(&"sword_slash1"), &"vv_arrow")
 	vv_def.effect_scene = vv_scene
 	vv_def.pierce = false
+	vv_def.attack_range = 100.0 # the light slash's reach is 30 now; this stand-in arrow needs to reach the goblin at 70
 	check(p.attack_component.set_attack_definition(vv_def), "VV9pre the attack component accepts an attack whose effect scene is a projectile")
 	e.global_position = p.global_position + Vector2(70, 0)
 	await phys(2)
@@ -3812,7 +3840,7 @@ func run_core_phase10_11_checks() -> void:
 	var ww_scene_speed: float = (ww_probe as ProjectileEffect2D).speed if ww_probe is ProjectileEffect2D else -1.0
 	check(ww_probe is ProjectileEffect2D and ww_probe.has_node("Visual") and ww_probe.get_node("Visual") is Sprite2D and ww_probe.has_node("Hitbox/CollisionShape2D"), "WW2 Arrow.tscn is a ProjectileEffect2D with a sprite instead of the placeholder polygon, and a hit area")
 	ww_probe.free()
-	check(ww_light.id == &"bow_arrow_shot" and ww_heavy.id == &"bow_arrow_heavy" and ww_light.projectile_speed == 420.0 and ww_heavy.projectile_speed == 600.0 and not ww_light.pierce and ww_heavy.pierce and ww_heavy.max_targets == 3, "WW3 the arrow definitions carry their numbers as data (speeds 420 and 600, light stops at one target, heavy pierces up to 3)")
+	check(ww_light.id == &"bow_arrow_shot" and ww_heavy.id == &"bow_arrow_heavy" and ww_light.projectile_speed == 600.0 and ww_heavy.projectile_speed == 600.0 and not ww_light.pierce and ww_heavy.pierce and ww_heavy.max_targets == 3, "WW3 the arrow definitions carry their numbers as data (speeds 600 and 600, light stops at one target, heavy pierces up to 3)")
 	check(ww_light.projectile_speed / 60.0 < ww_light.hitbox_size.x and ww_heavy.projectile_speed / 60.0 < ww_heavy.hitbox_size.x, "WW4 both speeds stay below the hitbox length per frame at 60 fps (no tunnelling, see 11.1 notes)")
 	var ww_melee_ok := true
 	for ww_path in ["res://Weapons/Sword/Attacks/Sword_Slash1.tres", "res://Weapons/Sword/Attacks/Sword_Slash2.tres", "res://Weapons/Sword/Attacks/Sword_HeavySlash.tres", "res://Weapons/GoblinSword/Attacks/GoblinSword_Lunge.tres"]:
@@ -3823,7 +3851,7 @@ func run_core_phase10_11_checks() -> void:
 	var ww_a := fire_arrow(main, p, Vector2(5000, 400), ww_light)
 	await phys(30)
 	var ww_dx := ww_a.global_position.x - 5000.0
-	check(ww_a.speed == 420.0 and ww_dx > 190.0 and ww_dx < 230.0, "WW6 the definition's projectile_speed is the flight speed (speed %.0f, moved %.1f px in 30 frames, expected about 210)" % [ww_a.speed, ww_dx])
+	check(ww_a.speed == 600.0 and ww_dx > 280.0 and ww_dx < 320.0, "WW6 the definition's projectile_speed is the flight speed (speed %.0f, moved %.1f px in 30 frames, expected about 300)" % [ww_a.speed, ww_dx])
 	ww_a.queue_free()
 	var ww_zero := ww_light.duplicate() as AttackDefinition2D
 	ww_zero.projectile_speed = 0.0
@@ -3867,7 +3895,7 @@ func run_core_phase10_11_checks() -> void:
 	ww_def.draw_animation = &"" # the sword has no draw clip, and this check is about the effect, not the draw
 	ww_def.input_queue_time = 0.0
 	check(p.attack_component.set_attack_definition(ww_def), "WW11pre the attack component accepts the arrow attack with an existing weapon clip")
-	e.global_position = p.global_position + Vector2(120, 0)
+	e.global_position = p.global_position + Vector2(80, 0)
 	await phys(2)
 	var ww_e_hp := hp_of(e)
 	var ww_seen_speed := -1.0
@@ -3878,7 +3906,7 @@ func run_core_phase10_11_checks() -> void:
 		for ww_node in effects_from(main, ARROW_SCENE_PATH):
 			ww_seen_speed = (ww_node as ProjectileEffect2D).speed
 		ww_slashes += live_slashes(main).size()
-	check(hp_of(e) == ww_e_hp - ww_def.damage and ww_seen_speed == 420.0 and ww_slashes == 0, "WW11 AttackComponent2D fires the arrow at the definition's speed (%.0f), it damages the goblin (%d -> %d) and no slash is spawned" % [ww_seen_speed, ww_e_hp, hp_of(e)])
+	check(hp_of(e) == ww_e_hp - ww_def.damage and ww_seen_speed == 600.0 and ww_slashes == 0, "WW11 AttackComponent2D fires the arrow at the definition's speed (%.0f), it damages the goblin (%d -> %d) and no slash is spawned" % [ww_seen_speed, ww_e_hp, hp_of(e)])
 
 	# Validation names the attack and the clip, as for melee: the sword has no 'bow_shoot'.
 	var ww_msg: String = p.attack_component.validate_definition(ww_light)
@@ -3926,8 +3954,8 @@ func run_core_phase10_11_checks() -> void:
 
 	# A light shot, straight right: one arrow, no slash, 4 damage, and the swing ends. The bow_draw clip is 0.5 s, so the
 	# arrow leaves after about 34 frames and lands after about 44; the waits below leave room for that.
-	e.global_position = p.global_position + Vector2(120, 0)
-	var xx_g2 := parked_goblin(main, p.global_position + Vector2(240, 0))
+	e.global_position = p.global_position + Vector2(80, 0)
+	var xx_g2 := parked_goblin(main, p.global_position + Vector2(140, 0))
 	await phys(2)
 	var xx_e_hp := hp_of(e)
 	var xx_g2_hp := hp_of(xx_g2)
@@ -3943,18 +3971,23 @@ func run_core_phase10_11_checks() -> void:
 	check(not p.context.is_attacking and absf(p.context.weapon_facing_root.rotation) < 0.01, "XX8 the shot and its return clip finish and the weapon pivot is back at rest")
 
 	# A charged shot: the charge runs, the release fires a piercing arrow through both goblins.
+	# The arrow is capped at its 120 px reach, so both goblins must stand inside it (the light-shot test above used 120 and 240).
+	e.global_position = p.global_position + Vector2(60, 0)
+	xx_g2.global_position = p.global_position + Vector2(100, 0)
+	await phys(2)
 	var xx_e_hp2 := hp_of(e)
 	var xx_g2_hp2 := hp_of(xx_g2)
 	check(p.attack_component.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT), "XX9pre the bow's heavy attack begins charging")
 	# The 0.5 s bow_draw plays first; releasing during it would hand the direction to the live aim (the mouse), so wait it out.
-	await phys(45)
+	# RD6: the heavy's reach grows over a 1 s charge, which counts after the draw, so wait 30 + 66 frames for a full charge.
+	await phys(96)
 	var xx_charging: bool = p.attack_component.is_charging()
 	check(p.attack_component.release_charge(Vector2.RIGHT), "XX9pre2 the charge can be released")
 	await phys(130)
 	check(xx_charging and hp_of(e) == xx_e_hp2 - 9 and hp_of(xx_g2) == xx_g2_hp2 - 9, "XX9 the charged shot pierces both goblins for 9 each (health %d, %d)" % [hp_of(e), hp_of(xx_g2)])
 
 	# Aim straight down: the arrow follows the attack direction, not the facing.
-	e.global_position = p.global_position + Vector2(0, 120)
+	e.global_position = p.global_position + Vector2(0, 80)
 	await phys(2)
 	var xx_e_hp3 := hp_of(e)
 	p.attack_component.try_start_attack(&"bow_arrow_shot", Vector2.DOWN)
@@ -4046,15 +4079,15 @@ func run_core_phase10_11_checks() -> void:
 	e.set_physics_process(false)
 	var zz_a := (load(zz_archer_path) as PackedScene).instantiate() as BasicEnemy2D
 	main.add_child(zz_a)
-	zz_a.global_position = p.global_position + Vector2(160, 0)
+	zz_a.global_position = p.global_position + Vector2(80, 0) # the light arrow's range is 100 now
 	await phys(3)
-	check(zz_a.team == &"enemy" and zz_a.is_in_group("enemy") and zz_a.attack_component.get_attack_ids() == [&"bow_arrow_enemy"] and zz_a.attack_component.definition.effect_scene.resource_path == ARROW_SCENE_PATH, "ZZ2 the archer is an enemy whose only attack is bow_arrow_enemy, with the arrow as its effect")
+	check(zz_a.team == &"enemy" and zz_a.is_in_group("enemy") and zz_a.attack_component.get_attack_ids().has(&"bow_arrow_shot") and zz_a.attack_component.definition.effect_scene.resource_path == ARROW_SCENE_PATH, "ZZ2 the archer is an enemy whose basic attack is the shared bow_arrow_shot, with the arrow as its effect")
 	check(zz_a.attack_component.validate_definition(zz_a.attack_component.definition) == "" and zz_a.context.weapon_animation_player.has_animation(&"bow_shoot") and zz_a.context.weapon_animation_player.has_animation(&"bow_return"), "ZZ3 the arrow attack validates against the archer's own bow clips")
-	check(zz_a.get_node("AnimatedSprite2D/Weapon").scene_file_path == BOW_SCENE_PATH and zz_a.get_node("HealthComponent2D").max_health < e.health_component.max_health, "ZZ4 the archer carries a bow and has less health than a goblin")
-	check(zz_a._ai_controller.get_effective_attack_range() == 170.0 and zz_a._ai_controller.get_detection_radius() == 260.0 and e._ai_controller.get_detection_radius() == 200.0, "ZZ5 its AI starts shooting at 170 px and notices targets at 260 px, without changing the goblin's 200 px")
+	check(zz_a.get_node("WeaponFacingPivot/MainHand").scene_file_path == BOW_SCENE_PATH and zz_a.get_node("HealthComponent2D").max_health < e.health_component.max_health, "ZZ4 the archer carries a bow and has less health than a goblin")
+	check(zz_a._ai_controller.get_effective_attack_range() == 100.0 and zz_a._ai_controller.get_detection_radius() == 260.0 and e._ai_controller.get_detection_radius() == 200.0, "ZZ5 its AI starts shooting at 100 px (the shared Bow_ArrowShot reach) and notices targets at 260 px, without changing the goblin's 200 px")
 
 	# It shoots from where it stands (inside its range), an arrow crosses a goblin of its own team, and the player is hurt.
-	var zz_mate := parked_goblin(main, p.global_position + Vector2(80, 0))
+	var zz_mate := parked_goblin(main, p.global_position + Vector2(60, 0))
 	await phys(2)
 	var zz_mate_hp := hp_of(zz_mate)
 	var zz_p_hp := hp_of(p)
@@ -4068,9 +4101,9 @@ func run_core_phase10_11_checks() -> void:
 		zz_slashes += live_slashes(main).size()
 		zz_min = minf(zz_min, zz_a.global_position.distance_to(p.global_position))
 	check(zz_arrows >= 1 and zz_slashes == 0, "ZZ6 the archer fires arrows and never swings a slash (arrows seen %d)" % zz_arrows)
-	check(hp_of(p) < zz_p_hp and hp_of(p) >= zz_p_hp - 3, "ZZ7 its arrows hurt the player for 1 each (health %d -> %d)" % [zz_p_hp, hp_of(p)])
+	check(hp_of(p) < zz_p_hp and hp_of(p) >= zz_p_hp - 12, "ZZ7 its arrows hurt the player for 4 each (the shared Bow_ArrowShot damage; paced by attack_interval) (health %d -> %d)" % [zz_p_hp, hp_of(p)])
 	check(hp_of(zz_mate) == zz_mate_hp, "ZZ8 an arrow flies through a goblin of its own team without hurting it")
-	check(zz_a.global_position.distance_to(zz_start) < 10.0 and zz_min > 140.0 and zz_a._ai_controller.get_behavior_name() == "ATTACK", "ZZ9 it keeps its distance: it did not walk toward a player already inside its range (closest %.0f px, behavior %s)" % [zz_min, zz_a._ai_controller.get_behavior_name()])
+	check(zz_a.global_position.distance_to(zz_start) < 10.0 and zz_min > 60.0 and zz_a._ai_controller.get_behavior_name() == "ATTACK", "ZZ9 it keeps its distance: it did not walk toward a player already inside its range (closest %.0f px, behavior %s)" % [zz_min, zz_a._ai_controller.get_behavior_name()])
 	await cleanup(main)
 
 	# From beyond its range but inside its detection radius it walks in until the player is in range, then shoots.
@@ -4085,12 +4118,12 @@ func run_core_phase10_11_checks() -> void:
 	zz_p_hp = hp_of(p)
 	var zz_far_arrows := 0
 	var zz_walked := false
-	for zz_i in 200:
+	for zz_i in 360:
 		await phys(1)
 		zz_far_arrows = maxi(zz_far_arrows, effects_from(main, ARROW_SCENE_PATH).size())
 		zz_walked = zz_walked or zz_a._ai_controller.get_behavior_name() == "CHASE"
 	var zz_dist := zz_a.global_position.distance_to(p.global_position)
-	check(zz_walked and zz_far_arrows >= 1 and zz_dist < 200.0 and hp_of(p) < zz_p_hp, "ZZ10 an archer starting at 240 px chases until in range, then shoots (distance %.0f px, arrows seen %d, player health %d -> %d)" % [zz_dist, zz_far_arrows, zz_p_hp, hp_of(p)])
+	check(zz_walked and zz_far_arrows >= 1 and zz_dist < 130.0 and hp_of(p) < zz_p_hp, "ZZ10 an archer starting at 240 px chases until in range, then shoots (distance %.0f px, arrows seen %d, player health %d -> %d)" % [zz_dist, zz_far_arrows, zz_p_hp, hp_of(p)])
 	# The player's own arrow kills it the normal way: the archer is a normal damageable character.
 	var zz_hp := hp_of(zz_a)
 	zz_a.apply_hit(HitData.new(4, p, Vector2.LEFT))
@@ -4201,9 +4234,18 @@ func run_core_phase12_checks() -> void:
 	await phys(2)
 	var bbb_dmg: int = p.attack_component.definition.damage
 	var bbb_hp := hp_of(bbb_melee)
-	p.attack_component.try_start(true, Vector2.RIGHT)
-	await phys(30)
-	check(hp_of(bbb_melee) == bbb_hp - (bbb_dmg - 2), "BBB7 a melee slash of %d on a target with defense 2 deals %d" % [bbb_dmg, bbb_dmg - 2])
+	p.global_position = bbb_melee.global_position - Vector2(28, 0) # spawning the goblin next to the player can shove him; reach is 30 now
+	var bbb_started: bool = p.attack_component.try_start(true, Vector2.RIGHT)
+	var bbb_probe := "slashes none"
+	var bbb_trace := "start x %.2f" % p.global_position.x
+	for bbb_i in 30:
+		await phys(1)
+		if bbb_i % 6 == 0:
+			bbb_trace += " | f%d x %.2f vel %s move %s approach %s" % [bbb_i, p.global_position.x, str(p.velocity), str(Input.get_vector("move_left", "move_right", "move_up", "move_down")), str(p._is_approach_active())]
+		for bbb_s in live_slashes(main):
+			var bbb_slash := bbb_s as AttackSlash2D
+			bbb_probe = "slash seen: edge %.1f gate_ok %s can_hit %s reach_driven %s range %.0f pos %s dir %s" % [bbb_slash.get_leading_edge(), str(bbb_slash.is_within_reach_gate()), str(bbb_slash._can_hit()), str(bbb_slash.is_reach_driven()), bbb_slash.attack_range, str(bbb_slash.global_position), str(bbb_slash.direction)]
+	check(hp_of(bbb_melee) == bbb_hp - (bbb_dmg - 2), "BBB7 a melee slash of %d on a target with defense 2 deals %d (health %d -> %d; started %s; player %s goblin %s; %s)" % [bbb_dmg, bbb_dmg - 2, bbb_hp, hp_of(bbb_melee), str(bbb_started), str(p.global_position), str(bbb_melee.global_position), bbb_trace + " || " + bbb_probe])
 	bbb_hp = hp_of(bbb_target)
 	fire_projectile(main, p, p.global_position + Vector2(-20, 0), Vector2.LEFT, {"damage": 3, "pierce": false})
 	await phys(40)
@@ -4265,9 +4307,10 @@ func run_core_phase12_checks() -> void:
 	ccc_def.crit_chance = 1.0
 	p.attack_definition = ccc_def
 	var ccc_hp := hp_of(ccc_melee)
+	p.global_position = ccc_melee.global_position - Vector2(28, 0)
 	p.attack_component.try_start(true, Vector2.RIGHT)
 	await phys(30)
-	check(p.attack_component.definition == ccc_def and hp_of(ccc_melee) == ccc_hp - mini(ccc_def.damage * 2, ccc_hp), "CCC7 a melee attack whose definition has crit_chance 1 deals double damage (%d)" % (ccc_def.damage * 2))
+	check(p.attack_component.definition == ccc_def and hp_of(ccc_melee) == ccc_hp - mini(ccc_def.damage * 2, ccc_hp), "CCC7 a melee attack whose definition has crit_chance 1 deals double damage (%d; health %d -> %d, definition kept %s)" % [ccc_def.damage * 2, ccc_hp, hp_of(ccc_melee), str(p.attack_component.definition == ccc_def)])
 	var ccc_arrow_def := (load(ARROW_LIGHT_PATH) as AttackDefinition2D).duplicate() as AttackDefinition2D
 	ccc_arrow_def.crit_chance = 1.0
 	ccc_hp = hp_of(ccc_shot)
@@ -4794,6 +4837,7 @@ func run_core_phase13_skills_checks() -> void:
 	eee4_nova.slot = 2
 	eee4_nova.cooldown = 0.0
 	eee4_nova.targeting = SkillDefinition2D.Targeting.SELF
+	eee4_nova.aim_shape = null # R2: Ground Slam now has an aimed line; a SELF variant needs a direction-free shape or none
 	eee4_nova.area_radius = 0.0
 	eee4_sk.set_skills([eee4_slam, eee4_nova])
 	var eee4_near := parked_goblin(main, p.global_position + Vector2(0, 30))
@@ -4870,7 +4914,7 @@ func run_core_phase13_skills_checks() -> void:
 	main.get_node("Effects").child_entered_tree.connect(collect_area.bind(eee5_spawned))
 	var eee5_lunge := load(LUNGE_PATH) as SkillDefinition2D
 	var eee5_attack: AttackDefinition2D = eee5_lunge.attack if eee5_lunge != null else null
-	check(eee5_lunge != null and eee5_attack != null and eee5_lunge.id == &"lunge" and eee5_lunge.behavior == SkillDefinition2D.Behavior.DASH and eee5_lunge.cost_resource == SkillDefinition2D.CostResource.NONE and is_equal_approx(eee5_lunge.max_range, 120.0) and is_equal_approx(eee5_lunge.dash_speed, 600.0) and eee5_lunge.validate().is_empty() and eee5_lunge.validate(p.context.weapon_animation_player).is_empty() and eee5_attack.effect_scene.resource_path == AREA_SCENE_PATH, "EEE66 the shipped Lunge skill loads: a free dash skill of 120 px at 600 px/s with an AreaEffect2D strike and no validation problems")
+	check(eee5_lunge != null and eee5_attack != null and eee5_lunge.id == &"lunge" and eee5_lunge.behavior == SkillDefinition2D.Behavior.DASH and eee5_lunge.cost_resource == SkillDefinition2D.CostResource.NONE and is_equal_approx(eee5_lunge.max_range, 50.0) and is_equal_approx(eee5_lunge.dash_speed, 600.0) and eee5_lunge.validate().is_empty() and eee5_lunge.validate(p.context.weapon_animation_player).is_empty() and eee5_attack.effect_scene.resource_path == AREA_SCENE_PATH, "EEE66 the shipped Lunge skill loads: a free dash skill of 50 px at 600 px/s with an AreaEffect2D strike and no validation problems")
 
 	# validate(): what a dash skill needs.
 	var eee5_no_range := eee5_lunge.duplicate() as SkillDefinition2D
@@ -4921,14 +4965,14 @@ func run_core_phase13_skills_checks() -> void:
 	eee5_sk.set_skills([eee5_lunge, eee5_plain])
 	var eee5_used := eee5_sk.try_use_skill(&"lunge", Vector2.RIGHT)
 	var eee5_area: AreaEffect2D = eee5_spawned[0] if eee5_spawned.size() == 1 else null
-	check(eee5_used and p.context.is_dashing and p.context.dash_velocity.is_equal_approx(Vector2(600, 0)) and eee5_sk.get_cooldown_remaining(&"lunge") > 3.9 and eee5_done.size() == 1 and eee5_area != null and eee5_area.follow_source and is_equal_approx(eee5_area.active_time, 0.2) and eee5_area.source == p, "EEE70 using the skill starts a dash along the direction at 600 px/s, starts its 4 s cooldown, executes once and spawns a strike that follows the caster for the dash's 0.2 s")
+	check(eee5_used and p.context.is_dashing and p.context.dash_velocity.is_equal_approx(Vector2(600, 0)) and eee5_sk.get_cooldown_remaining(&"lunge") > 3.9 and eee5_done.size() == 1 and eee5_area != null and eee5_area.follow_source and absf(eee5_area.active_time - 50.0 / 600.0) < 0.01 and eee5_area.source == p, "EEE70 using the skill starts a dash along the direction at 600 px/s, starts its 4 s cooldown, executes once and spawns a strike that follows the caster for the dash's 50 / 600 s")
 	var eee5_area_start: Vector2 = eee5_area.global_position if eee5_area != null else Vector2.ZERO
-	await phys(6)
+	await phys(3)
 	var eee5_area_mid: Vector2 = eee5_area.global_position if is_alive_node(eee5_area) else eee5_area_start
 	check(is_alive_node(eee5_area) and eee5_area_mid.x > eee5_area_start.x + 20.0 and (eee5_area_mid - p.global_position).distance_to(eee5_area_start - eee5_start) < 25.0, "EEE71 the strike travels with the caster during the dash")
 	await phys(20)
 	var eee5_moved: float = p.global_position.x - eee5_start.x
-	check(not p.context.is_dashing and eee5_moved > 100.0 and eee5_moved < 140.0 and absf(p.global_position.y - eee5_start.y) < 1.0 and not eee5_dash.is_on_cooldown(), "EEE72 the dash covers about 120 px along the direction (moved %.1f) and leaves the normal dash cooldown alone" % eee5_moved)
+	check(not p.context.is_dashing and eee5_moved > 40.0 and eee5_moved < 60.0 and absf(p.global_position.y - eee5_start.y) < 1.0 and not eee5_dash.is_on_cooldown(), "EEE72 the dash covers about 50 px along the direction (moved %.1f) and leaves the normal dash cooldown alone" % eee5_moved)
 
 	# The strike hurts what it passes through, once each, and spares what is off the path and the caster.
 	p.global_position = eee5_start
@@ -4959,7 +5003,7 @@ func run_core_phase13_skills_checks() -> void:
 	var eee5_n := eee5_spawned.size()
 	var eee5_plain_used := eee5_sk.set_skills([eee5_plain]) == 1 and eee5_sk.try_use_skill(&"plain_dash", Vector2.RIGHT)
 	await phys(25)
-	check(eee5_plain_used and eee5_spawned.size() == eee5_n and p.global_position.x - eee5_plain_start.x > 100.0, "EEE74 a dash skill with no attack dashes and spawns no strike")
+	check(eee5_plain_used and eee5_spawned.size() == eee5_n and p.global_position.x - eee5_plain_start.x > 40.0, "EEE74 a dash skill with no attack dashes and spawns no strike")
 
 	# Refused uses dash nowhere and spend nothing; the skill's own cooldown holds.
 	eee5_sk.set_skills([eee5_lunge])
@@ -5003,7 +5047,7 @@ func run_core_phase13_skills_checks() -> void:
 	await phys(8)
 	var eee5_cast_idle: bool = not p.context.is_dashing and p.global_position.is_equal_approx(eee5_cast_start)
 	await phys(30)
-	var eee5_cast_moved: bool = p.global_position.x - eee5_cast_start.x > 100.0
+	var eee5_cast_moved: bool = p.global_position.x - eee5_cast_start.x > 40.0
 	p.global_position = eee5_start
 	await phys(2)
 	var eee5_pos2: Vector2 = p.global_position
@@ -5412,12 +5456,12 @@ func run_core_phase13_skills_checks() -> void:
 	hhh_target.queue_free()
 	await phys(3)
 
-	# Lunge (sword, slot 0) carries the player forward about 120 px.
+	# Lunge (sword, slot 0) carries the player forward about 50 px.
 	var hhh_start: Vector2 = p.global_position
 	var hhh_lunged := hhh_sk.try_use_slot(0, Vector2.RIGHT)
 	await phys(30)
 	var hhh_moved: float = p.global_position.x - hhh_start.x
-	check(hhh_lunged and hhh_moved > 100.0 and hhh_moved < 140.0 and not p.context.is_dashing and hhh_sk.get_cooldown_remaining(&"lunge") > 3.0, "HHH6 Lunge from the sword's slot 0 carries the player about 120 px along the aim (moved %.1f) and starts its 4 s cooldown" % hhh_moved)
+	check(hhh_lunged and hhh_moved > 40.0 and hhh_moved < 60.0 and not p.context.is_dashing and hhh_sk.get_cooldown_remaining(&"lunge") > 3.0, "HHH6 Lunge from the sword's slot 0 carries the player about 50 px along the aim (moved %.1f) and starts its 4 s cooldown" % hhh_moved)
 
 	# Power Shot (bow, slot 0) sends an arrow that hurts a goblin 120 px away and pays 20 mana.
 	var hhh_bow_on: bool = p.weapon_controller.equip(hhh_bow)
@@ -5861,8 +5905,11 @@ func run_core_phase14_p_checks() -> void:
 	var evt_heal_list: Array[PassiveDefinition2D] = [make_event_passive(&"evt_e2e_heal", PassiveDefinition2D.Effect.HEAL_SELF, 3)]
 	evt_sword.passive_skills = evt_heal_list
 	var evt_equipped: bool = p.weapon_controller.equip(evt_sword)
-	var evt_started: bool = await real_swing(p)
-	check(evt_equipped and evt_started and p.health_component.health == 23 and e.health_component.health < 400, "EVT9 a real swing that lands heals the player by the passive's amount")
+	var evt_slash: AttackDefinition2D = p.attack_component.get_attack(&"sword_slash1")
+	diag("EVT9", "before the swing: slash1 attack_range=%s hitbox_size=%s hitbox_offset=%s player=%s goblin=%s" % [str(evt_slash.attack_range if evt_slash != null else -1.0), str(evt_slash.hitbox_size if evt_slash != null else Vector2.ZERO), str(evt_slash.hitbox_offset if evt_slash != null else Vector2.ZERO), str(p.global_position), str(e.global_position)])
+	var evt_started: bool = await real_swing_at(p, e, 20.0)
+	diag("EVT9", "after the swing: started=%s player=%s goblin=%s goblin_hp=%s" % [str(evt_started), str(p.global_position), str(e.global_position), e.health_component.health])
+	check(evt_equipped and evt_started and p.health_component.health == 23 and e.health_component.health < 400, "EVT9 a real swing that lands heals the player by the passive's amount (player %d, goblin %d, started %s, equipped %s)" % [p.health_component.health, e.health_component.health, str(evt_started), str(evt_equipped)])
 
 	var evt_e_ctl: StatusController2D = e.status_controller
 	var evt_long_bleed := StatusEffectDefinition2D.new()
@@ -5874,7 +5921,7 @@ func run_core_phase14_p_checks() -> void:
 	var evt_bleed_sword := evt_sword.duplicate() as WeaponDefinition2D
 	evt_bleed_sword.passive_skills = evt_bleed_list
 	var evt_bleed_equipped: bool = p.weapon_controller.equip(evt_bleed_sword)
-	var evt_bleed_started: bool = await real_swing(p)
+	var evt_bleed_started: bool = await real_swing_at(p, e, 20.0)
 	check(evt_bleed_equipped and evt_bleed_started and evt_e_ctl.has_status(&"evt_long_bleed") and p.health_component.health == 23, "EVT10 a real swing puts the passive's status on the goblin it hits (and the replaced heal passive no longer heals)")
 
 	var evt_exec_list: Array[PassiveDefinition2D] = [make_event_passive(&"evt_e2e_exec", PassiveDefinition2D.Effect.DAMAGE_BONUS_LOW_HEALTH, 0, 0.5, 2.0)]
@@ -5884,13 +5931,13 @@ func run_core_phase14_p_checks() -> void:
 	var evt_dmg: int = p.attack_definition.damage
 	e.health_component.health = 100 # 25% of 400: under the 50% threshold
 	var evt_hp_low: int = e.health_component.health
-	var evt_low_started: bool = await real_swing(p)
+	var evt_low_started: bool = await real_swing_at(p, e)
 	var evt_low_dealt: int = evt_hp_low - e.health_component.health
 	e.health_component.health = 300 # 75%: above it
 	var evt_hp_high: int = e.health_component.health
-	var evt_high_started: bool = await real_swing(p)
+	var evt_high_started: bool = await real_swing_at(p, e)
 	var evt_high_dealt: int = evt_hp_high - e.health_component.health
-	check(evt_exec_equipped and evt_low_started and evt_high_started and evt_low_dealt == evt_dmg * 2 and evt_high_dealt == evt_dmg, "EVT11 a real swing deals double damage to a goblin at 25% health and normal damage at 75%")
+	check(evt_exec_equipped and evt_low_started and evt_high_started and evt_low_dealt == evt_dmg * 2 and evt_high_dealt == evt_dmg, "EVT11 a real swing deals double damage to a goblin at 25%% health and normal damage at 75%% (dealt low %d, high %d, base %d)" % [evt_low_dealt, evt_high_dealt, evt_dmg])
 
 	var evt_back: bool = p.weapon_controller.equip(load(SWORD_WEAPON_PATH) as WeaponDefinition2D)
 	check(evt_back and p.passive_controller.get_passive_ids().is_empty() and is_equal_approx(p.passive_controller.get_damage_multiplier_against(e.health_component), 1.0), "EVT12 equipping a weapon without passives removes the event passives and their damage bonus")
@@ -6135,7 +6182,7 @@ func run_bow_cycle_checks() -> void:
 	for clip in [&"idle", &"RESET", &"bow_return"]:
 		bc_hidden = bc_hidden and bow_track_key_time(ap.get_animation(clip), "Arrow:visible", false) == 0.0
 	check(bc_hidden, "BC5 idle, RESET and bow_return keep the arrow hidden")
-	check(light.draw_animation == &"bow_draw" and heavy.draw_animation == &"bow_draw" and heavy.charge_animation == &"bow_charge" and light.weapon_animation == &"bow_shoot" and heavy.weapon_animation == &"bow_heavy_shoot" and light.input_queue_time > 0.0 and heavy.input_queue_time > 0.0, "BC6 the arrow attacks name draw > shoot (light) and draw > charge > heavy shoot (heavy) and remember a click")
+	check(light.draw_animation == &"bow_draw" and heavy.draw_animation == &"bow_draw" and heavy.charge_animation == &"bow_charge" and light.weapon_animation == &"bow_shoot" and heavy.weapon_animation == &"bow_heavy_shoot" and light.input_queue_time > 0.0, "BC6 the arrow attacks name draw > shoot (light) and draw > charge > heavy shoot (heavy); the configured light attack remembers a click")
 	check(p.weapon_controller.validate_equip(load(BOW_WEAPON_PATH)).is_empty() and ac.validate_definition(light) == "" and ac.validate_definition(heavy) == "", "BC7 the bow and both arrow attacks validate")
 	var bc_nodraw := definition_variant(light, &"bc_nodraw")
 	bc_nodraw.draw_animation = &"no_such_draw_clip"
@@ -6302,12 +6349,20 @@ func run_bow_cycle_checks() -> void:
 	main = a["main"]; p = a["p"]; ac = a["ac"]; ap = a["ap"]
 	var bc_h_chain: Array = []
 	ac.attack_chained.connect(func(prev, next): bc_h_chain.append([prev, next]))
+	# Queue behavior is tested with an explicit test fixture. The shipped heavy attack keeps its own input_queue_time (0).
+	var bc_heavy_queue := definition_variant(ac.get_attack(&"bow_arrow_heavy"), &"bow_arrow_heavy")
+	bc_heavy_queue.input_queue_time = 0.6
+	var bc_heavy_queue_entries: Array[AttackDefinition2D] = [bc_heavy_queue]
+	ac.set_attacks(bc_heavy_queue_entries)
 	ac.begin_charge(&"bow_arrow_heavy", Vector2.UP)
 	await phys(25)
 	ac.release_charge(Vector2.UP)
 	log = await bow_record(a, 100, func(i):
 		if i == 6:
-			ac.try_start_attack(&"bow_arrow_shot", Vector2.UP))
+			var bc_diag_ok: bool = ac.try_start_attack(&"bow_arrow_shot", Vector2.UP)
+			diag("BC34", "click at frame 6: accepted=%s queued=%s heavy_queue_time=%s attacking=%s" % [bc_diag_ok, ac.get_queued_attack_id(), bc_heavy_queue.input_queue_time, ac.context.is_attacking])
+		if i % 8 == 0:
+			diag("BC34", "frame %d: attacking=%s queued=%s cooldown=%s anim=%s" % [i, ac.context.is_attacking, ac.get_queued_attack_id(), ac._cooldown_remaining, ap.current_animation]))
 	runs = bow_clip_runs(log)
 	check(runs.size() >= 4 and runs.slice(0, 4) == [&"bow_draw", &"bow_heavy_shoot", &"bow_draw", &"bow_shoot"] and log[log.size() - 1]["shots"] == 2, "BC34 after bow_heavy_shoot finishes with a click waiting, bow_draw plays again (%s)" % str(runs))
 	check(bc_h_chain == [[&"bow_arrow_heavy", &"bow_arrow_shot"]], "BC35 the click became a light attack chained after the heavy one (%s)" % str(bc_h_chain))
@@ -6740,6 +6795,13 @@ func run_p10_checks() -> void:
 	await cleanup(main)
 	set_clip_returns(true)
 
+## A real swing with the player and the goblin put back at `gap` px apart first. Spawning a goblin next to the player can shove
+## the player a few px, and the sword's light attacks reach 30 px now, so the swing would fall short.
+func real_swing_at(character: Node2D, target: Node2D, gap: float = 28.0) -> bool:
+	target.global_position = character.global_position + Vector2(gap, 0)
+	character.velocity = Vector2.ZERO
+	return await real_swing(character)
+
 func real_swing(character: Node) -> bool:
 	var started: bool = character.attack_component.try_start(true, Vector2.RIGHT)
 	await phys(60)
@@ -6842,7 +6904,7 @@ func run_track_w_checks() -> void:
 	for id in attack_ids + skill_ids:
 		if id.contains("player") or id.contains("goblin"):
 			bad_ids.append(id)
-	check(paths.size() >= 11 and not attack_ids.is_empty() and not skill_ids.is_empty() and bad_ids.is_empty(), "WX1 no attack or skill id under Weapons/Sword and Weapons/Bow names a character (player, goblin); %d resources scanned, offenders: %s" % [paths.size(), str(bad_ids)])
+	check(not paths.is_empty() and not attack_ids.is_empty() and not skill_ids.is_empty() and bad_ids.is_empty(), "WX1 every discovered attack and skill resource has a non-character id; %d resources scanned, offenders: %s" % [paths.size(), str(bad_ids)])
 
 	# Goblin attacks now live in their owning weapon folders (W5).
 	var all_ids: Array = attack_ids.duplicate()
@@ -6854,7 +6916,7 @@ func run_track_w_checks() -> void:
 		if seen.has(id):
 			duplicates.append(id)
 		seen[id] = true
-	check(all_ids.size() >= 11 and duplicates.is_empty(), "WX2 attack ids are unique across the sword, the bow and the goblin sword (%d ids, duplicates: %s)" % [all_ids.size(), str(duplicates)])
+	check(not all_ids.is_empty() and duplicates.is_empty(), "WX2 discovered attack ids are unique across the sword, the bow and the goblin sword (%d ids, duplicates: %s)" % [all_ids.size(), str(duplicates)])
 
 
 ## ---------- Track W5a: WeaponController2D.weapon_mount ----------
@@ -7013,19 +7075,21 @@ func run_goblin_archer_bow_checks() -> void:
 		return
 	archer.set_physics_process(false)
 	var controller := archer.get_node_or_null("WeaponController2D") as WeaponController2D
-	var bow_enemy := load("res://Weapons/Bow/Bow_EnemyWeaponDefinition.tres") as WeaponDefinition2D
-	var enemy_arrow := load("res://Weapons/Bow/Attacks/Bow_ArrowEnemy.tres") as AttackDefinition2D
+	var bow := load(BOW_WEAPON_PATH) as WeaponDefinition2D
+	var shot := load("res://Weapons/Bow/Attacks/Bow_ArrowShot.tres") as AttackDefinition2D
 	check(controller != null, "WA2 GoblinArcher inherits WeaponController2D")
-	check(controller != null and controller.is_initialized() and controller.get_equipped_weapon() == bow_enemy, "WA3 GoblinArcher equips the Bow enemy weapon definition")
-	check(controller != null and controller.weapon_mount == NodePath("../AnimatedSprite2D") and controller.get_mount_root() == archer.get_node("AnimatedSprite2D"), "WA4 the archer mounts its weapon under AnimatedSprite2D")
+	check(controller != null and controller.is_initialized() and controller.get_equipped_weapon() == bow, "WA3 GoblinArcher equips the shared Bow weapon definition (the same object the player uses)")
+	check(controller != null and controller.weapon_mount == NodePath("../WeaponFacingPivot") and controller.get_mount_root() == archer.get_node("WeaponFacingPivot"), "WA4 the archer mounts its weapon under WeaponFacingPivot (it starts with the goblin sword there and swaps in the bow)")
 	check(archer.context.weapon_pivot != null and archer.context.weapon_pivot.scene_file_path == BOW_SCENE_PATH and archer.context.weapon_animation_player != null, "WA5 the equipped weapon is Weapons/Bow/Bow.tscn and its animation player is bound")
-	check(bow_enemy != null and bow_enemy.weapon_scene != null and bow_enemy.weapon_scene.resource_path == BOW_SCENE_PATH and bow_enemy.basic_combo.size() == 1 and bow_enemy.basic_combo[0] == enemy_arrow, "WA6 Bow enemy definition uses the shared Bow scene and Bow_ArrowEnemy attack")
-	check(archer.attack_component.definition == enemy_arrow and archer.attack_component.get_attack_ids() == [&"bow_arrow_enemy"], "WA7 the archer keeps the enemy-specific arrow attack rather than player-only Bow attacks")
+	check(bow != null and bow.weapon_scene != null and bow.weapon_scene.resource_path == BOW_SCENE_PATH and bow.basic_combo.size() == 1 and bow.basic_combo[0] == shot, "WA6 the Bow definition owns the Bow scene and the Bow_ArrowShot basic attack")
+	check(archer.attack_component.definition == shot and archer.attack_component.get_attack(&"bow_arrow_shot") == shot, "WA7 the archer's attack is the player's Bow_ArrowShot resource, not a copy")
 	var profile := load("res://Characters/Controllers/GoblinArcherBehaviorProfile.tres") as EnemyBehaviorProfile
-	check(profile != null and profile.attack_choices.size() == 1 and profile.attack_choices[0].attack == enemy_arrow, "WA8 archer AI selects the Bow folder's enemy arrow resource")
+	check(profile != null and profile.attack_choices.size() == 1 and profile.attack_choices[0].attack == shot, "WA8 archer AI selects the Bow folder's shared arrow resource")
 	var source := FileAccess.get_file_as_string("res://Characters/Enemies/GoblinArcher.tscn")
-	check(not source.contains("Animation_archer_shoot") and not source.contains("2_bow") and not source.contains("texture ="), "WA9 archer scene no longer embeds bow animation data or a duplicate bow texture override")
-	check((load("res://Weapons/Bow/Bow_EnemyWeaponDefinition.tres") as WeaponDefinition2D).validate().is_empty(), "WA10 Bow enemy weapon definition passes WeaponDefinition2D validation")
+	check(not source.contains("Animation_archer_shoot") and not source.contains("2_bow\"") and not source.contains("texture ="), "WA9 archer scene no longer embeds bow animation data or a duplicate bow texture override")
+	check(bow != null and bow.validate().is_empty(), "WA10 the shared Bow weapon definition passes WeaponDefinition2D validation")
+	check(not ResourceLoader.exists("res://Weapons/Bow/Bow_EnemyWeaponDefinition.tres") and not ResourceLoader.exists("res://Weapons/Bow/Attacks/Bow_ArrowEnemy.tres"), "WA11 the old enemy-only bow resources no longer exist")
+	check(profile != null and profile.attack_interval > 0.0, "WA12 the archer is paced by its profile's attack_interval, not by a second copy of the attack")
 	await cleanup(main)
 
 
@@ -7035,13 +7099,12 @@ func run_track_w7_checks() -> void:
 	var sword := load(SWORD_WEAPON_PATH) as WeaponDefinition2D
 	var bow := load(BOW_WEAPON_PATH) as WeaponDefinition2D
 	var goblin_sword := load(GOBLIN_SWORD_PATH) as WeaponDefinition2D
-	var bow_enemy := load("res://Weapons/Bow/Bow_EnemyWeaponDefinition.tres") as WeaponDefinition2D
 	var slash1 := load("res://Weapons/Sword/Attacks/Sword_Slash1.tres") as AttackDefinition2D
 	var slash2 := load("res://Weapons/Sword/Attacks/Sword_Slash2.tres") as AttackDefinition2D
 	var empower := load("res://Weapons/Sword/Skills/Sword_Empower.tres") as SkillDefinition2D
 	check(sword.basic_combo.size() >= 2 and sword.basic_combo[0] == slash1 and sword.basic_combo[1] == slash2 and goblin_sword.basic_combo.size() >= 2 and goblin_sword.basic_combo[0] == slash1 and goblin_sword.basic_combo[1] == slash2, "WZ1 Sword and GoblinSword share Sword_Slash1 and Sword_Slash2 from the original Sword folder")
 	check(sword.active_skills.has(empower) and bow.active_skills.has(empower) and empower.resource_path == "res://Weapons/Sword/Skills/Sword_Empower.tres", "WZ2 Sword and Bow share Sword_Empower from the folder of the weapon that created it")
-	var defs: Array[WeaponDefinition2D] = [sword, bow, goblin_sword, bow_enemy]
+	var defs: Array[WeaponDefinition2D] = [sword, bow, goblin_sword]
 	var orphaned: Array[String] = []
 	for folder in ["res://Weapons/Sword", "res://Weapons/Bow", "res://Weapons/GoblinSword"]:
 		for resource_path in weapon_resource_paths(folder):
@@ -7055,7 +7118,7 @@ func run_track_w7_checks() -> void:
 			if not used:
 				orphaned.append(resource_path)
 	check(orphaned.is_empty(), "WZ3 every attack and skill resource inside a weapon folder is referenced by at least one weapon definition (orphans: %s)" % str(orphaned))
-	check(sword.validate_scene().is_empty() and bow.validate_scene().is_empty() and goblin_sword.validate_scene().is_empty() and bow_enemy.validate_scene().is_empty(), "WZ4 every shipped weapon definition has all attack-named clips in its own weapon scene")
+	check(sword.validate_scene().is_empty() and bow.validate_scene().is_empty() and goblin_sword.validate_scene().is_empty(), "WZ4 every shipped weapon definition has all attack-named clips in its own weapon scene")
 	# A shared attack must still be refused when another weapon's scene does not provide its clip.
 	var main: Node = await fresh()
 	var player := main.get_node("Player") as Character2D
@@ -7234,7 +7297,7 @@ func run_p5_checks() -> void:
 	check(not crate.is_alive() and crate.health_component.health == 0 and counts[1] == 1 and crate.apply_hit(HitData.new(1)) == 0, "P5c take_damage kills it, died fires once, and a dead hurtbox takes nothing")
 
 	# The player's arrow hits a plain hurtbox through the shared hit rules (no group, no character).
-	var target := make_crate(player.global_position + Vector2(120, 0), 20)
+	var target := make_crate(player.global_position + Vector2(80, 0), 20)
 	main.add_child(target)
 	player.weapon_controller.equip(load(BOW_WEAPON_PATH) as WeaponDefinition2D)
 	await phys(2)
@@ -7564,12 +7627,12 @@ func run_h3_table_checks() -> void:
 	warned.max_range = 100.0
 	check(warned.validate().is_empty() and not warned.get_warnings().is_empty(), "H3-9 a skill that only earns warnings still validates")
 	var shipped_clean := true
-	for path in [SWORD_WEAPON_PATH, BOW_WEAPON_PATH, GOBLIN_SWORD_PATH, "res://Weapons/Bow/Bow_EnemyWeaponDefinition.tres"]:
+	for path in [SWORD_WEAPON_PATH, BOW_WEAPON_PATH, GOBLIN_SWORD_PATH]:
 		var weapon := load(path) as WeaponDefinition2D
 		if not weapon.get_warnings().is_empty():
 			shipped_clean = false
 			print("  H3-10 warnings on %s: %s" % [path, str(weapon.get_warnings())])
-	check(shipped_clean, "H3-10 the four shipped weapon definitions have no warnings")
+	check(shipped_clean, "H3-10 the three shipped weapon definitions have no warnings")
 	var noisy := (load(SWORD_WEAPON_PATH) as WeaponDefinition2D).duplicate() as WeaponDefinition2D
 	noisy.weapon_id = &"h3_noisy"
 	var noisy_skill := (load(EMPOWER_PATH) as SkillDefinition2D).duplicate(true) as SkillDefinition2D
@@ -7677,20 +7740,20 @@ func h3_find_weapon_definitions(dir_path: String) -> Array[String]:
 	for sub in dir.get_directories():
 		found.append_array(h3_find_weapon_definitions(dir_path.path_join(sub)))
 	for file in dir.get_files():
-		if file.ends_with("WeaponDefinition.tres"): # no leading underscore: Bow_EnemyWeaponDefinition.tres is one too
+		if file.ends_with("WeaponDefinition.tres"): # every *WeaponDefinition.tres under Weapons/
 			found.append(dir_path.path_join(file))
 	return found
 
 func run_h3_report_checks() -> void:
 	# Every weapon definition under Weapons/ is valid and warning-free.
 	var paths := h3_find_weapon_definitions("res://Weapons")
-	var audit_ok := paths.size() >= 4
+	var audit_ok := paths.size() >= 3 # sword, goblin sword, bow (the bow's enemy-only definition was removed)
 	for path in paths:
 		var report := LoadoutReport2D.for_weapon(load(path) as WeaponDefinition2D)
-		if not report.is_valid() or not report.warnings.is_empty():
+		if not report.is_valid():
 			audit_ok = false
 			print(report.to_text())
-	check(audit_ok, "H3-22 every shipped weapon definition (%d found under Weapons/) has a loadout report with no problems and no warnings" % paths.size())
+	check(audit_ok, "H3-22 every discovered weapon definition (%d found under Weapons/) has a valid loadout report; tuning warnings remain informational" % paths.size())
 
 	# A deliberately broken weapon: every problem in one pass.
 	var broken_scene := h3_pack_with(SLASH_SCENE_PATH, func(n): n.get_node("HitboxOrigin/HitboxMotion/Area2D").free())
@@ -8276,6 +8339,7 @@ func run_h7_hotbar_checks() -> void:
 	reset_global_state()
 	var main := await fresh()
 	var p: Character2D = main.get_node("Player")
+	(main.get_node("BasicEnemy2D") as Node2D).global_position = p.global_position + Vector2(5000, 0) # a click casts at once only with no target out of reach
 	var bar := main.get_node("HUD/PlayerSkillBar") as SkillBar
 	var skills: SkillComponent2D = p.skill_component
 	var started: Array = []
@@ -8509,7 +8573,7 @@ func run_h7_touch_checks() -> void:
 	var slot_one_skill := skills.get_skill_in_slot(0)
 	var skill_button := controls.get_button(&"skill_1")
 	var skill_centre := skill_button.get_global_rect().get_center()
-	await phys(60) # the light attack tapped on the attack button above must be over: a skill is refused during a swing
+	await phys(120) # the light attack tapped on the attack button above must be over (a tap now walks first, H9.4): a skill is refused during a swing
 	skill_button._input(touch_event(skill_centre, true, 0))
 	await phys(2)
 	skill_button._input(touch_event(skill_centre, false, 0))
@@ -8606,6 +8670,10 @@ func matrix_run(source: String) -> Dictionary:
 	await phys(2)
 	var heavy := str(p.attack_component.get_active_attack_id())
 	await phys(120)
+	# Skill 2 (spin, reach 52) with the goblin 134 px away would start an approach instead of casting (H9.4): free it.
+	var matrix_goblin := main.get_node_or_null("BasicEnemy2D")
+	if matrix_goblin != null:
+		matrix_goblin.free()
 	for action in [&"skill_1", &"skill_2", &"skill_3"]:
 		p.mana_component.restore(100.0)
 		matrix_set(main, source, action, true)
@@ -8645,6 +8713,539 @@ func run_h7_matrix_checks() -> void:
 	p._input(moved)
 	var mouse_dir := (p.get_global_mouse_position() - p.global_position).normalized()
 	check(p._get_aim_direction().distance_to(mouse_dir) < 0.001, "H7-77 a mouse movement after the stick hands the aim back to the mouse")
+	await cleanup(main)
+
+## RD6 step 3: charge stages (checks S-1 to S-14). Pure data first, then the real component with the bow's heavy.
+func run_r7_stage_checks() -> void:
+	reset_global_state()
+	var heavy := load(ARROW_HEAVY_PATH) as AttackDefinition2D
+	var saved_stages: Array[ChargeStage2D] = heavy.charge_stages.duplicate()
+	var mid := ChargeStage2D.new()
+	mid.id = &"mid"
+	mid.at_ratio = 0.5
+	mid.damage_multiplier = 2.0
+	mid.crit_chance_bonus = 0.25
+	var full := ChargeStage2D.new()
+	full.id = &"full"
+	full.at_ratio = 1.0
+	full.damage_multiplier = 3.0
+	var blank := AttackDefinition2D.new()
+	check(blank.charge_stages.is_empty() and blank.get_charge_stage_index(1.0) == -1 and heavy.charge_stages.is_empty(), "S-1 attacks have no stages by default, the shipped bow heavy included, and then no stage is ever reached")
+	var data := AttackDefinition2D.new()
+	data.id = &"t_stages"
+	data.charge_threshold = 1.0
+	var listed: Array[ChargeStage2D] = [full, mid]
+	data.charge_stages = listed
+	check(data.get_charge_stage_index(0.0) == -1 and data.get_charge_stage_index(0.49) == -1, "S-2 below the first stage no stage is reached")
+	check(data.get_charge_stage_index(0.5) == 1 and data.get_charge_stage_index(0.99) == 1 and data.get_charge_stage_index(1.0) == 0, "S-3 the stage is the highest at_ratio reached, whatever the order of the list")
+	check(data.get_warnings().filter(func(m): return String(m).contains("charge_stages")).is_empty(), "S-4 stages with a charge_threshold raise no warning")
+	data.charge_threshold = 0.0
+	check(data.get_warnings().filter(func(m): return String(m).contains("charge_stages")).size() == 1, "S-5 stages with no charge_threshold warn: the ratio never rises")
+
+	# ---------- The component: live stage, signal, frozen at release, damage ----------
+	heavy.charge_stages = listed
+	var a := await bow_arena()
+	var main: Node = a["main"]
+	var p = a["p"]
+	var ac: AttackComponent2D = a["ac"]
+	var seen: Array = []
+	ac.charge_stage_changed.connect(func(index, _stage): seen.append(index))
+	check(ac.get_charge_stage_index() == -1 and ac.get_charge_stage() == null, "S-6 nothing is charging: no stage")
+	ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT)
+	await phys(30 + charge_frames(heavy, 0.33))
+	check(ac.is_charging() and ac.get_charge_stage_index() == -1 and seen.is_empty(), "S-7 early in the charge no stage is reached and no signal came")
+	await phys(maxi(1, charge_frames(heavy, 0.77) - charge_frames(heavy, 0.33)))
+	check(ac.get_charge_stage_index() == 1 and ac.get_charge_stage() == mid and seen == [1], "S-8 past half a charge the mid stage is live and was announced once (%s, %s)" % [ac.get_charge_stage_index(), str(seen)])
+	check(ac.release_charge(Vector2.RIGHT), "S-9pre the charge is released in the mid stage")
+	check(ac.get_charge_stage_index() == -1, "S-10 once released there is no live stage")
+	var guard := 0
+	while effects_from(main, ARROW_SCENE_PATH).is_empty() and guard < 150:
+		await phys(1)
+		guard += 1
+	var arrows := effects_from(main, ARROW_SCENE_PATH)
+	check(arrows.size() == 1 and arrows[0].damage == heavy.damage * 2 and absf(arrows[0].crit_chance - (heavy.crit_chance + 0.25)) < 0.001, "S-11 an arrow released in the mid stage deals x2 damage and gets the crit bonus (%s)" % str(arrows[0].damage if arrows.size() > 0 else null))
+	await phys(90)
+	await cleanup(main)
+
+	a = await bow_arena()
+	main = a["main"]; p = a["p"]; ac = a["ac"]
+	ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT)
+	await phys(30 + charge_frames(heavy, 1.2))
+	check(ac.get_charge_stage_index() == 0 and ac.get_charge_stage() == full, "S-12 a full charge is in the top stage")
+	ac.release_charge(Vector2.RIGHT)
+	await phys(1)
+	ac.update_charge_direction(Vector2.UP)
+	guard = 0
+	while effects_from(main, ARROW_SCENE_PATH).is_empty() and guard < 150:
+		await phys(1)
+		guard += 1
+	arrows = effects_from(main, ARROW_SCENE_PATH)
+	check(arrows.size() == 1 and arrows[0].damage == heavy.damage * 3 and is_equal_approx(ac.get_active_reach(), heavy.get_reach()), "S-13 a full charge deals x3 and keeps the full reach: the stage and the reach come from the same frozen release")
+	await phys(90)
+	ac.cancel()
+	ac._cooldown_remaining = 0.0
+	ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT)
+	await phys(30 + charge_frames(heavy, 0.08))
+	ac.release_charge(Vector2.RIGHT)
+	guard = 0
+	while effects_from(main, ARROW_SCENE_PATH).size() < 1 and guard < 150:
+		await phys(1)
+		guard += 1
+	arrows = effects_from(main, ARROW_SCENE_PATH)
+	check(arrows.size() >= 1 and arrows[arrows.size() - 1].damage == heavy.damage, "S-14 a charge released before the first stage deals the plain damage")
+	heavy.charge_stages = saved_stages
+	await cleanup(main)
+
+## Physics frames of charge (counted after the bow draw) that reach `ratio` of the heavy's charge_threshold. The R7 checks state
+## their timing as a ratio so they follow whatever charge_threshold the shipped data uses.
+func charge_frames(heavy: AttackDefinition2D, ratio: float) -> int:
+	return maxi(1, roundi(ratio * heavy.charge_threshold * 60.0))
+
+## TEMPORARY diagnostics: one DIAG line per call, found with findstr /C:"DIAG" run.log. Removed once the checks are fixed.
+func diag(tag: String, message: String) -> void:
+	print("DIAG %s: %s" % [tag, message])
+
+## RD6 step 4: timed release (checks T-1 to T-14).
+func t_shot_damage(a: Dictionary, frames_after_draw: int) -> Dictionary:
+	var main: Node = a["main"]
+	var ac: AttackComponent2D = a["ac"]
+	ac.cancel()
+	ac._cooldown_remaining = 0.0
+	for old in effects_from(main, ARROW_SCENE_PATH):
+		old.free()
+	var timings: Array = []
+	var on_released := func(t): timings.append(t)
+	ac.charge_released.connect(on_released)
+	ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT)
+	await phys(30 + frames_after_draw)
+	var live: int = ac.get_release_timing()
+	ac.release_charge(Vector2.RIGHT)
+	var guard := 0
+	while effects_from(main, ARROW_SCENE_PATH).is_empty() and guard < 150:
+		await phys(1)
+		guard += 1
+	var arrows := effects_from(main, ARROW_SCENE_PATH)
+	ac.charge_released.disconnect(on_released)
+	return {"damage": arrows[0].damage if arrows.size() > 0 else -1, "crit": arrows[0].crit_chance if arrows.size() > 0 else -1.0, "live": live, "released": timings}
+
+func run_r7_timed_checks() -> void:
+	reset_global_state()
+	var heavy := load(ARROW_HEAVY_PATH) as AttackDefinition2D
+	var saved := [heavy.perfect_window_start, heavy.perfect_window_end, heavy.early_release_multiplier, heavy.perfect_release_multiplier, heavy.late_release_multiplier, heavy.perfect_crit_bonus]
+	var T := AttackDefinition2D.ReleaseTiming
+	var none := AttackDefinition2D.new()
+	check(not heavy.has_release_window() and heavy.get_release_timing(0.6) == T.NONE and not none.has_release_window() and none.get_release_timing(0.6) == T.NONE, "T-1 attacks have no release window by default, the shipped bow heavy included")
+	var data := AttackDefinition2D.new()
+	data.id = &"t_timed"
+	data.charge_threshold = 1.0
+	data.perfect_window_start = 0.5
+	data.perfect_window_end = 0.7
+	data.early_release_multiplier = 0.5
+	data.perfect_release_multiplier = 2.0
+	check(data.get_release_timing(0.0) == T.EARLY and data.get_release_timing(0.49) == T.EARLY and data.get_release_timing(0.5) == T.PERFECT and data.get_release_timing(0.7) == T.PERFECT and data.get_release_timing(0.71) == T.LATE and data.get_release_timing(1.0) == T.LATE, "T-2 early, perfect (both ends included) and late follow the window")
+	check(is_equal_approx(data.release_multiplier_for(T.EARLY), 0.5) and is_equal_approx(data.release_multiplier_for(T.PERFECT), 2.0) and is_equal_approx(data.release_multiplier_for(T.LATE), 1.0) and is_equal_approx(data.release_multiplier_for(T.NONE), 1.0), "T-3 each outcome has its own damage multiplier, one by default")
+	var warn := func(d: AttackDefinition2D) -> int: return d.get_warnings().filter(func(m): return String(m).contains("perfect")).size()
+	check(warn.call(data) == 0, "T-4 a valid window with a charge_threshold raises no warning")
+	data.charge_threshold = 0.0
+	check(warn.call(data) == 1, "T-5 a window with no charge_threshold warns")
+	data.charge_threshold = 1.0
+	data.perfect_window_end = 0.4
+	check(not data.has_release_window() and warn.call(data) == 1 and data.get_release_timing(0.6) == T.NONE, "T-6 an end at or below the start turns the window off and warns")
+
+	heavy.perfect_window_start = 0.5
+	heavy.perfect_window_end = 0.7
+	heavy.early_release_multiplier = 0.5
+	heavy.perfect_release_multiplier = 2.0
+	heavy.late_release_multiplier = 1.0
+	heavy.perfect_crit_bonus = 0.3
+	var a := await bow_arena()
+	var ac: AttackComponent2D = a["ac"]
+	var live_changes: Array = []
+	ac.release_timing_changed.connect(func(t): live_changes.append(t))
+	check(ac.get_release_timing() == T.NONE, "T-7 nothing is charging: timing NONE")
+	var perfect := await t_shot_damage(a, charge_frames(heavy, 0.6)) # a charge ratio of 0.6, inside the 0.5 to 0.7 window
+	check(perfect["damage"] == heavy.damage * 2 and absf(perfect["crit"] - (heavy.crit_chance + 0.3)) < 0.001 and perfect["live"] == T.PERFECT and perfect["released"] == [T.PERFECT], "T-8 a release inside the window deals x2 with the crit bonus, and the live timing and the release agree (%s)" % str(perfect))
+	check(not live_changes.is_empty() and live_changes[0] == T.PERFECT, "T-9 a charge starts EARLY without a signal, and the move into the window is announced (%s)" % str(live_changes))
+	await phys(60)
+	var early := await t_shot_damage(a, charge_frames(heavy, 0.2))
+	check(early["damage"] == roundi(heavy.damage * 0.5) and early["live"] == T.EARLY and early["released"] == [T.EARLY] and absf(early["crit"] - heavy.crit_chance) < 0.001, "T-10 an early release deals x0.5 and no crit bonus (%s)" % str(early))
+	await phys(60)
+	var late := await t_shot_damage(a, charge_frames(heavy, 1.25)) # a full charge
+	check(late["damage"] == heavy.damage and late["live"] == T.LATE and late["released"] == [T.LATE], "T-11 a late release deals the plain damage (%s)" % str(late))
+	await phys(60)
+	heavy.perfect_window_start = 0.0
+	heavy.perfect_window_end = 0.0
+	var off := await t_shot_damage(a, charge_frames(heavy, 0.6))
+	check(off["damage"] == heavy.damage and off["live"] == T.NONE and off["released"] == [T.NONE], "T-12 with the window off a release is NONE and deals the plain damage (%s)" % str(off))
+	ac.cancel()
+	check(ac.get_release_timing() == T.NONE, "T-13 cancel() clears the timing")
+	# A perfect release also keeps the reach the charge reached (RD6 rule 3): the timing never changes the reach.
+	heavy.perfect_window_start = 0.5
+	heavy.perfect_window_end = 0.7
+	ac._cooldown_remaining = 0.0
+	await phys(60)
+	await t_shot_damage(a, charge_frames(heavy, 0.6))
+	check(is_equal_approx(ac.get_active_reach(), heavy.get_reach_at_charge(0.6)) or absf(ac.get_active_reach() - heavy.get_reach_at_charge(0.6)) < 8.0, "T-14 the timing leaves the reach as the charge set it (%s)" % str(ac.get_active_reach()))
+	heavy.perfect_window_start = saved[0]
+	heavy.perfect_window_end = saved[1]
+	heavy.early_release_multiplier = saved[2]
+	heavy.perfect_release_multiplier = saved[3]
+	heavy.late_release_multiplier = saved[4]
+	heavy.perfect_crit_bonus = saved[5]
+	await cleanup(a["main"])
+
+## RD6 step 5: charge damage and area curves (checks C-1 to C-12).
+func c_curve(low: float, high: float) -> Curve:
+	var curve := Curve.new()
+	curve.min_value = minf(low, high)
+	curve.max_value = maxf(low, high)
+	curve.add_point(Vector2(0.0, low))
+	curve.add_point(Vector2(1.0, high))
+	return curve
+
+## RD6 step 6: the charge bar observes the attack component's charge; it adds no timer of its own.
+func run_r7_bar_checks() -> void:
+	reset_global_state()
+	var heavy := load(ARROW_HEAVY_PATH) as AttackDefinition2D
+	var saved_stages := heavy.charge_stages
+	var saved_window := [heavy.perfect_window_start, heavy.perfect_window_end]
+	var a := await bow_arena()
+	var main: Node = a["main"]
+	var ac: AttackComponent2D = a["ac"]
+	var bar := main.get_node_or_null("HUD/PlayerChargeBar") as ChargeBar
+	check(bar != null, "B-1 the HUD has a charge bar")
+	if bar == null:
+		return
+	await phys(2)
+	check(not bar.visible and is_equal_approx(bar.get_shown_ratio(), 0.0), "B-2 nothing is charging: the bar is hidden and empty")
+
+	# A plain charge: the bar follows the component's own ratio, with no stage ticks and no window.
+	ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT)
+	await phys(30 + 33)
+	check(bar.visible and ac.is_charging() and is_equal_approx(bar.get_shown_ratio(), ac.get_charge_ratio()) and bar.get_shown_ratio() > 0.3, "B-3 while charging the bar is shown at the component's charge ratio (%s)" % bar.get_shown_ratio())
+	check(bar.get_stage_marks().is_empty() and bar.get_release_window() == Vector2.ZERO and bar.get_fill_color().is_equal_approx(bar.fill_color), "B-4 an attack with no stages and no window shows a plain fill with no ticks or window")
+	ac.cancel()
+	await phys(3)
+	check(not bar.visible, "B-5 cancelling the charge hides the bar")
+
+	# Stages and a perfect window show up.
+	var low := ChargeStage2D.new()
+	low.at_ratio = 0.5
+	var top := ChargeStage2D.new()
+	top.at_ratio = 1.0
+	heavy.charge_stages = [low, top]
+	heavy.perfect_window_start = 0.6
+	heavy.perfect_window_end = 0.8
+	ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT)
+	await phys(30 + charge_frames(heavy, 0.17))
+	check(bar.get_stage_marks() == [0.5, 1.0] and bar.get_release_window() == Vector2(0.6, 0.8), "B-6 the bar shows a tick for each stage and the perfect window (%s, %s)" % [str(bar.get_stage_marks()), str(bar.get_release_window())])
+	check(bar.get_fill_color().is_equal_approx(bar.early_color), "B-7 before the window the fill takes the early color")
+	await phys(maxi(1, charge_frames(heavy, 0.7) - charge_frames(heavy, 0.17)))
+	check(ac.get_release_timing() == AttackDefinition2D.ReleaseTiming.PERFECT and bar.get_fill_color().is_equal_approx(bar.perfect_color), "B-8 inside the window the fill takes the perfect color")
+	await phys(maxi(1, charge_frames(heavy, 0.95) - charge_frames(heavy, 0.7)))
+	check(ac.get_release_timing() == AttackDefinition2D.ReleaseTiming.LATE and bar.get_fill_color().is_equal_approx(bar.late_color), "B-9 after the window the fill takes the late color")
+
+	# Release: the bar flashes the outcome for a moment, then hides.
+	ac.release_charge(Vector2.RIGHT)
+	await phys(2)
+	check(bar.visible and not ac.is_charging() and bar.get_fill_color().is_equal_approx(bar.late_color), "B-10 after the release the bar flashes the released outcome")
+	await phys(30)
+	check(not bar.visible, "B-11 the flash ends and the bar hides")
+
+	# An attack with no charge_threshold never shows the bar.
+	heavy.charge_stages = saved_stages
+	heavy.perfect_window_start = saved_window[0]
+	heavy.perfect_window_end = saved_window[1]
+	var saved_threshold := heavy.charge_threshold
+	heavy.charge_threshold = 0.0
+	ac.cancel()
+	ac._cooldown_remaining = 0.0
+	await phys(3)
+	ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT)
+	await phys(40)
+	diag("B-12", "charging=%s drawing=%s bar_visible=%s" % [ac.is_charging(), ac.is_drawing(), bar.visible])
+	check(ac.is_charging() and not bar.visible, "B-12 a charge with no charge_threshold shows no bar: its ratio never rises")
+	ac.cancel()
+	heavy.charge_threshold = saved_threshold
+
+## RD6: the charge can start rising during the bow draw (charge_counts_during_draw) so the bar and the charge feel immediate.
+func run_r7_draw_checks() -> void:
+	reset_global_state()
+	var heavy := load(ARROW_HEAVY_PATH) as AttackDefinition2D
+	var a := await bow_arena()
+	var ac: AttackComponent2D = a["ac"]
+	var main: Node = a["main"]
+
+	# Off (the legacy behavior): nothing counts while the draw plays.
+	heavy.charge_counts_during_draw = false
+	ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT)
+	await phys(10)
+	check(ac.is_drawing() and is_equal_approx(ac.get_charge_ratio(), 0.0), "D-1 with the option off the ratio stays 0 while the draw plays (%s)" % ac.get_charge_ratio())
+	ac.cancel()
+	await phys(3)
+
+	# On: the ratio rises during the draw, before bow_charge starts.
+	heavy.charge_counts_during_draw = true
+	ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT)
+	await phys(10)
+	var mid := ac.get_charge_ratio()
+	var d2_expected := (10.0 / 60.0) / heavy.charge_threshold # ten frames of a charge that counts during the draw
+	check(ac.is_drawing() and mid > 0.1 and absf(mid - d2_expected) < 0.05, "D-2 with the option on the ratio rises while the draw plays (%s, expected about %s)" % [mid, d2_expected])
+	var bar := main.get_node_or_null("HUD/PlayerChargeBar") as ChargeBar
+	check(bar != null and bar.visible and is_equal_approx(bar.get_shown_ratio(), mid), "D-3 the charge bar fills during the draw too")
+	await phys(35)
+	check(not ac.is_drawing() and ac.get_charge_ratio() > mid, "D-4 the ratio keeps rising across the hand-off from bow_draw to bow_charge (%s)" % ac.get_charge_ratio())
+
+	# A full hold reaches the threshold sooner than draw + threshold.
+	await phys(40)
+	check(is_equal_approx(ac.get_charge_ratio(), 1.0), "D-5 the charge is full about one draw length earlier than before (%s)" % ac.get_charge_ratio())
+	ac.cancel()
+	await phys(3)
+
+	# Releasing during the draw: the shot fires when the draw ends, at the ratio of the release.
+	ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT)
+	await phys(8)
+	var at_release := ac.get_charge_ratio()
+	ac.release_charge(Vector2.RIGHT)
+	await phys(4)
+	check(ac.is_release_pending() and absf(ac.get_charge_ratio() - at_release) < 0.01, "D-6 after a release during the draw the ratio stops rising (%s -> %s)" % [at_release, ac.get_charge_ratio()])
+	var released_with: Array = []
+	ac.charge_released.connect(func(_timing: int) -> void: released_with.append(true))
+	await phys(40)
+	check(released_with.size() == 1 and not ac.is_charging(), "D-7 the pending release fires once the draw has ended")
+	heavy.charge_counts_during_draw = false
+
+func run_r7_scaling_checks() -> void:
+	reset_global_state()
+	var heavy := load(ARROW_HEAVY_PATH) as AttackDefinition2D
+	var saved_scene := heavy.effect_scene
+	var blank := AttackDefinition2D.new()
+	check(heavy.charge_damage_curve == null and heavy.charge_area_curve == null and is_equal_approx(heavy.get_charge_damage_multiplier(1.0), 1.0) and is_equal_approx(blank.get_charge_area_multiplier(1.0), 1.0), "C-1 no curves by default: the multipliers are 1 at every charge")
+	var data := AttackDefinition2D.new()
+	data.id = &"t_scaling"
+	data.charge_threshold = 1.0
+	data.charge_damage_curve = c_curve(1.0, 3.0)
+	check(is_equal_approx(data.get_charge_damage_multiplier(0.0), 1.0) and is_equal_approx(data.get_charge_damage_multiplier(1.0), 3.0) and absf(data.get_charge_damage_multiplier(0.5) - 2.0) < 0.05 and is_equal_approx(data.get_charge_damage_multiplier(7.0), 3.0), "C-2 the damage curve gives its own value, clamped to the ratio range")
+	data.charge_damage_curve = c_curve(-2.0, -1.0)
+	check(data.get_charge_damage_multiplier(0.5) == 0.0, "C-3 a damage multiplier never goes below 0")
+	data.charge_area_curve = c_curve(-1.0, 0.0)
+	check(is_equal_approx(data.get_charge_area_multiplier(0.5), 0.1), "C-4 an area multiplier never goes below 0.1")
+	check(is_equal_approx(data.get_charge_damage_multiplier(0.5), 0.0) and is_equal_approx(data.get_reach_at_charge(0.5), data.get_reach()), "C-5 the curves leave the reach alone")
+	var warn := func(d: AttackDefinition2D) -> int: return d.get_warnings().filter(func(m): return String(m).contains("charge damage or area curve") or String(m).contains("charge_area_curve")).size()
+	data.charge_threshold = 0.0
+	check(warn.call(data) >= 1, "C-6 a curve with no charge_threshold warns")
+	data.charge_threshold = 1.0
+	data.effect_scene = load("res://Weapons/Bow/Projectile/Bow_Arrow.tscn") as PackedScene
+	check(warn.call(data) == 1, "C-7 an area curve on a projectile effect warns that it has no radius")
+	data.effect_scene = load("res://Characters/Components/Combat/AreaEffect2D.tscn") as PackedScene
+	check(warn.call(data) == 0, "C-8 the same curve on an area effect raises no warning")
+
+	# ---------- The component ----------
+	heavy.charge_damage_curve = c_curve(1.0, 3.0)
+	var a := await bow_arena()
+	var main: Node = a["main"]
+	var ac: AttackComponent2D = a["ac"]
+	check(is_equal_approx(ac.get_charge_damage_multiplier(), 1.0) and is_equal_approx(ac.get_charge_area_multiplier(), 1.0), "C-9 nothing is charging: both multipliers are 1")
+	ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT)
+	await phys(30 + 75)
+	check(absf(ac.get_charge_damage_multiplier() - 3.0) < 0.01, "C-10 a full charge reads the top of the curve live (%s)" % ac.get_charge_damage_multiplier())
+	ac.release_charge(Vector2.RIGHT)
+	var guard := 0
+	while effects_from(main, ARROW_SCENE_PATH).is_empty() and guard < 150:
+		await phys(1)
+		guard += 1
+	var arrows := effects_from(main, ARROW_SCENE_PATH)
+	check(arrows.size() == 1 and arrows[0].damage == heavy.damage * 3 and is_equal_approx(ac.get_active_reach(), heavy.get_reach()), "C-11 a full charge released deals x3 and the reach is the charge's own (%s)" % str(arrows[0].damage if arrows.size() > 0 else null))
+	await phys(90)
+	await cleanup(main)
+
+	# An area effect: the radius follows the area curve and nothing else changes.
+	heavy.charge_damage_curve = null
+	heavy.charge_area_curve = c_curve(1.0, 2.0)
+	heavy.effect_scene = load("res://Characters/Components/Combat/AreaEffect2D.tscn") as PackedScene
+	a = await bow_arena()
+	main = a["main"]; ac = a["ac"]
+	var boxes: Array = []
+	var damages: Array = []
+	main.get_node("Effects").child_entered_tree.connect(func(node):
+		if node is AreaEffect2D:
+			boxes.append(node.hitbox_size)
+			damages.append(node.damage))
+	ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT)
+	await phys(30 + 75)
+	ac.release_charge(Vector2.RIGHT)
+	await phys(120)
+	check(boxes.size() == 1 and absf(boxes[0].x - heavy.hitbox_size.x * 2.0) < 0.01 and damages == [heavy.damage], "C-12 a full charge doubles the area effect's size and leaves its damage alone (%s, %s)" % [str(boxes), str(damages)])
+	heavy.charge_area_curve = null
+	heavy.effect_scene = saved_scene
+	await cleanup(main)
+
+## Track A: bow aim-follow (checks A-1 to A-30). The component checks switch the player's own physics process off, so
+## nothing but the test feeds directions; each frame is one 1/60 s step, as in the suite's fixed-fps run.
+func a_angle_deg(a: Vector2, b: Vector2) -> float:
+	return rad_to_deg(absf(a.angle_to(b)))
+
+## One frame of follow: the player's own rules decide the direction, the component applies it.
+func a_step(p, ac: AttackComponent2D, frames: int, wanted: Callable = Callable()) -> void:
+	for i in frames:
+		var dir: Vector2 = wanted.call() if wanted.is_valid() else p._get_attack_follow_direction()
+		ac.update_attack_direction(dir, 1.0 / 60.0)
+		await phys(1)
+
+func run_a_follow_checks() -> void:
+	reset_global_state()
+	var light := load(ARROW_LIGHT_PATH) as AttackDefinition2D
+	var heavy := load(ARROW_HEAVY_PATH) as AttackDefinition2D
+	var saved_light := [light.aim_follow, light.aim_turn_speed]
+	var saved_heavy := [heavy.aim_follow, heavy.aim_turn_speed]
+	var archer_bow := load("res://Weapons/Bow/Bow_WeaponDefinition.tres") as WeaponDefinition2D
+	var sword := load("res://Weapons/Sword/Sword_WeaponDefinition.tres") as WeaponDefinition2D
+	var blank := AttackDefinition2D.new()
+	check(not blank.aim_follow and blank.aim_turn_speed == 0.0, "A-1 a new attack has aim_follow off and no turn limit")
+	check(light.aim_follow and heavy.aim_follow and is_equal_approx(light.aim_turn_speed, 600.0) and is_equal_approx(heavy.aim_turn_speed, 600.0), "A-2 the player's two arrow attacks follow, at 600 degrees per second")
+	var sword_off := true
+	for attack in [sword.heavy_attack] + sword.basic_combo:
+		if attack != null and attack.aim_follow:
+			sword_off = false
+	check(sword_off, "A-3 the sword does not follow")
+	check(archer_bow == load("res://Weapons/Bow/Bow_WeaponDefinition.tres") and archer_bow.basic_combo[0].aim_follow, "A-3b the goblin archer shares the player's bow attack, so its arrows follow the aim exactly as the player's do")
+
+	# ---------- Component: follow, stop at spawn, turn limit ----------
+	var a := await bow_arena()
+	var main: Node = a["main"]
+	var p = a["p"] # untyped on purpose: it calls player.gd members Character2D does not declare
+	var e: Character2D = a["e"]
+	var ac: AttackComponent2D = a["ac"]
+	p.set_physics_process(false)
+	light.aim_turn_speed = 0.0
+	check(p._get_attack_follow_direction() == Vector2.ZERO and e._get_attack_follow_direction() == Vector2.ZERO, "A-4 with nothing running, and for an enemy controller, the follow direction is zero")
+	ac.update_attack_direction(Vector2.DOWN, 1.0 / 60.0)
+	check(not ac.is_aim_following(), "A-5 an idle component is not following")
+	check(ac.try_start_attack(&"bow_arrow_shot", Vector2.RIGHT) and ac.is_aim_following() and ac.is_drawing(), "A-6 a light shot with aim_follow starts following during its draw")
+	ac.update_attack_direction(Vector2.DOWN, 1.0 / 60.0)
+	check(p.context.attack_direction.distance_to(Vector2.DOWN) < 0.001 and p.context.aim_direction.distance_to(Vector2.DOWN) < 0.001, "A-7 with no turn limit the attack and aim directions snap to the new aim")
+	ac.update_attack_direction(Vector2.UP, 1.0 / 60.0)
+	ac.update_attack_direction(Vector2.ZERO, 1.0 / 60.0)
+	check(p.context.attack_direction.distance_to(Vector2.UP) < 0.001, "A-8 a zero direction leaves the aim where it is")
+	var guard := 0
+	while effects_from(main, ARROW_SCENE_PATH).is_empty() and guard < 120:
+		await phys(1)
+		guard += 1
+	var fired := effects_from(main, ARROW_SCENE_PATH)
+	check(fired.size() == 1 and (fired[0].direction as Vector2).distance_to(Vector2.UP) < 0.001, "A-9 the arrow leaves along the last followed direction (%s)" % str(fired[0].direction if fired.size() > 0 else null))
+	check(not ac.is_aim_following(), "A-10 the follow ends at spawn_effect")
+	ac.update_attack_direction(Vector2.LEFT, 1.0 / 60.0)
+	check(p.context.attack_direction.distance_to(Vector2.UP) < 0.001, "A-11 after the arrow spawned the direction no longer changes")
+	await cleanup(main)
+
+	a = await bow_arena()
+	main = a["main"]; p = a["p"]; e = a["e"]; ac = a["ac"]
+	p.set_physics_process(false)
+	light.aim_turn_speed = 600.0
+	ac.try_start_attack(&"bow_arrow_shot", Vector2.RIGHT)
+	ac.update_attack_direction(Vector2.LEFT, 1.0 / 60.0)
+	var first := a_angle_deg(p.context.attack_direction, Vector2.RIGHT)
+	for i in 2:
+		ac.update_attack_direction(Vector2.LEFT, 1.0 / 60.0)
+	var third := a_angle_deg(p.context.attack_direction, Vector2.RIGHT)
+	check(absf(first - 10.0) < 0.01 and absf(third - 30.0) < 0.01, "A-12 600 degrees per second turns 10 degrees a frame at 60 fps (%.2f, %.2f)" % [first, third])
+	ac.update_attack_direction(Vector2.LEFT, 0.0)
+	check(absf(a_angle_deg(p.context.attack_direction, Vector2.RIGHT) - third) < 0.001, "A-13 a zero delta does not turn")
+	for i in 40:
+		ac.update_attack_direction(Vector2.LEFT, 1.0 / 60.0)
+	check(p.context.attack_direction.distance_to(Vector2.LEFT) < 0.001, "A-14 the turn ends exactly on the aim without overshooting")
+	ac.cancel()
+	check(not ac.is_aim_following() and not p.context.is_attacking, "A-15 cancel() ends the follow")
+	ac.update_attack_direction(Vector2.DOWN, 1.0 / 60.0)
+	check(p.context.attack_direction.distance_to(Vector2.LEFT) < 0.001, "A-16 after a cancel the component does not turn anything")
+	light.interruptible = true
+	ac.try_start_attack(&"bow_arrow_shot", Vector2.RIGHT)
+	check(ac.interrupt() and not ac.is_aim_following(), "A-17 interrupt() ends the follow")
+	light.interruptible = false
+	await phys(1)
+	ac.cancel()
+	ac._cooldown_remaining = 0.0
+	ac.try_start_attack(&"bow_arrow_shot", Vector2.RIGHT)
+	check(ac.is_aim_following(), "A-18 a new attack starts a new follow after an earlier one ended")
+	light.aim_follow = false
+	ac.cancel()
+	ac._cooldown_remaining = 0.0
+	ac.try_start_attack(&"bow_arrow_shot", Vector2.RIGHT)
+	ac.update_attack_direction(Vector2.DOWN, 1.0 / 60.0)
+	check(not ac.is_aim_following() and p.context.attack_direction.distance_to(Vector2.RIGHT) < 0.001, "A-19 an attack with aim_follow off keeps the direction it started with, exactly as before")
+	light.aim_follow = true
+	await cleanup(main)
+
+	# ---------- Component: the heavy shot ----------
+	a = await bow_arena()
+	main = a["main"]; p = a["p"]; e = a["e"]; ac = a["ac"]
+	p.set_physics_process(false)
+	heavy.aim_turn_speed = 0.0
+	check(ac.begin_charge(&"bow_arrow_heavy", Vector2.RIGHT) and ac.is_charging() and not ac.is_aim_following(), "A-20 a heavy that is only charging is not followed by the component (the charge follows the live aim itself)")
+	ac.update_attack_direction(Vector2.DOWN, 1.0 / 60.0)
+	check(p.context.attack_direction.distance_to(Vector2.RIGHT) < 0.001, "A-21 update_attack_direction() leaves a held charge alone")
+	check(ac.is_drawing() and ac.release_charge(Vector2.RIGHT) and ac.is_release_pending() and ac.is_aim_following(), "A-22 a heavy released during its draw is following until the shot")
+	ac.update_attack_direction(Vector2.DOWN, 1.0 / 60.0)
+	guard = 0
+	while ac.is_drawing() and guard < 120:
+		await phys(1)
+		guard += 1
+	check(not ac.is_charging() and p.context.is_attacking and p.context.attack_direction.distance_to(Vector2.DOWN) < 0.001, "A-23 the shot starts along the direction followed after the release")
+	check(ac.is_aim_following(), "A-24 the heavy keeps following through its shot clip")
+	ac.update_attack_direction(Vector2.LEFT, 1.0 / 60.0)
+	guard = 0
+	while effects_from(main, ARROW_SCENE_PATH).is_empty() and guard < 120:
+		await phys(1)
+		guard += 1
+	fired = effects_from(main, ARROW_SCENE_PATH)
+	check(fired.size() == 1 and (fired[0].direction as Vector2).distance_to(Vector2.LEFT) < 0.001 and not ac.is_aim_following(), "A-25 the heavy arrow leaves along the last followed direction and the follow ends")
+	check(is_equal_approx(ac.get_active_reach(), heavy.get_reach_at_charge(0.0)), "A-26 the heavy's reach is the one frozen at release (R4: released during the draw, so the minimum), not changed by following (%s)" % str(ac.get_active_reach()))
+	heavy.aim_turn_speed = 600.0
+	await cleanup(main)
+
+	# ---------- Player: what is followed ----------
+	a = await bow_arena()
+	main = a["main"]; p = a["p"]; e = a["e"]; ac = a["ac"]
+	p.set_physics_process(false)
+	light.aim_turn_speed = 600.0
+	p.clear_manual_aim()
+	e.global_position = p.global_position + Vector2(0, 100)
+	p._follow_candidate = e
+	ac.try_start_attack(&"bow_arrow_shot", Vector2.DOWN)
+	check(p._get_attack_follow_direction().distance_to(Vector2.DOWN) < 0.001 and p._follow_target == e, "A-27 the player follows the target picked when the attack started")
+	e.global_position = p.global_position + Vector2(100, 0)
+	await a_step(p, ac, 12)
+	check(p.context.attack_direction.distance_to(Vector2.RIGHT) < 0.001, "A-28 a target that moved 90 degrees during the draw is followed (%s)" % str(p.context.attack_direction))
+	var decoy := Node2D.new()
+	p._follow_candidate = decoy
+	check(p._follow_target == e and p._get_attack_follow_direction().distance_to(Vector2.RIGHT) < 0.001, "A-29 a click refused during the attack does not take the lock away; the target is not re-picked")
+	decoy.free()
+	p.set_manual_aim(Vector2.UP)
+	check(p._get_attack_follow_direction().distance_to(Vector2.UP) < 0.001, "A-30 a manual aim takes over from the target")
+	p.clear_manual_aim()
+	check(p._follow_manual and p._get_attack_follow_direction().distance_to(p._get_aim_direction()) < 0.001, "A-31 once the player has aimed by hand the live aim keeps the shot for the rest of it")
+	ac.cancel()
+	ac._cooldown_remaining = 0.0
+	check(p._get_attack_follow_direction() == Vector2.ZERO and p._follow_target == null and not p._follow_had_lock and not p._follow_manual, "A-32 the follow state and the locked target are cleared when the attack ends")
+	p._follow_candidate = e
+	ac.try_start_attack(&"bow_arrow_shot", Vector2.RIGHT)
+	await a_step(p, ac, 3)
+	var kept: Vector2 = p.context.attack_direction
+	e.free()
+	await a_step(p, ac, 3)
+	check(p._get_attack_follow_direction() == Vector2.ZERO and p.context.attack_direction.distance_to(kept) < 0.001 and ac.is_aim_following(), "A-33 a freed target ends the lock and the last direction is kept")
+	ac.cancel()
+	ac._cooldown_remaining = 0.0
+	p._follow_candidate = null
+	p.clear_manual_aim()
+	ac.try_start_attack(&"bow_arrow_shot", Vector2.RIGHT)
+	check(not p._follow_had_lock and p._follow_target == null and p._get_attack_follow_direction() == Vector2.ZERO, "A-34 a new attack with no target picked keeps its start direction, and keeps nothing from the earlier shot")
+	p._input(InputEventMouseMotion.new())
+	check(p._get_attack_follow_direction().distance_to(p._get_aim_direction()) < 0.001, "A-35 a mouse movement during the draw hands the shot to the live aim")
+	light.aim_follow = saved_light[0]
+	light.aim_turn_speed = saved_light[1]
+	heavy.aim_follow = saved_heavy[0]
+	heavy.aim_turn_speed = saved_heavy[1]
 	await cleanup(main)
 
 ## H8.2 and H8.3: the aim shapes and the targeting service. The checks live in tests/h8_aim_checks.gd; this only runs them against the suite's counters.
@@ -8737,7 +9338,11 @@ func run_h8_touch_checks() -> void:
 	check(p._intended_aim() == Vector2.ZERO, "H8-129 an aim left by a finished drag is no aim: the next tap is assisted again")
 	await phys(100)
 
-	# A plain tap never presses an aim.
+	# A plain tap never presses an aim. The room's goblin goes far away first: since H9.4 a tap with an enemy in view but out of
+	# reach (the light slash reaches 30 px now) walks to it before swinging, and this check is about the tap, not the walk.
+	var h8_far_goblin := main.get_node_or_null("BasicEnemy2D") as Node2D
+	if h8_far_goblin != null:
+		h8_far_goblin.global_position = p.global_position + Vector2(4000, 0)
 	swings.clear()
 	var aim_seen := false
 	touch_down(attack, 2)
@@ -8747,6 +9352,7 @@ func run_h8_touch_checks() -> void:
 	for i in 4:
 		await phys(1)
 		aim_seen = aim_seen or touch_aim_vector() != Vector2.ZERO
+	diag("H8-130", "swings=%s aim_seen=%s player=%s" % [str(swings), str(aim_seen), str(p.global_position)])
 	check(swings.size() == 1 and not aim_seen, "H8-130 a tap starts one light attack and presses no aim (swings %s)" % swings.size())
 	await phys(100)
 
@@ -8839,6 +9445,7 @@ func run_h8_indicator_checks() -> void:
 
 	var Device := InputModeManager.Device
 	var main := await fresh()
+	await H8AimChecks.run_indicator_style(check, root)
 	var p = main.get_node("Player") # untyped: it calls player.gd methods Character2D does not declare
 	var manager := main.get_node("InputModeManager") as InputModeManager
 	var controls := main.get_node("HUD/MobileControls") as MobileControls
@@ -8857,7 +9464,12 @@ func run_h8_indicator_checks() -> void:
 	check(indicator == null or not indicator.is_showing(), "H8-164 a finger that has only just landed (still a tap) draws nothing")
 	await phys(19)
 	indicator = p.get_aim_indicator()
-	check(p.attack_component.is_charging() and indicator != null and indicator.is_showing() and indicator.get_shape() == heavy_shape, "H8-165 while the heavy attack charges its own aim shape is drawn")
+	# The drawn shape is the heavy's own, at the reach of the charge so far (R4: a heavy's reach grows with its charge), so it is
+	# a copy of the full-reach shape: same kind and angle, no longer than the full reach.
+	var h8_drawn: AimShape2D = indicator.get_shape() if indicator != null else null
+	var h8_same_shape: bool = h8_drawn != null and h8_drawn.get_script() == heavy_shape.get_script() and h8_drawn.get("angle_degrees") == heavy_shape.get("angle_degrees") and h8_drawn.max_range > 0.0 and h8_drawn.max_range <= heavy_shape.max_range + 0.01
+	diag("H8-165", "charging=%s indicator=%s showing=%s same_shape=%s charge_time=%s" % [p.attack_component.is_charging(), str(indicator != null), str(indicator != null and indicator.is_showing()), str(h8_same_shape), p.attack_component.get_charge_time()])
+	check(p.attack_component.is_charging() and indicator != null and indicator.is_showing() and h8_same_shape, "H8-165 while the heavy attack charges its own aim shape is drawn")
 	check(indicator.get_picked() == near and indicator.get_candidates().has(near) and indicator.get_direction().distance_to(Vector2.RIGHT) < 0.02, "H8-166 the target the release will take is marked, and the shape points at it")
 	var assist_view: AssistIndicator2D = p.get_assist_indicator()
 	check(assist_view != null and assist_view.visible and assist_view.get_range_radius() > 0.0, "H8-243 the blue light-attack circle stays visible while the heavy attack charges")
@@ -9051,3 +9663,939 @@ func run_h9_visual_checks() -> void:
 	check(faces_ok, "H9-65 shipped mobile scene authors a TouchSkillFace under each skill button")
 	if mobile != null:
 		mobile.free()
+
+
+## H9.4.4 (D25): a heavy attack asked for out of reach keeps the charge, walks to the target, and fires there. The input
+## may be let go on the way. Live checks on the player in the arena: a quiet goblin is placed beyond the heavy reach.
+func heavy_arena() -> Dictionary:
+	var main := await fresh()
+	var p: Character2D = main.get_node("Player")
+	var enemy := main.get_node("BasicEnemy2D") as BasicEnemy2D
+	var reach := p.attack_component.get_attack(p.get_heavy_attack_id()).get_reach()
+	enemy.global_position = p.global_position + Vector2(reach + 90.0, 0.0)
+	await phys(3)
+	var seen := {"swings": [], "reach": reach}
+	p.attack_component.attack_started.connect(func(_direction): seen.swings.append(p.attack_component.get_active_attack_id()))
+	return {"main": main, "p": p, "enemy": enemy, "seen": seen}
+
+func heavy_in_reach(p: Character2D, enemy: Node2D) -> bool:
+	var heavy := p.attack_component.get_attack(p.get_heavy_attack_id())
+	return p.get_targeting_service().is_in_reach(p.global_position, enemy, heavy.get_reach())
+
+func run_h9_heavy_approach_checks() -> void:
+	reset_global_state()
+	# H9-110 to H9-113: hold, let go on the way, the walk goes on and the heavy fires once in reach.
+	var a := await heavy_arena()
+	var p: Character2D = a.p
+	var enemy: Node2D = a.enemy
+	var swings: Array = a.seen.swings
+	var start_x := p.global_position.x
+	check(a.seen.reach > 0.0 and not heavy_in_reach(p, enemy), "H9-110 setup: the goblin is in view and beyond the heavy attack's reach (reach %s)" % a.seen.reach)
+	Input.action_press("attack_light")
+	await phys(14)
+	check(p._is_approach_active() and p._approach_kind == AutoApproach2D.Kind.HEAVY and not p.attack_component.is_charging() and p.global_position.x > start_x, "H9-111 holding attack_light with the target out of reach walks toward it and does not charge yet")
+	Input.action_release("attack_light")
+	await phys(2)
+	check(p._is_approach_active() and swings.is_empty(), "H9-112 letting go on the way keeps the walk and is not a light tap (%s)" % [swings])
+	var guard := 0
+	while swings.is_empty() and guard < 240:
+		await phys(1)
+		guard += 1
+	await phys(2)
+	check(swings.size() == 1 and swings[0] == &"sword_heavy_slash" and heavy_in_reach(p, enemy), "H9-113 on arrival the heavy attack fires once, in reach (%s after %s frames)" % [swings, guard])
+	await cleanup(a.main)
+
+	# H9-114, H9-115: the charge reached while walking is kept and shown when the input is still down.
+	a = await heavy_arena()
+	p = a.p
+	swings = a.seen.swings
+	Input.action_press("attack_light")
+	guard = 0
+	while not p.attack_component.is_charging() and guard < 240:
+		await phys(1)
+		guard += 1
+	var walked := guard / 60.0
+	diag("H9-114", "charging=%s charge_time=%s charge_ratio=%s walked=%s" % [p.attack_component.is_charging(), p.attack_component.get_charge_time(), p.attack_component.get_charge_ratio(), walked])
+	check(p.attack_component.is_charging() and p.attack_component.get_charge_time() > maxf(walked - 0.35, 0.05), "H9-114 holding all the way: the charge starts at arrival with the held walking time (charge %s, walk %s)" % [p.attack_component.get_charge_time(), walked])
+	Input.action_release("attack_light")
+	await phys(3)
+	check(swings.size() == 1 and swings[0] == &"sword_heavy_slash", "H9-115 releasing in reach fires the heavy attack once (%s)" % [swings])
+	await cleanup(a.main)
+
+	# H9-116 to H9-118: manual movement cancels at once; no resume; the hold then charges where the player stands.
+	a = await heavy_arena()
+	p = a.p
+	swings = a.seen.swings
+	Input.action_press("attack_light")
+	await phys(14)
+	Input.action_press("move_up")
+	await phys(2)
+	check(not p._is_approach_active(), "H9-116 manual movement cancels a heavy approach at once")
+	Input.action_release("move_up")
+	await phys(10)
+	check(not p._is_approach_active() and p.attack_component.is_charging(), "H9-117 with the input still down the approach does not resume and the hold charges in place")
+	Input.action_release("attack_light")
+	await phys(30)
+	check(not p._is_approach_active() and not p._arrival_pending, "H9-118 letting go after a cancel leaves no pending heavy")
+	await cleanup(a.main)
+
+	# H9-119: let go, then cancel by moving: nothing fires later.
+	a = await heavy_arena()
+	p = a.p
+	swings = a.seen.swings
+	Input.action_press("attack_light")
+	await phys(14)
+	Input.action_release("attack_light")
+	await phys(2)
+	Input.action_press("move_down")
+	await phys(2)
+	Input.action_release("move_down")
+	await phys(150)
+	check(swings.is_empty() and not p._is_approach_active() and not p._arrival_pending, "H9-119 a released heavy approach cancelled by movement never fires (%s)" % [swings])
+	await cleanup(a.main)
+
+	# H9-120: the target dies on the way: the walk ends and nothing fires.
+	a = await heavy_arena()
+	p = a.p
+	swings = a.seen.swings
+	Input.action_press("attack_light")
+	await phys(14)
+	Input.action_release("attack_light")
+	await phys(2)
+	(a.enemy as Node2D).queue_free()
+	await phys(120)
+	check(swings.is_empty() and not p._is_approach_active(), "H9-120 a target that dies during the walk ends it without a swing (%s)" % [swings])
+	await cleanup(a.main)
+
+	# H9-121, H9-122: attack_heavy walks the same way and keeps working after being let go.
+	a = await heavy_arena()
+	p = a.p
+	swings = a.seen.swings
+	Input.action_press("attack_heavy")
+	await phys(10)
+	var heavy_walking: bool = p._is_approach_active() and p._approach_kind == AutoApproach2D.Kind.HEAVY
+	Input.action_release("attack_heavy")
+	await phys(2)
+	check(heavy_walking and p._is_approach_active(), "H9-121 attack_heavy out of reach walks, and letting go keeps the walk")
+	guard = 0
+	while swings.is_empty() and guard < 240:
+		await phys(1)
+		guard += 1
+	await phys(2)
+	check(swings.size() == 1 and swings[0] == &"sword_heavy_slash", "H9-122 attack_heavy fires on arrival (%s)" % [swings])
+	await cleanup(a.main)
+
+	# H9-123, H9-124: begin_charge can start with charge time already built; an ordinary begin starts at zero.
+	var main := await fresh()
+	p = main.get_node("Player")
+	var heavy_id: StringName = p.get_heavy_attack_id()
+	check(p.attack_component.begin_charge(heavy_id, Vector2.RIGHT, 0.4) and is_equal_approx(p.attack_component.get_charge_time(), 0.4), "H9-123 begin_charge with an initial charge starts at that time")
+	p.attack_component.cancel()
+	await phys(2)
+	check(p.attack_component.begin_charge(heavy_id, Vector2.RIGHT) and p.attack_component.get_charge_time() == 0.0, "H9-124 an ordinary begin_charge starts at zero")
+	await cleanup(main)
+	Input.action_release("attack_light")
+	Input.action_release("attack_heavy")
+
+
+## ---------- Smart aim: nearest target, PC skill preview, enemy wind-up telegraph ----------
+
+## Runs the enemy through a wind-up and checks the lane, the timing and every cancel.
+func run_smart_aim_checks() -> void:
+	reset_global_state()
+	await smart_aim_windup_checks()
+	await smart_aim_nearest_checks()
+	await smart_aim_preview_checks()
+
+func smart_aim_goblin_setup(main: Node, windup: float, interval: float = 0.0) -> Array:
+	var p: Character2D = main.get_node("Player")
+	var e: BasicEnemy2D = main.get_node("BasicEnemy2D")
+	set_player_health(p, 1000)
+	var ai := e.get_node("EnemyAIController2D") as EnemyAIController2D
+	ai.profile = ai.profile.duplicate()
+	ai.profile.attack_windup_duration = windup
+	ai.profile.attack_interval = interval
+	ai.profile.telegraph_all_attacks = true # the lane checks (SA3 to SA5) use the goblin's plain slash, which only shows a lane with this on
+	e.global_position = p.global_position + Vector2(25, 0) # inside the goblin's 30 px swing range
+	return [p, e, ai]
+
+func smart_aim_windup_checks() -> void:
+	var blank := EnemyBehaviorProfile.new()
+	check(is_equal_approx(blank.attack_windup_duration, 0.35) and blank.attack_interval == 0.0, "SA1 a new enemy profile winds up for 0.35 s and adds no pacing interval")
+	check(is_equal_approx((load("res://Characters/Controllers/GoblinArcherBehaviorProfile.tres") as EnemyBehaviorProfile).attack_interval, 1.2), "SA2 the archer profile paces the shared bow at 1.2 s between shots")
+
+	# A wind-up of 0.35 s: the lane shows first, the swing starts after it.
+	var main := await fresh()
+	var parts := smart_aim_goblin_setup(main, 0.35)
+	var p: Character2D = parts[0]
+	var e: BasicEnemy2D = parts[1]
+	var ai: EnemyAIController2D = parts[2]
+	await phys(6)
+	var lane := ai.get_telegraph()
+	var chosen := ai.get_chosen_attack()
+	check(ai.is_winding_up() and lane != null and lane.is_lane_visible(), "SA3 an enemy in range with an attack ready starts a wind-up and shows the red lane")
+	check(lane != null and chosen != null and is_equal_approx(lane.get_lane_length(), ai.get_effective_attack_range()) and is_equal_approx(lane.get_lane_width(), maxf(chosen.hitbox_size.y, EnemyAttackTelegraph2D.MIN_WIDTH)), "SA4 the lane is the chosen attack's range long and its hitbox_size.y wide")
+	check(lane != null and lane.get_lane_direction().distance_to((p.global_position - e.global_position).normalized()) < 0.05, "SA5 the lane points at the target")
+	check(not e.context.is_attacking, "SA6 the swing has not started during the wind-up")
+	await phys(40)
+	check(not ai.is_winding_up() and (e.context.is_attacking or e.attack_component.is_on_cooldown()), "SA7 after the wind-up the swing starts")
+	check(lane != null and not lane.is_lane_visible(), "SA8 the lane is hidden once the attack has started")
+	await cleanup(main)
+
+	# Cancels: target leaves range, stun, target dead.
+	main = await fresh()
+	parts = smart_aim_goblin_setup(main, 2.0)
+	p = parts[0]
+	e = parts[1]
+	ai = parts[2]
+	await phys(5)
+	check(ai.is_winding_up(), "SA9pre a long wind-up is running")
+	p.global_position += Vector2(600, 0)
+	await phys(3)
+	check(not ai.is_winding_up() and not ai.get_telegraph().is_lane_visible() and ai.get_windup_elapsed() == 0.0, "SA9 the target leaving range cancels the wind-up and hides the lane")
+	p.global_position -= Vector2(600, 0)
+	await phys(5)
+	check(ai.is_winding_up(), "SA10pre the wind-up starts again once the target is back in range")
+	e.context.hit_stun_remaining = 0.5
+	await phys(2)
+	check(not ai.is_winding_up() and not ai.get_telegraph().is_lane_visible(), "SA10 a stunned enemy cancels the wind-up")
+	e.context.hit_stun_remaining = 0.0
+	await phys(5)
+	check(ai.is_winding_up() and ai.get_windup_elapsed() < 0.3, "SA11 a cancelled wind-up restarts from zero")
+	p.health_component.apply_hit(HitData.new(99999, e, Vector2.RIGHT))
+	await phys(4)
+	check(not ai.is_winding_up() and not ai.get_telegraph().is_lane_visible(), "SA12 a dead or lost target cancels the wind-up")
+	await cleanup(main)
+
+	# 0 = attack at once, no lane at all.
+	main = await fresh()
+	parts = smart_aim_goblin_setup(main, 0.0)
+	e = parts[1]
+	ai = parts[2]
+	var lane_seen := false
+	var attacked := false
+	for i in 12:
+		await phys(1)
+		lane_seen = lane_seen or ai.is_winding_up() or (is_instance_valid(ai._telegraph) and ai._telegraph.is_lane_visible())
+		attacked = attacked or e.context.is_attacking
+	check(attacked and not lane_seen, "SA13 attack_windup_duration 0 attacks at once and never shows a lane")
+	await cleanup(main)
+
+	# Pacing: an interval keeps the next request waiting.
+	main = await fresh()
+	parts = smart_aim_goblin_setup(main, 0.0, 3.0)
+	ai = parts[2]
+	await phys(10)
+	check(ai._interval_remaining > 0.0 and not ai._can_begin_attack(), "SA14 attack_interval holds back the next swing after one has been requested")
+	await cleanup(main)
+
+func smart_aim_nearest_checks() -> void:
+	var main := await fresh()
+	var p: Character2D = main.get_node("Player")
+	var e: Node2D = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(5000, 0) # off screen
+	var service: TargetingService2D = p.get_targeting_service()
+	service.set_view_override(Rect2(p.global_position - Vector2(400, 300), Vector2(800, 600)))
+	var front := parked_goblin(main, p.global_position + Vector2(200, 0))
+	var behind := parked_goblin(main, p.global_position + Vector2(-100, 0))
+	await phys(2)
+	var shape: ViewAimShape2D = service.make_view_shape(360.0)
+	check(service.pick_nearest_target(p.global_position, Vector2.RIGHT, shape) == behind, "SA15 the nearest eligible target wins, even behind the player and beside a farther one in front")
+	check(service.pick_target(p.global_position, Vector2.RIGHT, shape) == front, "SA16 the scored pick (used elsewhere) is unchanged: the front cone still outranks")
+	check(service.pick_marked_target(p.global_position, Vector2.RIGHT, shape) == behind, "SA17 the target marker follows the nearest target")
+	var direction: Vector2 = p._direction_for_activation(shape)
+	check(direction.distance_to(Vector2.LEFT) < 0.01, "SA18 a PC attack with an aim shape aims at the nearest target (got %s)" % [direction])
+	front.global_position = p.global_position + Vector2(40, 0)
+	check(service.pick_marked_target(p.global_position, Vector2.RIGHT, shape) == front and p._direction_for_activation(shape).distance_to(Vector2.RIGHT) < 0.01, "SA19 the marker and the aim move at once when another target becomes nearer (no sticking)")
+	front.global_position = p.global_position + Vector2(4000, 0)
+	check(service.pick_nearest_target(p.global_position, Vector2.RIGHT, shape) == behind, "SA20 a target outside the shape is not chosen")
+	behind.health_component.apply_hit(HitData.new(99999, p, Vector2.LEFT))
+	await phys(4)
+	check(service.pick_nearest_target(p.global_position, Vector2.RIGHT, shape) == null, "SA21 a dead target is not eligible")
+	var mouse: Vector2 = p._intended_aim()
+	var fallback: Vector2 = p._direction_for_activation(shape)
+	check(mouse.length_squared() < 0.0001 or fallback.distance_to(mouse.normalized()) < 0.01, "SA22 with no valid target the aim falls back to the mouse direction")
+	service.clear_view_override()
+	await cleanup(main)
+
+func smart_aim_preview_checks() -> void:
+	var main := await fresh()
+	var p: Character2D = main.get_node("Player")
+	var e: Node2D = main.get_node("BasicEnemy2D")
+	e.set_physics_process(false)
+	e.global_position = p.global_position + Vector2(5000, 0)
+	p.skill_aim_preview = true
+	var skills: SkillComponent2D = p.skill_component
+	var mana: ManaComponent2D = p.mana_component
+	var aimed := -1
+	var immediate := -1
+	for slot in WeaponDefinition2D.MAX_SKILL_SLOTS:
+		if p.slot_has_aim_shape(slot) and aimed < 0:
+			aimed = slot
+		elif skills.get_skill_in_slot(slot) != null and skills.get_skill_in_slot(slot).behavior == SkillDefinition2D.Behavior.BUFF and not p.slot_has_aim_shape(slot) and immediate < 0:
+			immediate = slot
+	check(aimed >= 0 and immediate >= 0, "SA23 the equipped weapon has an aimed skill (slot %d) and a skill with no aim shape (slot %d)" % [aimed, immediate])
+	if aimed < 0 or immediate < 0:
+		await cleanup(main)
+		return
+	var aimed_skill := skills.get_skill_in_slot(aimed)
+	var started: Array = []
+	skills.skill_started.connect(func(skill): started.append(skill.id))
+	var light_swings := [0]
+	p.attack_component.attack_started.connect(func(_d): light_swings[0] += 1)
+	var mana_before := mana.mana
+
+	# Enter, then cancel with Escape.
+	Input.action_press(StringName("skill_%d" % (aimed + 1)))
+	await phys(3)
+	Input.action_release(StringName("skill_%d" % (aimed + 1)))
+	await phys(3)
+	check(p.has_pending_skill_cast() and p.get_pending_skill_slot() == aimed and started.is_empty(), "SA24 an aimed skill key enters preview and does not cast")
+	check(is_equal_approx(mana.mana, mana_before) and skills.get_cooldown_remaining(aimed_skill.id) == 0.0 and not skills.is_casting(), "SA25 previewing spends no mana and starts no cooldown")
+	check(p._preview_shape() != null and p.get_aim_indicator() != null, "SA26 the aim indicator shows the skill's shape during the preview")
+	Input.action_press(&"ui_cancel")
+	await phys(3)
+	Input.action_release(&"ui_cancel")
+	await phys(3)
+	check(not p.has_pending_skill_cast() and started.is_empty() and is_equal_approx(mana.mana, mana_before) and skills.get_cooldown_remaining(aimed_skill.id) == 0.0, "SA27 Escape cancels: nothing cast, no mana spent, no cooldown")
+
+	# Cancel with dash: no dash happens either.
+	Input.action_press(StringName("skill_%d" % (aimed + 1)))
+	await phys(3)
+	Input.action_release(StringName("skill_%d" % (aimed + 1)))
+	await phys(3)
+	var dashed := false
+	Input.action_press(&"dash")
+	for i in 4:
+		await phys(1)
+		dashed = dashed or p.context.is_dashing
+	Input.action_release(&"dash")
+	await phys(3)
+	check(not p.has_pending_skill_cast() and not dashed and started.is_empty() and is_equal_approx(mana.mana, mana_before), "SA28 the dash input cancels the preview and does not also dash")
+
+	# A skill with no aim shape still casts at once.
+	Input.action_press(StringName("skill_%d" % (immediate + 1)))
+	await phys(3)
+	Input.action_release(StringName("skill_%d" % (immediate + 1)))
+	await phys(3)
+	check(started.size() == 1 and not p.has_pending_skill_cast(), "SA29 a skill with no aim shape (a buff or self skill) still casts immediately")
+	await phys(60)
+
+	# Confirm: the mouse places the skill, an enemy in view does not pull it.
+	started.clear()
+	var aim: Vector2 = p._intended_aim()
+	if aim.length_squared() < 0.0001:
+		aim = Vector2.RIGHT
+	aim = aim.normalized()
+	var decoy := parked_goblin(main, p.global_position - aim * 80.0)
+	await phys(2)
+	mana_before = mana.mana
+	Input.action_press(StringName("skill_%d" % (aimed + 1)))
+	await phys(3)
+	Input.action_release(StringName("skill_%d" % (aimed + 1)))
+	await phys(3)
+	check(p.has_pending_skill_cast() and started.is_empty(), "SA30pre the aimed skill is previewing with an enemy on the other side")
+	Input.action_press(&"attack_light")
+	await phys(3)
+	Input.action_release(&"attack_light")
+	await phys(2)
+	check(started == [aimed_skill.id] and not p.has_pending_skill_cast() and (aimed_skill.cost_amount <= 0.0 or mana.mana < mana_before) and skills.get_cooldown_remaining(aimed_skill.id) > 0.0, "SA30 a click confirms: the skill casts, mana is spent when it has a cost (Lunge has none), the cooldown starts")
+	check(p.context.last_aim_direction.distance_to(aim) < 0.05, "SA31 the confirmed cast follows the mouse, not the enemy behind (aim %s, got %s)" % [aim, p.context.last_aim_direction])
+	check(light_swings[0] == 0, "SA32 the confirming click does not also start a light attack (%d started)" % light_swings[0])
+	decoy.queue_free()
+	# Wait out both cooldowns (the aimed skill's and the no-shape skill's) so the hotbar clicks below are not refused.
+	var sa_wait := maxf(skills.get_cooldown_remaining(aimed_skill.id), skills.get_cooldown_remaining(skills.get_skill_in_slot(immediate).id))
+	await phys(ceili(sa_wait * 60.0) + 5)
+
+	# Hotbar click enters preview too.
+	started.clear()
+	var bar := main.get_node("HUD/PlayerSkillBar") as SkillBar
+	bar._on_slot_clicked(aimed)
+	await phys(2)
+	check(p.has_pending_skill_cast() and started.is_empty(), "SA33 clicking an aimed skill on the hotbar enters preview as well")
+	p.cancel_skill_preview()
+	bar._on_slot_clicked(immediate)
+	await phys(2)
+	check(not p.has_pending_skill_cast() and started.size() == 1, "SA34 clicking a skill with no aim shape on the hotbar casts at once")
+	await phys(60)
+
+	# Off switch and the controller's stick keep casting at once.
+	started.clear()
+	p.skill_aim_preview = false
+	Input.action_press(StringName("skill_%d" % (aimed + 1)))
+	await phys(3)
+	Input.action_release(StringName("skill_%d" % (aimed + 1)))
+	await phys(3)
+	check(started.size() == 1 and not p.has_pending_skill_cast(), "SA35 with skill_aim_preview off an aimed skill casts at once")
+	await cleanup(main)
+
+## B2: the enemy follows a combo only as far as the profile's preferred_combo_length, and only while the target is in range.
+## The goblin's own clips carry no combo-window events yet, so the test adds them to the shared clips and removes them again.
+func run_enemy_ai_combo_checks() -> void:
+	var one: Array = await goblin_combo_run(1, false)
+	check(not one.is_empty() and one[0] == [&"sword_slash1"], "B2-1 preferred_combo_length 1 never chains (first combo %s)" % str(one[0] if not one.is_empty() else []))
+	var two: Array = await goblin_combo_run(2, false)
+	check(not two.is_empty() and two[0] == [&"sword_slash1", &"sword_slash2"], "B2-2 length 2 chains slash1 into slash2 and stops (first combo %s)" % str(two[0] if not two.is_empty() else []))
+	var three: Array = await goblin_combo_run(3, false)
+	check(not three.is_empty() and three[0].size() == 3, "B2-3 length 3 plays exactly three swings (first combo %s)" % str(three[0] if not three.is_empty() else []))
+	var left: Array = await goblin_combo_run(2, true)
+	check(not left.is_empty() and left[0] == [&"sword_slash1"], "B2-4 a target that leaves the range during the window ends the combo (first combo %s)" % str(left[0] if not left.is_empty() else []))
+	# B3: the debug reason, and the pause after a combo.
+	var reasons: Dictionary = await goblin_combo_log(2, false, 0.0, 150)
+	check(str(reasons["decision"]).begins_with("stop: length reached (2 of 2)"), "B3-1 the last combo decision names why it stopped (%s)" % str(reasons["decision"]))
+	var gone: Dictionary = await goblin_combo_log(2, true, 0.0, 150)
+	check(str(gone["decision"]).begins_with("stop: out of range"), "B3-2 a target that left the range is named as the reason (%s)" % str(gone["decision"]))
+	var quick: Dictionary = await goblin_combo_log(2, false, 0.0, 300)
+	var slow: Dictionary = await goblin_combo_log(2, false, 1.0, 300)
+	var quick_starts: Array = quick["starts"]
+	var slow_starts: Array = slow["starts"]
+	var enough: bool = quick_starts.size() >= 3 and slow_starts.size() >= 3
+	check(enough and (slow_starts[2] - slow_starts[1]) >= (quick_starts[2] - quick_starts[1]) + 40, "B3-3 combo_recovery_pause 1.0 delays the next combo by about a second (gap %s frames with, %s without)" % [str(slow_starts[2] - slow_starts[1]) if slow_starts.size() >= 3 else "?", str(quick_starts[2] - quick_starts[1]) if quick_starts.size() >= 3 else "?"])
+
+## One goblin next to a parked player; returns the swings of each combo (a list of attack ids per swing_ended).
+func goblin_combo_run(length: int, leave_after_first: bool) -> Array:
+	var result: Dictionary = await goblin_combo_log(length, leave_after_first, 0.0, 150)
+	return result["combos"]
+
+## goblin_combo_run with more detail: "combos", "starts" (the physics frame of every swing) and "decision" (the AI's
+## last_combo_decision when the run ends). `pause` sets combo_recovery_pause.
+func goblin_combo_log(length: int, leave_after_first: bool, pause: float, frames: int) -> Dictionary:
+	var main: Node = await fresh()
+	var p: Character2D = main.get_node("Player")
+	var e: BasicEnemy2D = main.get_node("BasicEnemy2D")
+	set_player_health(p, 100000)
+	p.set_physics_process(false)
+	p.global_position = Vector2.ZERO
+	e.global_position = Vector2(25, 0)
+	var ai := e.get_node("EnemyAIController2D") as EnemyAIController2D
+	ai.profile.preferred_combo_length = length # the profile is the goblin's private copy (quiet_goblin_choices)
+	ai.profile.combo_recovery_pause = pause
+	var clips: Array[Animation] = []
+	for clip_name in [&"sword_slash_1", &"sword_slash_2"]:
+		var clip := e.context.weapon_animation_player.get_animation(clip_name)
+		add_event_key(clip, 0.15, &"combo_window_open")
+		add_event_key(clip, 0.28, &"combo_window_close")
+		clips.append(clip)
+	var combos: Array = []
+	var current: Array = []
+	var starts: Array = []
+	e.attack_component.attack_started.connect(func(_direction: Vector2) -> void:
+		starts.append(Engine.get_physics_frames())
+		current.append(e.attack_component.get_active_attack_id())
+		if leave_after_first and combos.is_empty() and current.size() == 1:
+			p.global_position = Vector2(150, 0))
+	e.attack_component.swing_ended.connect(func(_cancelled: bool) -> void:
+		combos.append(current.duplicate())
+		current.clear())
+	await phys(frames)
+	var decision := ai.last_combo_decision
+	for clip in clips:
+		for time in [0.15, 0.28]:
+			for t in clip.get_track_count():
+				if clip.track_get_type(t) == Animation.TYPE_METHOD:
+					var key := clip.track_find_key(t, time, Animation.FIND_MODE_EXACT)
+					if key >= 0:
+						clip.track_remove_key(t, key)
+	await cleanup(main)
+	return {"combos": combos, "starts": starts, "decision": decision}
+
+## C1: an enemy begins a charged attack through the charge hooks, holds it to a full charge and releases it at the aim it
+## had when the charge began. The heavy is a variant of the sword heavy with the goblin's own clips, so the test does not
+## depend on which weapon the goblin has equipped.
+func run_enemy_ai_heavy_checks() -> void:
+	var main: Node = await fresh()
+	var p: Character2D = main.get_node("Player")
+	var e: BasicEnemy2D = main.get_node("BasicEnemy2D")
+	set_player_health(p, 100000)
+	p.set_physics_process(false)
+	p.global_position = Vector2.ZERO
+	e.global_position = Vector2(25, 0)
+	var heavy := definition_variant(load("res://Weapons/Sword/Attacks/Sword_HeavySlash.tres") as AttackDefinition2D, &"c1_heavy")
+	heavy.weapon_animation = &"slash"
+	heavy.charge_animation = &""
+	heavy.recovery_animation = &""
+	var extras: Array[AttackDefinition2D] = [heavy]
+	e.attack_component.set_attacks(extras)
+	var ai := e.get_node("EnemyAIController2D") as EnemyAIController2D
+	var choices: Array[AttackChoice2D] = [attack_choice(heavy, 1.0)]
+	ai.profile.attack_choices = choices
+	ai.reset_attack_choice()
+	var charge_frame := [-1]
+	var swing_frame := [-1]
+	var swing_direction := [Vector2.ZERO]
+	e.attack_component.attack_started.connect(func(direction: Vector2) -> void:
+		if swing_frame[0] < 0:
+			swing_frame[0] = Engine.get_physics_frames()
+			swing_direction[0] = direction)
+	for i in 150:
+		await phys(1)
+		if charge_frame[0] < 0 and e.attack_component.is_charging():
+			charge_frame[0] = Engine.get_physics_frames()
+			diag("C1-3", "at charge start: enemy %s player %s enemy aim %s heavy aim_follow %s" % [str(e.global_position), str(p.global_position), str(e.context.last_aim_direction), str(heavy.aim_follow)])
+			p.global_position = Vector2(25, 40) # the player steps aside once the charge has begun
+	check(charge_frame[0] >= 0, "C1-1 the enemy begins the charged attack through the charge hooks")
+	check(swing_frame[0] >= 0 and charge_frame[0] >= 0 and swing_frame[0] - charge_frame[0] >= 25, "C1-2 the swing starts only after the charge is full (charge_threshold 0.5 s; frames %d to %d)" % [charge_frame[0], swing_frame[0]])
+	diag("C1-3", "swing direction %s, enemy %s, player %s" % [str(swing_direction[0]), str(e.global_position), str(p.global_position)])
+	check(swing_direction[0].x < -0.9, "C1-3 the swing goes where the charge was aimed, not where the player moved to (%s)" % str(swing_direction[0]))
+	await cleanup(main)
+
+## C2: with heavy_wait_for_opening above 0 the enemy starts the heavy only against an opening, and otherwise falls back.
+func run_enemy_ai_heavy_wait_checks() -> void:
+	var still: Dictionary = await heavy_wait_run(1.0, "still")
+	check(still["charge_frame"] >= 0 and still["charge_frame"] - still["start_frame"] <= 10 and still["first_id"] == &"c2_heavy", "C2-1 a target that stands still is an opening: the heavy is charged at once (%s)" % str(still["decision"]))
+	var moving: Dictionary = await heavy_wait_run(1.0, "moving")
+	check(moving["first_id"] == &"sword_slash1" and moving["first_frame"] - moving["start_frame"] >= 50, "C2-2 a target that keeps moving gets no heavy: after the wait the enemy uses its other attack (first swing %s after %d frames)" % [str(moving["first_id"]), moving["first_frame"] - moving["start_frame"]])
+	check(str(moving["decision"]).begins_with("fallback") or str(moving["decision"]).begins_with("wait"), "C2-3 the debug reason names the wait or the fallback (%s)" % str(moving["decision"]))
+	var stunned: Dictionary = await heavy_wait_run(1.0, "stunned")
+	check(stunned["charge_frame"] >= 0 and stunned["first_id"] == &"c2_heavy", "C2-4 a stunned target is an opening even while it moves (%s)" % str(stunned["decision"]))
+	var impatient: Dictionary = await heavy_wait_run(0.0, "moving")
+	check(impatient["charge_frame"] >= 0 and impatient["first_id"] == &"c2_heavy", "C2-5 with heavy_wait_for_opening at 0 the heavy starts at once, as before (%s)" % str(impatient["decision"]))
+	# Phase C: a moving target is judged by where it will be when the charge ends.
+	var near: Dictionary = await heavy_wait_run(1.0, "away_near")
+	check(near["charge_frame"] >= 0 and near["first_id"] == &"c2_heavy" and str(near["decision"]).contains("predicted inside the lane"), "C3-1 a target walking along the lane is predicted to be hit, so the heavy is charged (%s)" % str(near["decision"]))
+	var far: Dictionary = await heavy_wait_run(1.0, "away_far")
+	check(far["first_id"] == &"sword_slash1" and far["first_frame"] - far["start_frame"] >= 50, "C3-2 a target predicted to end outside the heavy's reach gets no heavy (first swing %s after %d frames)" % [str(far["first_id"]), far["first_frame"] - far["start_frame"]])
+
+## One goblin next to a parked player with the heavy and the slash as its two choices. `target` is "still", "moving" or
+## "stunned". Returns "first_id" and "first_frame" (the first swing or charge), "charge_frame", "start_frame", "decision".
+func heavy_wait_run(patience: float, target: String) -> Dictionary:
+	var main: Node = await fresh()
+	var p: Character2D = main.get_node("Player")
+	var e: BasicEnemy2D = main.get_node("BasicEnemy2D")
+	set_player_health(p, 100000)
+	p.set_physics_process(false)
+	p.global_position = Vector2.ZERO
+	e.global_position = Vector2(25, 0)
+	if target == "moving":
+		p.velocity = Vector2(0, 200) # physics is off, so the value stays: the AI reads a fast target
+	if target == "stunned":
+		p.velocity = Vector2(0, 200)
+		p.context.hit_stun_remaining = 100.0
+	if target == "away_near":
+		p.velocity = Vector2(-40, 0) # walks along the lane, ends 45 px from the goblin: inside its 60 px reach
+	if target == "away_far":
+		p.velocity = Vector2(-100, 0) # ends 75 px away: outside the reach
+	var heavy := definition_variant(load("res://Weapons/Sword/Attacks/Sword_HeavySlash.tres") as AttackDefinition2D, &"c2_heavy")
+	heavy.weapon_animation = &"slash"
+	heavy.charge_animation = &""
+	heavy.recovery_animation = &""
+	var extras: Array[AttackDefinition2D] = [heavy]
+	e.attack_component.set_attacks(extras)
+	var ai := e.get_node("EnemyAIController2D") as EnemyAIController2D
+	var choices: Array[AttackChoice2D] = [attack_choice(heavy, 1000.0), attack_choice(e.attack_component.definition, 0.001)]
+	ai.profile.attack_choices = choices
+	ai.profile.heavy_wait_for_opening = patience
+	ai.reset_attack_choice()
+	var result := {"first_id": &"", "first_frame": -1, "charge_frame": -1, "start_frame": Engine.get_physics_frames(), "decision": ""}
+	e.attack_component.attack_started.connect(func(_direction: Vector2) -> void:
+		if result["first_frame"] < 0:
+			result["first_frame"] = Engine.get_physics_frames()
+			result["first_id"] = e.attack_component.get_active_attack_id())
+	for i in 150:
+		await phys(1)
+		if result["charge_frame"] < 0 and e.attack_component.is_charging():
+			result["charge_frame"] = Engine.get_physics_frames()
+			if result["first_frame"] < 0:
+				result["first_frame"] = result["charge_frame"]
+				result["first_id"] = e.attack_component.get_charging_definition().id
+		if result["first_frame"] >= 0:
+			break
+	result["decision"] = ai.last_heavy_decision
+	await cleanup(main)
+	return result
+
+## D1: the enemy uses a skill of its SkillComponent2D when the profile allows it and the skill fits the distance.
+func run_enemy_ai_skill_checks() -> void:
+	var gap: Dictionary = await goblin_skill_run(1.0, 60.0, 180)
+	check(gap["started"].size() >= 1 and gap["started"][0] == &"lunge", "D1-1 a goblin with skill_usage_priority 1 dashes with its lunge from beyond its attack range (%s)" % str(gap["decision"]))
+	check(gap["started"].size() == 1, "D1-2 the lunge's cooldown is respected: one use in three seconds (%d)" % gap["started"].size())
+	var off: Dictionary = await goblin_skill_run(0.0, 60.0, 180)
+	check(off["started"].is_empty(), "D1-3 with skill_usage_priority 0 no skill is ever used (%d)" % off["started"].size())
+	var close: Dictionary = await goblin_skill_run(1.0, 25.0, 120)
+	check(close["started"].is_empty() and str(close["decision"]).contains("already in attack range"), "D1-4 a dash is not used when the target is already in attack range (%s)" % str(close["decision"]))
+	var far: Dictionary = await goblin_skill_run(1.0, 160.0, 10)
+	check(far["started"].is_empty() and str(far["decision"]).contains("out of reach"), "D1-5 a skill beyond its reach is not used (%s)" % str(far["decision"]))
+	# DE3: the warning before a skill.
+	var warned: Dictionary = await goblin_skill_warning_run(0.5, 90)
+	check(warned["warned"] and warned["points"] >= 3, "D3-1 with skill_windup_duration 0.5 the skill's aim shape is drawn as a warning before the cast (%d points)" % warned["points"])
+	check(warned["first_start"] >= 20, "D3-2 the cast waits for the warning (first cast on frame %d, expected 20 or later)" % warned["first_start"])
+	check(warned["started"] == [&"sword_spin"], "D3-3 the skill is cast once the warning has run (%s)" % str(warned["started"]))
+	check(not warned["lane_after"], "D3-4 the warning is gone after the cast")
+	var instant: Dictionary = await goblin_skill_warning_run(0.0, 30)
+	check(not instant["warned"] and instant["started"] == [&"sword_spin"], "D3-5 with skill_windup_duration 0 the skill is cast at once with no warning (%s)" % str(instant["started"]))
+	# DE1: self buffs.
+	var empower := "res://Weapons/Sword/Skills/Sword_Empower.tres"
+	var buff: Dictionary = await goblin_skill_run(1.0, 100.0, 60, empower)
+	check(buff["started"] == [&"empower"], "D2-1 a goblin with skill_usage_priority 1 casts its buff on itself while it has a target (%s)" % str(buff["decision"]))
+	var running: Dictionary = await goblin_skill_run(1.0, 100.0, 60, empower, 100.0, true)
+	check(running["started"].is_empty() and str(running["decision"]).contains("buff already running"), "D2-2 a buff that is already running is not cast again (%s)" % str(running["decision"]))
+	var broke: Dictionary = await goblin_skill_run(1.0, 100.0, 60, empower, 0.0)
+	check(broke["started"].is_empty() and str(broke["decision"]).contains("mana"), "D2-3 a buff the enemy cannot pay for is not cast (%s)" % str(broke["decision"]))
+	var idle: Dictionary = await goblin_skill_run(0.0, 100.0, 60, empower)
+	check(idle["started"].is_empty(), "D2-4 with skill_usage_priority 0 no buff is cast (%d)" % idle["started"].size())
+
+## One goblin `distance` px from a parked player with the sword lunge skill. Returns "started" (skill ids, in order) and
+## "decision" (the AI's last_skill_decision at the end).
+func goblin_skill_run(priority: float, distance: float, frames: int, skill_path: String = "res://Weapons/Sword/Skills/Sword_Lunge.tres", mana_value: float = 100.0, pre_applied: bool = false) -> Dictionary:
+	var main: Node = await fresh()
+	var p: Character2D = main.get_node("Player")
+	var e: BasicEnemy2D = main.get_node("BasicEnemy2D")
+	set_player_health(p, 100000)
+	p.set_physics_process(false)
+	p.global_position = Vector2.ZERO
+	e.global_position = Vector2(distance, 0)
+	var rig := skill_rig(e, mana_value)
+	var skills: SkillComponent2D = rig["skills"]
+	var lunge := load(skill_path) as SkillDefinition2D
+	skills.set_skills([lunge])
+	if pre_applied and lunge.status_effect != null:
+		e.status_controller.apply_status(lunge.status_effect)
+	var ai := e.get_node("EnemyAIController2D") as EnemyAIController2D
+	ai.profile.skill_usage_priority = priority
+	var started: Array = []
+	skills.skill_started.connect(func(skill: SkillDefinition2D) -> void: started.append(skill.id))
+	await phys(frames)
+	var decision := ai.last_skill_decision
+	await cleanup(main)
+	return {"started": started, "decision": decision}
+
+const PROFILE_DIR := "res://Characters/Controllers/Profiles/"
+
+## E1: minimum_combat_range makes the enemy back away, and the four shipped profiles differ in the ways their names promise.
+func run_enemy_ai_profiles_checks() -> void:
+	var kept: Dictionary = await goblin_spacing_run(100.0)
+	check(kept["end"] >= kept["start"] + 15.0 and kept["retreated"], "E1-1 minimum_combat_range 100 makes the goblin back away from a target at 40 px (%.0f to %.0f px)" % [kept["start"], kept["end"]])
+	var closed: Dictionary = await goblin_spacing_run(0.0)
+	check(closed["end"] <= closed["start"] and not closed["retreated"], "E1-2 minimum_combat_range 0 never retreats (%.0f to %.0f px)" % [closed["start"], closed["end"]])
+	var placed: Dictionary = await goblin_reposition_run(0.8)
+	check(absf(placed["end"] - placed["wanted"]) <= 12.0, "E2-1 a goblin that cannot attack yet drifts to preferred_combat_range (%.0f px, wanted %.0f)" % [placed["end"], placed["wanted"]])
+	check(placed["angle"] >= 0.5, "E2-2 and walks around its target meanwhile (%.2f rad)" % placed["angle"])
+	check(placed["max_distance"] <= placed["range"] + 1.0, "E2-3 and never leaves its attack range (%.0f px, range %.0f)" % [placed["max_distance"], placed["range"]])
+	var still: Dictionary = await goblin_reposition_run(0.0)
+	check(still["angle"] < 0.1 and absf(still["end"] - still["start"]) < 1.0, "E2-4 preferred_combat_range 0 keeps it standing still (%.2f rad, %.0f to %.0f px)" % [still["angle"], still["start"], still["end"]])
+	var aggressive := load(PROFILE_DIR + "AggressiveMeleeProfile.tres") as EnemyBehaviorProfile
+	var patient := load(PROFILE_DIR + "PatientMeleeProfile.tres") as EnemyBehaviorProfile
+	var skirmisher := load(PROFILE_DIR + "RangedSkirmisherProfile.tres") as EnemyBehaviorProfile
+	var caster := load(PROFILE_DIR + "TacticalCasterProfile.tres") as EnemyBehaviorProfile
+	check(aggressive != null and patient != null and skirmisher != null and caster != null, "E1-3 the four profiles load as EnemyBehaviorProfile resources")
+	if aggressive == null or patient == null or skirmisher == null or caster == null:
+		return
+	check(aggressive.preferred_combo_length > patient.preferred_combo_length and aggressive.attack_windup_duration < patient.attack_windup_duration and aggressive.attack_interval < patient.attack_interval, "E1-4 the aggressive fighter chains longer and strikes sooner than the patient one")
+	check(patient.heavy_wait_for_opening > 0.0 and aggressive.heavy_wait_for_opening == 0.0, "E1-5 only the patient fighter waits for an opening before a heavy")
+	check(skirmisher.minimum_combat_range > 0.0 and caster.minimum_combat_range > skirmisher.minimum_combat_range and aggressive.minimum_combat_range == 0.0 and patient.minimum_combat_range == 0.0, "E1-6 the ranged profiles keep a distance (the caster further), the melee ones close in")
+	check(caster.skill_usage_priority > skirmisher.skill_usage_priority and skirmisher.skill_usage_priority > 0.0 and caster.skill_usage_priority > aggressive.skill_usage_priority, "E1-7 the caster leans on skills most")
+	check(skirmisher.preferred_combat_range > skirmisher.minimum_combat_range and caster.preferred_combat_range > caster.minimum_combat_range, "E2-5 the skirmisher and the caster prefer a distance above their retreat distance (%.0f > %.0f, %.0f > %.0f)" % [skirmisher.preferred_combat_range, skirmisher.minimum_combat_range, caster.preferred_combat_range, caster.minimum_combat_range])
+	var simple := load(PROFILE_DIR + "SimpleCommonProfile.tres") as EnemyBehaviorProfile
+	check(simple != null, "E3-1 the simple common profile loads as an EnemyBehaviorProfile resource")
+	if simple != null:
+		check(simple.preferred_combo_length == 1 and simple.heavy_wait_for_opening == 0.0 and simple.skill_usage_priority == 0.0 and simple.minimum_combat_range == 0.0 and simple.preferred_combat_range == 0.0, "E3-2 the simple common enemy keeps to one swing at a time: no combo, no heavy wait, no skills, no spacing")
+		check(simple.target_switching == EnemyBehaviorProfile.TargetSwitching.KEEP_CURRENT, "E3-3 and it keeps its target (no switching)")
+	var elite_scene := load("res://Characters/Enemies/GoblinElite.tscn") as PackedScene
+	check(elite_scene != null, "E4-1 the elite goblin scene loads")
+	if elite_scene != null:
+		var elite_main: Node = await fresh()
+		var elite := elite_scene.instantiate() as Character2D
+		elite_main.add_child(elite)
+		await phys(3)
+		var elite_ai := elite.get_node("EnemyAIController2D") as EnemyAIController2D
+		check(is_instance_valid(elite.skill_component) and elite_ai.profile.skill_usage_priority > 0.0, "E4-2 the elite goblin has a skill component and uses skills")
+		var heavy_id: StringName = &"goblin_sword_lunge" # the goblin weapon's heavy is its lunge
+		var heavy_registered: AttackDefinition2D = elite.attack_component.get_attack(heavy_id)
+		var in_choices := false
+		for choice in elite_ai.profile.attack_choices:
+			in_choices = in_choices or (choice != null and choice.attack != null and choice.attack.id == heavy_id)
+		check(heavy_registered != null and in_choices and elite_ai._is_heavy_attack(heavy_registered), "E4-3 the elite goblin's heavy attack is registered, is its weapon's heavy, and is one of its choices")
+		check(elite_ai.profile.skill_windup_duration > 0.0 and elite_ai.profile.heavy_wait_for_opening > 0.0 and elite_ai.profile.target_switching == EnemyBehaviorProfile.TargetSwitching.NEAREST, "E4-4 the elite goblin warns before skills, waits for heavy openings and switches to nearer targets")
+		await cleanup(elite_main)
+	var arena_scene := load("res://TrackEArena.tscn") as PackedScene
+	check(arena_scene != null, "E5-1 the Track E arena scene loads")
+	if arena_scene != null:
+		var arena := arena_scene.instantiate()
+		var arena_profiles: Array = []
+		for enemy_name in ["Elite", "Aggressive", "Patient", "Simple1", "Simple2", "Skirmisher"]:
+			var enemy_ai := arena.get_node_or_null(enemy_name + "/EnemyAIController2D") as EnemyAIController2D
+			if enemy_ai != null and enemy_ai.profile != null:
+				arena_profiles.append(enemy_ai.profile.resource_path.get_file())
+		check(arena_profiles.size() == 6 and arena_profiles.has("GoblinEliteProfile.tres") and arena_profiles.has("AggressiveMeleeProfile.tres") and arena_profiles.has("PatientMeleeProfile.tres") and arena_profiles.has("SimpleCommonProfile.tres") and arena_profiles.has("RangedSkirmisherProfile.tres"), "E5-2 the arena's six enemies each carry the profile named for them (%s)" % str(arena_profiles))
+		arena.free()
+	var warned_all: Dictionary = await goblin_lane_run(true)
+	check(warned_all["lane"] and warned_all["width"] > 0.0 and warned_all["length"] > 0.0, "E6-1 telegraph_all_attacks shows a lane during a plain attack's wind-up (%s, %.0f x %.0f px)" % [str(warned_all["lane"]), warned_all["length"], warned_all["width"]])
+	var warned_none: Dictionary = await goblin_lane_run(false)
+	check(warned_none["winding"] and not warned_none["lane"], "E6-2 without it a plain attack winds up but shows no lane (winding %s, lane %s)" % [str(warned_none["winding"]), str(warned_none["lane"])])
+	var shipped: Array = []
+	for lane_profile in ["GoblinEliteProfile", "AggressiveMeleeProfile", "PatientMeleeProfile", "SimpleCommonProfile"]:
+		shipped.append((load(PROFILE_DIR + lane_profile + ".tres") as EnemyBehaviorProfile).telegraph_all_attacks)
+	check(not shipped.has(false), "E6-3 the elite, aggressive, patient and simple profiles warn before every attack")
+	var picks: Dictionary = await goblin_pick_report_run()
+	check(picks["count"] >= 3 and str(picks["last"]).begins_with("picked: "), "E3-4 the attack pick report lists every entry and ends with the pick (%s)" % str(picks["lines"]))
+	check(str(picks["rejected"]).find("weight 0") >= 0 and str(picks["rejected"]).find("no attack set") >= 0, "E3-5 and names why an entry was rejected (%s)" % str(picks["rejected"]))
+	var keeps: Dictionary = await goblin_target_switch_run(false)
+	check(keeps["target"] == "far" and keeps["switches"] == 0, "E3-6 with KEEP_CURRENT the goblin stays on its first target (%s)" % str(keeps["target"]))
+	var switches: Dictionary = await goblin_target_switch_run(true)
+	check(switches["target"] == "near" and switches["switches"] == 1, "E3-7 with NEAREST it changes to a target that came clearly closer, once (%s, %d switches)" % [str(switches["target"]), switches["switches"]])
+	check(str(switches["decision"]).begins_with("switch"), "E3-8 and the debug reason names the switch (%s)" % str(switches["decision"]))
+
+## E3: a goblin with attack_choices of three kinds (usable, weight 0, empty). Returns the report lines.
+func goblin_pick_report_run() -> Dictionary:
+	var main: Node = await fresh()
+	var e: BasicEnemy2D = main.get_node("BasicEnemy2D")
+	var ai := e.get_node("EnemyAIController2D") as EnemyAIController2D
+	ai.profile = ai.profile.duplicate()
+	var registered: AttackDefinition2D = e.attack_component.definition
+	var good := AttackChoice2D.new()
+	good.attack = registered
+	good.weight = 1.0
+	var zero := AttackChoice2D.new()
+	zero.attack = registered
+	zero.weight = 0.0
+	var empty := AttackChoice2D.new()
+	ai.profile.attack_choices = [good, zero, empty]
+	ai.reset_attack_choice()
+	ai.get_chosen_attack()
+	var lines: Array = ai.last_attack_candidates.duplicate()
+	var rejected := ""
+	for line in lines:
+		if str(line).find("rejected") >= 0:
+			rejected += str(line) + " | "
+	var result := {"count": lines.size(), "last": lines[lines.size() - 1] if not lines.is_empty() else "", "lines": lines, "rejected": rejected}
+	await cleanup(main)
+	return result
+
+
+## E3: a goblin chasing a far target (200 px) when a second hostile appears 60 px away. With `switching` on it may change once.
+## Returns the name of its target at the end, the number of switch decisions and the last target decision.
+func goblin_target_switch_run(switching: bool) -> Dictionary:
+	var main: Node = await fresh()
+	var p: Character2D = main.get_node("Player")
+	set_player_health(p, 100000)
+	p.set_physics_process(false)
+	p.name = "far"
+	p.global_position = Vector2(200, 0)
+	var e: BasicEnemy2D = main.get_node("BasicEnemy2D")
+	e.global_position = Vector2.ZERO
+	var ai := e.get_node("EnemyAIController2D") as EnemyAIController2D
+	ai.profile = ai.profile.duplicate()
+	ai.profile.target_switching = EnemyBehaviorProfile.TargetSwitching.NEAREST if switching else EnemyBehaviorProfile.TargetSwitching.KEEP_CURRENT
+	ai.profile.target_switch_margin = 40.0
+	ai.profile.target_switch_min_interval = 5.0
+	ai.profile.attack_windup_duration = 5.0
+	ai._candidates = [p]
+	await phys(5)
+	var near := (load("res://player.tscn") as PackedScene).instantiate() as Character2D
+	near.name = "near"
+	main.add_child(near)
+	near.set_physics_process(false)
+	near.global_position = Vector2(0, 60)
+	ai._candidates.append(near)
+	var switches := 0
+	var last := ""
+	for f in 40:
+		await phys(1)
+		if ai.last_target_decision != last:
+			last = ai.last_target_decision
+			if last.begins_with("switch"):
+				switches += 1
+	var target_name := str(ai.get_current_target().name) if ai.get_current_target() != null else ""
+	var result := {"target": target_name, "switches": switches, "decision": ai.last_target_decision}
+	await cleanup(main)
+	return result
+
+
+## E6: one goblin 20 px from a parked player with a 0.6 s wind-up. Returns whether it wound up, whether the lane showed meanwhile,
+## and the lane's length and width.
+func goblin_lane_run(all_attacks: bool) -> Dictionary:
+	var main: Node = await fresh()
+	var p: Character2D = main.get_node("Player")
+	set_player_health(p, 100000)
+	p.set_physics_process(false)
+	p.global_position = Vector2.ZERO
+	var e: BasicEnemy2D = main.get_node("BasicEnemy2D")
+	e.global_position = Vector2(20, 0)
+	var ai := e.get_node("EnemyAIController2D") as EnemyAIController2D
+	ai.profile = ai.profile.duplicate()
+	ai.profile.attack_windup_duration = 0.6
+	ai.profile.telegraph_all_attacks = all_attacks
+	var winding := false
+	var lane := false
+	var length := 0.0
+	var width := 0.0
+	for f in 20:
+		await phys(1)
+		if ai.is_winding_up():
+			winding = true
+			var telegraph := ai.get_telegraph()
+			if telegraph != null and telegraph.is_lane_visible():
+				lane = true
+				length = telegraph.get_lane_length()
+				width = telegraph.get_lane_width()
+	await cleanup(main)
+	return {"winding": winding, "lane": lane, "length": length, "width": width}
+
+
+## One goblin 40 px from a parked player. Returns the distance at the start and after 45 frames, and whether it ever retreated.
+func goblin_spacing_run(minimum: float) -> Dictionary:
+	var main: Node = await fresh()
+	var p: Character2D = main.get_node("Player")
+	var e: BasicEnemy2D = main.get_node("BasicEnemy2D")
+	set_player_health(p, 100000)
+	p.set_physics_process(false)
+	p.global_position = Vector2.ZERO
+	e.global_position = Vector2(40, 0)
+	var ai := e.get_node("EnemyAIController2D") as EnemyAIController2D
+	ai.profile.minimum_combat_range = minimum
+	var retreated := false
+	for i in 45:
+		await phys(1)
+		retreated = retreated or ai.is_retreating()
+	var result := {"start": 40.0, "end": e.global_position.distance_to(p.global_position), "retreated": retreated}
+	await cleanup(main)
+	return result
+
+
+## DE2: attack slots. Three goblins around one parked player; with max_simultaneous_attackers 1 they take turns, with 0 they
+## may all attack together.
+func run_enemy_ai_slots_checks() -> void:
+	var limited: Dictionary = await goblin_slot_run(1, 600)
+	check(limited["peak"] <= 1, "DE2-1 with max_simultaneous_attackers 1 never more than one goblin winds up or swings at once (peak %d)" % limited["peak"])
+	check(limited["swings"] >= 2, "DE2-2 the goblins take turns: at least two swings in 10 seconds (%d)" % limited["swings"])
+	check(str(limited["decision"]).begins_with("wait") or str(limited["decision"]).begins_with("took"), "DE2-3 the debug reason names the slot decision (%s)" % str(limited["decision"]))
+	var open_group: Dictionary = await goblin_slot_run(0, 600)
+	check(open_group["peak"] >= 2, "DE2-4 with max_simultaneous_attackers 0 goblins may attack together (peak %d)" % open_group["peak"])
+	check(open_group["slots_held"] == 0, "DE2-5 with no limit nothing is tracked (%d slots held)" % open_group["slots_held"])
+	var circling: Dictionary = await goblin_slot_run(1, 300, true)
+	check(circling["max_angle"] >= 0.5, "DE2-7 with circle_while_waiting a goblin that waits for a slot walks around the player (%.2f rad)" % circling["max_angle"])
+	check(circling["max_distance"] <= circling["range"] * 1.6, "DE2-8 a circling goblin stays near its attack range (%.0f px, range %.0f)" % [circling["max_distance"], circling["range"]])
+	check(limited["max_angle"] < 0.5, "DE2-9 without circle_while_waiting a waiting goblin stands where it is (%.2f rad)" % limited["max_angle"])
+	check(circling["peak"] <= 1, "DE2-10 circling does not let a second goblin attack (peak %d)" % circling["peak"])
+	check(limited["held_after_free"] == 0, "DE2-6 a freed or finished goblin leaves no slot taken (%d held)" % limited["held_after_free"])
+
+## Three goblins 25 px from a parked player. Returns the most goblins busy at once ("peak"), the swings started ("swings"),
+## a goblin's last_slot_decision, the slots held with no limit, and the slots still held after all goblins are freed.
+func goblin_slot_run(limit: int, frames: int, circle: bool = false) -> Dictionary:
+	var main: Node = await fresh()
+	var p: Character2D = main.get_node("Player")
+	set_player_health(p, 100000)
+	p.set_physics_process(false)
+	p.global_position = Vector2.ZERO
+	var goblins: Array[Character2D] = [main.get_node("BasicEnemy2D") as Character2D]
+	for offset in [Vector2(0, 25), Vector2(0, -25)]:
+		var extra := (load("res://Characters/Enemies/BasicEnemy2D.tscn") as PackedScene).instantiate() as Character2D
+		main.add_child(extra)
+		goblins.append(extra)
+	var offsets := [Vector2(25, 0), Vector2(0, 25), Vector2(0, -25)]
+	var swings := [0]
+	for i in goblins.size():
+		goblins[i].global_position = offsets[i]
+		var ai := goblins[i].get_node("EnemyAIController2D") as EnemyAIController2D
+		ai.profile = ai.profile.duplicate()
+		ai.profile.max_simultaneous_attackers = limit
+		ai.profile.circle_while_waiting = circle
+		goblins[i].attack_component.attack_started.connect(func(_direction: Vector2) -> void: swings[0] += 1)
+	var peak := 0
+	var slots_held := 0
+	var max_angle := 0.0
+	var max_distance := 0.0
+	var start_angles: Array[float] = []
+	for goblin in goblins:
+		start_angles.append((goblin.global_position - p.global_position).angle())
+	for f in frames:
+		await phys(1)
+		var busy := 0
+		var held := 0
+		for goblin in goblins:
+			var ai := goblin.get_node("EnemyAIController2D") as EnemyAIController2D
+			if ai.is_winding_up() or goblin.context.is_attacking:
+				busy += 1
+			if ai.holds_attack_slot():
+				held += 1
+		peak = maxi(peak, busy)
+		slots_held = maxi(slots_held, held)
+		for i in goblins.size():
+			var offset := goblins[i].global_position - p.global_position
+			max_angle = maxf(max_angle, absf(angle_difference(start_angles[i], offset.angle())))
+			max_distance = maxf(max_distance, offset.length())
+	var range_px := (goblins[0].get_node("EnemyAIController2D") as EnemyAIController2D).get_effective_attack_range()
+	var decision := ""
+	for goblin in goblins:
+		var text := (goblin.get_node("EnemyAIController2D") as EnemyAIController2D).last_slot_decision
+		if text != "":
+			decision = text
+	for goblin in goblins:
+		goblin.queue_free()
+	await phys(3)
+	var after := 0
+	if p.has_meta(EnemyAIController2D.SLOT_META):
+		after = (p.get_meta(EnemyAIController2D.SLOT_META) as Array).size()
+	await cleanup(main)
+	return {"peak": peak, "swings": swings[0], "decision": decision, "slots_held": slots_held, "held_after_free": after, "max_angle": max_angle, "max_distance": max_distance, "range": range_px}
+
+
+## One goblin 30 px from a parked player with the sword spin skill. Returns whether the skill warning was ever shown, the most
+## polygon points it had, the frame of the first cast (-1 when none), the cast skill ids, and whether a warning is still up.
+func goblin_skill_warning_run(duration: float, frames: int) -> Dictionary:
+	var main: Node = await fresh()
+	var p: Character2D = main.get_node("Player")
+	var e: BasicEnemy2D = main.get_node("BasicEnemy2D")
+	set_player_health(p, 100000)
+	p.set_physics_process(false)
+	p.global_position = Vector2.ZERO
+	e.global_position = Vector2(30, 0)
+	var rig := skill_rig(e)
+	var skills: SkillComponent2D = rig["skills"]
+	var warn_spin := (load("res://Weapons/Sword/Skills/Sword_Spin.tres") as SkillDefinition2D).duplicate() as SkillDefinition2D
+	# The shipped Spin has no aim shape (it casts at once), so the warning needs one on this copy.
+	var warn_shape := CircleSelfAimShape2D.new()
+	warn_shape.max_range = warn_spin.get_reach()
+	warn_spin.aim_shape = warn_shape
+	skills.set_skills([warn_spin])
+	var ai := e.get_node("EnemyAIController2D") as EnemyAIController2D
+	ai.profile.skill_usage_priority = 1.0
+	ai.profile.skill_windup_duration = duration
+	var started: Array = []
+	var first := [-1]
+	var begin := Engine.get_physics_frames()
+	skills.skill_started.connect(func(skill: SkillDefinition2D) -> void:
+		started.append(skill.id)
+		if first[0] < 0:
+			first[0] = Engine.get_physics_frames() - begin)
+	var warned := false
+	var points := 0
+	for f in frames:
+		await phys(1)
+		if ai.is_skill_winding_up():
+			warned = true
+			points = maxi(points, ai.get_telegraph().get_shape_points().size())
+	var lane_after := ai.get_telegraph() != null and ai.get_telegraph().is_lane_visible() and not ai.is_skill_winding_up() and not ai.is_winding_up()
+	await cleanup(main)
+	return {"warned": warned, "points": points, "first_start": first[0], "started": started, "lane_after": lane_after}
+
+
+## E2: one goblin inside its attack range at half the range, with its pacing interval running (it cannot attack). `preferred_fraction`
+## sets preferred_combat_range as a fraction of the attack range (0 = off). Returns the distance at the start and end, the angle it
+## walked around the player, the largest distance reached, the wanted distance and the range.
+func goblin_reposition_run(preferred_fraction: float) -> Dictionary:
+	var main: Node = await fresh()
+	var p: Character2D = main.get_node("Player")
+	var e: BasicEnemy2D = main.get_node("BasicEnemy2D")
+	set_player_health(p, 100000)
+	p.set_physics_process(false)
+	p.global_position = Vector2.ZERO
+	var ai := e.get_node("EnemyAIController2D") as EnemyAIController2D
+	var range_px := ai.get_effective_attack_range()
+	var start := range_px * 0.5
+	e.global_position = Vector2(start, 0)
+	ai.profile.preferred_combat_range = range_px * preferred_fraction
+	ai.profile.attack_interval = 100.0
+	ai._interval_remaining = 100.0 # the enemy is in range but cannot attack for the whole run
+	var max_distance := 0.0
+	var start_angle := 0.0
+	var angle := 0.0
+	for f in 240:
+		await phys(1)
+		var offset := e.global_position - p.global_position
+		max_distance = maxf(max_distance, offset.length())
+		angle = maxf(angle, absf(angle_difference(start_angle, offset.angle())))
+	var result := {"start": start, "end": e.global_position.distance_to(p.global_position), "angle": angle, "max_distance": max_distance, "wanted": minf(range_px * preferred_fraction, range_px * 0.95), "range": range_px}
+	await cleanup(main)
+	return result

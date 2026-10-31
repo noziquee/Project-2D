@@ -12,14 +12,23 @@ enum Style { RECTANGLE, ARROW }
 func get_kind() -> Kind:
 	return Kind.LINE
 
+## R1: its `max_range` is the action's reach, so it is drawn and tested at the real reach (see AimShape2D.with_reach).
+func follows_action_reach() -> bool:
+	return true
+
 ## The strip: four corners, the same region `contains` tests, for both styles (H8.9). It starts at the caster and runs
 ## `max_range` along the aim.
 func get_outline(direction: Vector2) -> PackedVector2Array:
+	return get_outline_at_width(direction, width)
+
+## The same strip drawn `drawn_width` wide instead of `width`. For the aim indicator's width scaling (presentation only):
+## `contains` and `score` keep using `width`, so only the picture changes, never what the assist targets.
+func get_outline_at_width(direction: Vector2, drawn_width: float) -> PackedVector2Array:
 	var outline := PackedVector2Array()
-	if max_range <= 0.0 or width <= 0.0:
+	if max_range <= 0.0 or drawn_width <= 0.0:
 		return outline
 	var axis := direction.normalized() if direction.length_squared() > 0.0001 else Vector2.RIGHT
-	var side := axis.orthogonal() * width * 0.5
+	var side := axis.orthogonal() * drawn_width * 0.5
 	var far := axis * max_range
 	outline.append_array(PackedVector2Array([-side, side, far + side, far - side]))
 	return outline
@@ -27,12 +36,16 @@ func get_outline(direction: Vector2) -> PackedVector2Array:
 ## The ARROW style's head: a triangle that points along the aim and sits inside the strip at its far end. Empty for the
 ## RECTANGLE style. Decoration only; the targeting still uses the whole strip.
 func get_head_outline(direction: Vector2) -> PackedVector2Array:
+	return get_head_outline_at_width(direction, width)
+
+## The arrow head for a strip drawn `drawn_width` wide (the head is as long as the strip is wide, so it scales with it).
+func get_head_outline_at_width(direction: Vector2, drawn_width: float) -> PackedVector2Array:
 	var head := PackedVector2Array()
-	if style != Style.ARROW or max_range <= 0.0 or width <= 0.0:
+	if style != Style.ARROW or max_range <= 0.0 or drawn_width <= 0.0:
 		return head
 	var axis := direction.normalized() if direction.length_squared() > 0.0001 else Vector2.RIGHT
-	var side := axis.orthogonal() * width * 0.5
-	var length := minf(width, max_range)
+	var side := axis.orthogonal() * drawn_width * 0.5
+	var length := minf(drawn_width, max_range)
 	head.append_array(PackedVector2Array([axis * max_range, axis * (max_range - length) + side, axis * (max_range - length) - side]))
 	return head
 

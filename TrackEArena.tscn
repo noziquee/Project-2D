@@ -1,0 +1,154 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://de1o81qynjj3x" path="res://player.tscn" id="1_player"]
+[ext_resource type="PackedScene" path="res://Characters/Enemies/GoblinArcher.tscn" id="2_archer"]
+[ext_resource type="PackedScene" uid="uid://dla0du8tgdel1" path="res://Characters/Enemies/BasicEnemy2D.tscn" id="2_enemy"]
+[ext_resource type="PackedScene" path="res://UI/HUD/HealthBar.tscn" id="3_hud"]
+[ext_resource type="PackedScene" uid="uid://dlfajymndwqof" path="res://UI/HUD/ManaBar.tscn" id="4_mana_hud"]
+[ext_resource type="PackedScene" path="res://UI/HUD/SkillBar.tscn" id="5_skill_bar"]
+[ext_resource type="Script" uid="uid://bchk0perwcupk" path="res://World/CameraBounds2D.gd" id="6_camera_bounds"]
+[ext_resource type="Script" uid="uid://du5r3jcpkpcxu" path="res://Platform/InputModeManager.gd" id="7_input_mode"]
+[ext_resource type="Script" uid="uid://c071efngqo78c" path="res://UI/Touch/MobileControls.gd" id="8_mobile_controls"]
+[ext_resource type="Script" uid="uid://cufaao6isctb6" path="res://UI/HUD/ChargeBar.gd" id="99_charge_bar"]
+[ext_resource type="PackedScene" path="res://Characters/Enemies/GoblinElite.tscn" id="40_elite"]
+[ext_resource type="Resource" path="res://Characters/Controllers/Profiles/AggressiveMeleeProfile.tres" id="41_aggressive"]
+[ext_resource type="Resource" path="res://Characters/Controllers/Profiles/PatientMeleeProfile.tres" id="42_patient"]
+[ext_resource type="Resource" path="res://Characters/Controllers/Profiles/SimpleCommonProfile.tres" id="43_simple"]
+[ext_resource type="Resource" path="res://Characters/Controllers/Profiles/RangedSkirmisherProfile.tres" id="44_skirmisher"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_arena_wall"]
+size = Vector2(900, 24)
+
+[node name="Main" type="Node2D" unique_id=1568768922]
+
+[node name="ArenaFloor" type="Polygon2D" parent="." unique_id=1684351582]
+modulate = Color(4.2308087, 2.6990786, 1.7381306, 1)
+z_index = -20
+color = Color(0.105, 0.12, 0.14, 1)
+polygon = PackedVector2Array(-500, -320, 500, -320, 500, 320, -500, 320)
+
+[node name="Player" parent="." unique_id=906926772 instance=ExtResource("1_player")]
+
+[node name="Elite" parent="." instance=ExtResource("40_elite")]
+position = Vector2(150, 0)
+
+[node name="Aggressive" parent="." instance=ExtResource("2_enemy")]
+position = Vector2(0, -170)
+
+[node name="EnemyAIController2D" parent="Aggressive" index="2"]
+profile = ExtResource("41_aggressive")
+
+[node name="Patient" parent="." instance=ExtResource("2_enemy")]
+position = Vector2(-200, -100)
+
+[node name="EnemyAIController2D" parent="Patient" index="2"]
+profile = ExtResource("42_patient")
+
+[node name="Simple1" parent="." instance=ExtResource("2_enemy")]
+position = Vector2(-220, 90)
+
+[node name="EnemyAIController2D" parent="Simple1" index="2"]
+profile = ExtResource("43_simple")
+
+[node name="Simple2" parent="." instance=ExtResource("2_enemy")]
+position = Vector2(-180, 150)
+
+[node name="EnemyAIController2D" parent="Simple2" index="2"]
+profile = ExtResource("43_simple")
+
+[node name="Skirmisher" parent="." instance=ExtResource("2_archer")]
+position = Vector2(330, 110)
+
+[node name="EnemyAIController2D" parent="Skirmisher" index="2"]
+profile = ExtResource("44_skirmisher")
+
+[node name="Effects" type="Node2D" parent="." unique_id=642195045 groups=["effects_root"]]
+
+[node name="NorthWall" type="StaticBody2D" parent="." unique_id=1785700648]
+position = Vector2(0, -310)
+collision_layer = 4
+collision_mask = 3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="NorthWall" unique_id=99519388]
+shape = SubResource("RectangleShape2D_arena_wall")
+
+[node name="SouthWall" type="StaticBody2D" parent="." unique_id=718190069]
+position = Vector2(0, 310)
+collision_layer = 4
+collision_mask = 3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="SouthWall" unique_id=1094633602]
+shape = SubResource("RectangleShape2D_arena_wall")
+
+[node name="WestWall" type="StaticBody2D" parent="." unique_id=1291534966]
+position = Vector2(-440, 0)
+rotation = 1.5707963
+collision_layer = 4
+collision_mask = 3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WestWall" unique_id=471862550]
+shape = SubResource("RectangleShape2D_arena_wall")
+
+[node name="EastWall" type="StaticBody2D" parent="." unique_id=2089750799]
+position = Vector2(440, 0)
+rotation = 1.5707963
+collision_layer = 4
+collision_mask = 3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EastWall" unique_id=1289786908]
+shape = SubResource("RectangleShape2D_arena_wall")
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=523827932]
+layer = 10
+
+[node name="PlayerHealthBar" parent="HUD" unique_id=478815780 instance=ExtResource("3_hud")]
+offset_left = 6.0
+offset_top = 4.0
+offset_right = 362.0
+offset_bottom = 80.0
+health_source = NodePath("../../Player/HealthComponent2D")
+
+[node name="PlayerManaBar" parent="HUD" unique_id=1043822892 instance=ExtResource("4_mana_hud")]
+offset_left = 6.0
+offset_top = 82.0
+offset_right = 362.0
+offset_bottom = 146.0
+mana_source = NodePath("../../Player/ManaComponent2D")
+
+[node name="PlayerChargeBar" type="Control" parent="HUD" unique_id=41934473]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 6.0
+offset_top = 152.0
+offset_right = 362.0
+offset_bottom = 170.0
+mouse_filter = 2
+script = ExtResource("99_charge_bar")
+attack_source = NodePath("../../Player/AttackComponent2D")
+
+[node name="PlayerSkillBar" parent="HUD" unique_id=409305538 instance=ExtResource("5_skill_bar")]
+anchors_preset = 7
+offset_left = -0.08502197
+offset_right = 0.08496094
+
+[node name="MobileControls" type="Control" parent="HUD" unique_id=1550850423]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("8_mobile_controls")
+stick_size = 300.0
+button_size = 100.0
+small_button_size = 100.0
+attack_button_size = 200.0
+button_gap = 20.0
+
+[node name="CameraBounds" type="Node" parent="." unique_id=2063213719]
+script = ExtResource("6_camera_bounds")
+floor_path = NodePath("../ArenaFloor")
+
+[node name="InputModeManager" type="Node" parent="." unique_id=919111751]
+script = ExtResource("7_input_mode")

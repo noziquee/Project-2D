@@ -1,0 +1,365 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+CHECK PASS  PAS1 Rising Strikes loads (3 swings, 4 s window, status x1.5 for 8 s, consumed by the next attack) and validates
+CHECK PASS  PAS2 passive validation reports an empty id, a zero count, a missing status and a status with no duration
+CHECK PASS  PAS3 a weapon reports empty, duplicate and invalid passives; a clean one validates and get_passive() finds by id
+CHECK PASS  PAS4 each swing that hits counts once; a swing that hits nothing neither counts nor resets
+CHECK PASS  PAS5 a swing that hits three targets counts once; the reward is earned mid-swing but granted only when that swing closes
+CHECK PASS  PAS6 the next attack uses the reward up when it closes, its hits do not count, and counting starts again from 0
+CHECK PASS  PAS7 in a combo chain the reward is granted when the next link starts, that link uses it, and the link after is normal
+CHECK PASS  PAS8 the counter survives a swing inside its window and goes back to 0 after the window passes with no swing
+CHECK PASS  PAS9 death resets the counter
+CHECK PASS  PAS10 death takes a granted reward away
+CHECK PASS  PAS11 a reward that is not consumed runs its own duration; swings do not count while it runs and counting resumes when it ends
+CHECK PASS  PAS12 replacing the passives (an equip) removes a granted reward and announces the change
+ERROR: PassiveController2D rejected passive 'pas_ok': its id is listed more than once.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_passives (res://Characters/Components/Passives/PassiveController2D.gd:81)
+       [1] run_core_phase14_p_checks (res://tests/smoke_checks.gd:5786)
+       [2] phys (res://tests/smoke_checks.gd:25)
+ERROR: PassiveController2D rejected passive: passive 'pas_inv': needs a status_effect (the status it applies).
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] set_passives (res://Characters/Components/Passives/PassiveController2D.gd:78)
+       [1] run_core_phase14_p_checks (res://tests/smoke_checks.gd:5786)
+       [2] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  PAS13 an empty, duplicate or invalid passive is skipped with an error and the valid one is kept
+CHECK PASS  PAS14 a swing that was cancelled still uses the reward up; a late hit then counts for the new count
+CHECK PASS  PAS15 the player has a PassiveController2D wired to its weapon controller, and the shipped sword and bow have no passives
+CHECK PASS  PAS16 equipping a weapon gives its passives to the player's controller
+CHECK PASS  PAS17 a real swing that lands counts once and deals normal damage
+CHECK PASS  PAS18 the third real swing earns the reward: it still deals normal damage, and the reward is active once the swing ends
+CHECK PASS  PAS19 the next real swing deals the empowered damage, uses the reward up, and does not count
+CHECK PASS  PAS20 the swing after that is back to normal damage and counting from 0
+CHECK PASS  PAS21 equipping a weapon without that passive removes it and its counter
+CHECK PASS  EVT1 the shipped Vampiric Strikes, Serrated Edge and Executioner load with their effects and validate
+CHECK PASS  EVT2 event passive validation reports a zero heal, a threshold outside 0 to 1, a multiplier of 1 and a missing status; a heal needs no status
+CHECK PASS  EVT3 heal on hit restores its amount for every target hit (3 x 2), while a counter passive in the same list still counts the swing once
+CHECK PASS  EVT4 a swing that hits nothing heals nothing, and healing never goes above the maximum
+CHECK PASS  EVT5 bleed on hit puts the status on the target of every hit, and it stacks by the status's own rule
+CHECK PASS  EVT6 a target with no status controller, or no target at all, is ignored without a problem and the next target still gets the status
+CHECK PASS  EVT7 the low-health bonus applies at or below the threshold (100 of 400 = 25%) and not above it (101), through the damage resolver
+CHECK PASS  EVT8 the passive bonus multiplies with a buff status (20 x 1.5 x 1.5 = 45); a hit with no source, or after the passive is gone, gets none
+CHECK FAIL  EVT9 a real swing that lands heals the player by the passive's amount (player 20, goblin 400, started true, equipped true)
+CHECK FAIL  EVT10 a real swing puts the passive's status on the goblin it hits (and the replaced heal passive no longer heals)
+CHECK PASS  EVT11 a real swing deals double damage to a goblin at 25% health and normal damage at 75% (dealt low 10, high 5, base 5)
+CHECK PASS  EVT12 equipping a weapon without passives removes the event passives and their damage bonus
+CHECK PASS  RC1 the player and the goblin each have a ReactionComponent2D, found by Character2D
+CHECK PASS  RC2 the player's component is wired in the scene: flash on ReactionAnim, death clip on PlayerAnim, no freeing, no effect
+CHECK PASS  RC3 the goblin's component is wired in the scene: flash on its AnimationPlayer, DeathEffect, frees on death
+CHECK PASS  RC4 player.gd has no clip names, effect spawning or freeing left in it
+CHECK PASS  RC4 BasicEnemy2D.gd has no clip names, effect spawning or freeing left in it
+CHECK PASS  RC5 BasicEnemy2D declares neither presentation hook: a new enemy needs no presentation script
+CHECK PASS  RC6 a hit plays the component's hit clip on its hit_player (got 'take_damage')
+CHECK PASS  RC7 a missing clip, an empty clip name or an unset player is skipped without breaking the hit
+CHECK PASS  RC8 death plays the death clip, stops a running flash, keeps the player in the scene and still stops its physics (got 'death' / 'RESET')
+CHECK PASS  RC9 initialize() twice leaves one connection per signal, not two (2)
+CHECK PASS  RC10 a component built in code with its own effect and free_on_death off spawns that effect where the goblin died and leaves the goblin in place
+CHECK PASS  RC11 initialize() for another character moves the connections (old 0, new 2)
+CHECK PASS  FC1 the player and the goblin each have a FacingComponent2D, found by Character2D
+CHECK PASS  FC2 Character2D.gd holds no mirroring or weapon-aim math any more
+CHECK PASS  FC3 moving left faces left, mirrors the body and the weapon, and takes the idle aim
+CHECK PASS  FC4 standing still keeps the last horizontal facing
+CHECK PASS  FC5 an attack aimed right shows the character facing right and uses the attack direction, without losing the movement facing
+CHECK PASS  FC6 mirror_visual and mirror_weapon each switch off one mirror and leave the other on
+CHECK PASS  FC7 art_faces_left mirrors the rig when facing right and not when facing left; the facing itself is unchanged
+CHECK PASS  FC8 rotate_weapon_to_aim off leaves the pivot unrotated during an aimed swing, on rotates it (off 0.000, on -1.571)
+CHECK PASS  FC9 a character with no FacingComponent2D node gets a default one made in code, and it mirrors the goblin sprite
+CHECK PASS  FC10 a component with no context does nothing, and one with no attack component puts the pivot at rest
+PART core_phase14_p passes=53 failures=2
+CHECK PASS  BC1 the bow has a nocked-arrow sprite that starts hidden, and the bow script that puts it away
+CHECK PASS  BC2 Bow.tscn has a bow_draw clip that plays once, next to the looping bow_charge
+CHECK PASS  BC3 bow_draw and bow_charge show the arrow from their first frame
+CHECK PASS  BC4 bow_shoot and bow_heavy_shoot hide the arrow on exactly the key that fires spawn_effect ({ &"bow_shoot": [0.04166666790843, 0.04166666790843], &"bow_heavy_shoot": [0.04166666790843, 0.04166666790843] })
+CHECK PASS  BC5 idle, RESET and bow_return keep the arrow hidden
+CHECK PASS  BC6 the arrow attacks name draw > shoot (light) and draw > charge > heavy shoot (heavy); the configured light attack remembers a click
+CHECK PASS  BC7 the bow and both arrow attacks validate
+CHECK PASS  BC8 a missing or duplicated draw clip is reported by name
+CHECK PASS  BC9 idle: no arrow on the bow
+CHECK PASS  BC10 a light attack starts with bow_draw, not bow_shoot
+CHECK PASS  BC11 the clips play in the order bow_draw > bow_shoot, with no charge ([&"bow_draw", &"bow_shoot"])
+CHECK PASS  BC12 the arrow is on the bow throughout the draw (first seen on frame 0)
+CHECK PASS  BC13 the arrow leaves the bow on the very frame the real arrow spawns (hidden on frame 34, spawned on frame 34)
+CHECK PASS  BC14 with no further input exactly one arrow was shot and the bow is back to idle with no arrow
+CHECK PASS  BC15 the weapon pivot and the hand are back at their idle pose
+CHECK PASS  BC16 a click made before the window opens is remembered (reported as not started)
+CHECK PASS  BC17 the click repeats the cycle: draw > shoot > draw > shoot ([&"bow_draw", &"bow_shoot", &"bow_draw", &"bow_shoot"])
+CHECK PASS  BC18 two arrows were shot and the second attack was a chain link ([[&"bow_arrow_shot", &"bow_arrow_shot"]])
+CHECK PASS  BC19 no return plays between the two shots
+CHECK PASS  BC20 four clicks give four arrows (shots 4, swings 4)
+CHECK PASS  BC21 the return starts only after the 4th arrow (recovering first seen with 4 arrows out)
+CHECK PASS  BC22 after the 4th shot the bow returns to idle
+CHECK PASS  BC23 clicking every frame for 5 s fires 7 arrows with 0 returns in between
+CHECK PASS  BC24 a click made while the bow is returning is queued and shoots again once the return is over (arrows 2)
+CHECK PASS  BC25 the queued click starts with bow_draw ([&"bow_draw", &"bow_shoot", &"bow_draw", &"bow_shoot"])
+CHECK PASS  BC26pre the short-queue variant is accepted
+CHECK PASS  BC26 a click that waits longer than input_queue_time is dropped (arrows 1)
+CHECK PASS  BC27 a heavy attack starts its charge with bow_draw
+CHECK PASS  BC28 the draw hands over to the looping charge clip by itself and the arrow stays on the bow ([&"bow_draw", &"bow_charge"])
+CHECK PASS  BC29 the charge only counts after the draw (0.150 s after 0.667 s)
+CHECK PASS  BC30pre the charge is released
+CHECK PASS  BC30 the release plays bow_heavy_shoot with no second draw ([&"bow_heavy_shoot"])
+CHECK PASS  BC31 the heavy arrow leaves the bow on the frame it spawns (hidden 3, spawned 3) and the bow returns to idle
+CHECK PASS  BC32 a release during the draw is accepted but the draw keeps playing
+CHECK PASS  BC33 the shot follows the draw directly, with no charge clip ([&"bow_draw", &"bow_heavy_shoot"])
+CHECK FAIL  BC34 after bow_heavy_shoot finishes with a click waiting, bow_draw plays again ([&"bow_draw", &"bow_heavy_shoot"])
+CHECK FAIL  BC35 the click became a light attack chained after the heavy one ([])
+CHECK PASS  BC36 cancelling during the draw hides the arrow and clears the draw state
+CHECK PASS  BC37 a new attack can start after the cancel and draws again
+CHECK PASS  BC38 cancelling during the charge hides the arrow and ends the charge
+CHECK PASS  BC41 four button taps give four arrows as draw > shoot x4 (arrows 4, [&"bow_draw", &"bow_shoot", &"bow_draw", &"bow_shoot", &"bow_draw", &"bow_shoot", &"bow_draw", &"bow_shoot"])
+CHECK PASS  BC42 the bow returns to idle only after the last tap's shot
+CHECK PASS  BC43 holding the button plays draw > charge > heavy shoot and shoots once ([&"bow_draw", &"bow_charge", &"bow_heavy_shoot"])
+CHECK PASS  BC39 a sword swing starts straight with its slash clip
+CHECK PASS  BC40 a sword click during the swing is refused and not remembered
+PART bow_cycle passes=43 failures=2
+WARNING: AttackComponent2D: attack 'sword_slash1' on 'BasicEnemy2D': next_attack 'sword_slash2' is not registered on this component (add it to 'attacks'); the link is ignored.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] _warn_combo_links (res://Characters/Components/Combat/AttackComponent2D.gd:320)
+       [1] set_attacks (res://Characters/Components/Combat/AttackComponent2D.gd:278)
+       [2] run_enemy_ai_heavy_checks (res://tests/smoke_checks.gd:10086)
+       [3] fresh (res://tests/smoke_checks.gd:58)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  C1-1 the enemy begins the charged attack through the charge hooks
+CHECK PASS  C1-2 the swing starts only after the charge is full (charge_threshold 0.5 s; frames 2660 to 2691)
+CHECK FAIL  C1-3 the swing goes where the charge was aimed, not where the player moved to ((1.0, 0.0))
+PART enemy_ai_heavy passes=2 failures=1
+CHECK PASS  H8-118 the overlay has the move stick and no aim stick
+CHECK PASS  H8-119 the attack button is the largest and reaches furthest right (size (200.0, 200.0))
+CHECK PASS  H8-120 no two buttons overlap and every button is on screen at the base size (overlaps: [], off screen: [])
+CHECK PASS  H8-121 skills cast on the lift, the dodge and attack press, and only the attack button and the skills can aim
+CHECK PASS  H8-122 the player says skill 1 has an aim and the self skill and the buff in slots 2 and 3 have none (D16)
+CHECK PASS  H8-123 a finger on the attack button holds attack_light and presses no aim
+CHECK PASS  H8-124 a wobble inside the drag threshold aims nothing
+CHECK PASS  H8-125 a drag past the threshold aims where the finger points, as a stick would, and keeps the attack held (got (0.866025, 0.5), expected (0.866025, 0.5))
+CHECK PASS  H8-126 back inside the dead zone the manual aim is dropped
+CHECK PASS  H8-127 on the lift the attack is released at once and the aim is still down for the player to read
+CHECK PASS  H8-128 a few frames later the aim is let go too
+CHECK PASS  H8-129 an aim left by a finished drag is no aim: the next tap is assisted again
+CHECK FAIL  H8-130 a tap starts one light attack and presses no aim (swings 0)
+CHECK PASS  H8-131 after a drag, a plain tap is assisted again: it goes toward a target near the last aim (got [(0.258819, 0.965926)], expected (0.258819, 0.965926))
+CHECK PASS  H8-132 hold, drag up, lift swings the heavy attack up (charging true, swings [(0.0, -1.0)])
+CHECK PASS  H8-133 hiding the overlay mid-drag releases the attack and the aim at once
+CHECK PASS  H8-134 a finger on an aimed skill casts nothing yet
+CHECK PASS  H8-135 dragging from the skill aims it by hand
+CHECK PASS  H8-136 the lift casts it once and then lets go of the aim
+CHECK PASS  H8-137 the cast goes the way it was dragged (got [(0.0, -1.0)])
+CHECK PASS  H8-138 a buff casts as soon as the finger lands (started [&"empower"])
+CHECK PASS  H8-139 dragging from a buff aims nothing
+PART h8_touch passes=21 failures=1
+CHECK PASS  H8-140 a fan's outline starts at the caster and runs along its arc
+CHECK PASS  H8-141 every arc point of the fan is exactly its reach from the caster
+CHECK PASS  H8-142 the arc spans both sides of the aim
+CHECK PASS  H8-143 the fan's drawn outline and its contains() agree everywhere (aimed up and diagonally)
+CHECK PASS  H8-144 a 360 degree fan draws as a whole circle with no point
+CHECK PASS  H8-145 a line's outline is a four-cornered strip, as wide as its width
+CHECK PASS  H8-146 the line's drawn outline and its contains() agree (aimed right and slanted)
+CHECK PASS  H8-147 a rectangle line has no arrow head
+CHECK PASS  H8-148 an arrow's head points at the far end and sits inside the strip
+CHECK PASS  H8-149 the arrow style targets the same strip as the rectangle
+CHECK PASS  H8-150 a circle's outline ignores the direction and matches contains()
+CHECK PASS  H8-151 a bare shape draws nothing, and a zero direction still draws a fan (it points right)
+CHECK PASS  H9-55 line aim area is clipped to its own range circle
+CHECK PASS  H9-56 a very wide line remains within its action range after clipping
+CHECK PASS  H9-57 a fan remains drawable after range clipping
+CHECK PASS  H9-58 zero range produces no clipped aim area
+CHECK PASS  H9-59 a self-circle aim stays within its own range
+CHECK PASS  H8-152 an indicator shows nothing until it is told to
+CHECK PASS  H8-153 show_shape stores the shape and a unit direction
+CHECK PASS  H9-60 aim clipping uses the active definition's supplied reach, not a shared radius
+CHECK PASS  H9-61 clearing the aim indicator resets its clipping range
+CHECK PASS  H8-154 a zero direction draws toward the right, never a zero vector
+CHECK PASS  H8-155 clear hides it and forgets the shape
+CHECK PASS  H8-156 showing no shape is the same as clearing
+CHECK PASS  H8-157 the candidate list holds only live, registered targets inside the shape, best first (got [@Node2D@48:<Node2D#1141454669743>, @Node2D@49:<Node2D#1141471447304>])
+CHECK PASS  H8-158 asking for the list changes no kept target, and its first entry is the one pick_target chooses
+CHECK PASS  H8-159 no shape, no candidates
+CHECK PASS  H8-160 the indicator keeps the ringed targets and the picked one
+CHECK PASS  H8-161 a target freed while ringed is dropped without an error
+CHECK PASS  H8-162 a freed picked target reads as none
+CHECK PASS  H8-239 both indicator scenes instantiate as their script types
+CHECK PASS  H8-240 the aim indicator scene draws above the characters (z 50)
+CHECK PASS  H8-241 the assist indicator scene draws below the characters (absolute z -1)
+CHECK PASS  H8-242 a scene instance shows nothing until it is told to
+CHECK PASS  H9-125 the new options default to the old look (2 px outline, scale 1, no gradient, smooth); only the range circle is on
+CHECK PASS  H9-126 a rectangle is drawn at width x rectangle_width_scale
+CHECK PASS  H9-127 an arrow is drawn at width x arrow_width_scale, independent of the rectangle scale
+CHECK PASS  H9-128 range changes the length only, never the drawn width
+CHECK PASS  H9-129 a wider drawn strip changes the picture, not what the assist targets (contains keeps the shape's width)
+CHECK PASS  H9-130 get_outline is the strip at its own width; a zero drawn width draws nothing
+CHECK PASS  H9-131 the arrow head is as long as the drawn strip is wide, and still points at the far end
+CHECK PASS  H9-132 cell_columns lists the columns whose centre is inside the span
+CHECK PASS  H9-133 a span too narrow to hold a cell centre is empty
+CHECK PASS  H9-134 a row crosses a square twice, and a row outside it not at all
+CHECK PASS  H9-135 the pixelated fill holds exactly the cells whose centre is inside the polygon (0 disagree)
+CHECK PASS  H9-136 gradient bands tile the disc: no cell in two bands, each in the band its distance names, none missing (312 of 312, 0 twice)
+CHECK PASS  H9-137 a pixel line holds each cell once: 11 for one thick, 24 for two thick (got 11)
+CHECK PASS  H9-138 a closed pixel outline is the ring of cells round the shape and leaves the inside empty (got 40)
+CHECK PASS  H9-139 every shape kind draws with pixelation and the gradient on and off
+CHECK PASS  H9-140 zero outline width and no range circle still draw
+CHECK PASS  H8-163 nothing is drawn, and no indicator node exists yet, before an aimed action starts
+CHECK PASS  H8-164 a finger that has only just landed (still a tap) draws nothing
+CHECK FAIL  H8-165 while the heavy attack charges its own aim shape is drawn
+CHECK PASS  H8-166 the target the release will take is marked, and the shape points at it
+CHECK PASS  H8-243 the blue light-attack circle stays visible while the heavy attack charges
+CHECK PASS  H8-244 while a heavy attack shows its own aim shape the light-attack target marker is not drawn
+CHECK PASS  H8-167 the indicator's pick is what the assist resolves (same shape, same rules)
+CHECK PASS  H8-168 dragging aims by hand: the shape follows the finger and no target is picked
+CHECK PASS  H8-169 releasing the heavy attack hides the indicator
+CHECK PASS  H8-170 with aim_indicators off nothing is drawn, but the charge still runs
+CHECK PASS  H8-171 a light tap attacks and draws no indicator
+CHECK PASS  H8-172 a finger on an aimed skill draws its shape and casts nothing yet
+CHECK PASS  H8-173 it points at the target the cast will take (picked @Node2D@59:<Node2D#1192474183406>, mark @Node2D@59:<Node2D#1192474183406>, direction (0.984808, 0.173648), expected (0.984808, 0.173648), candidates [@Node2D@59:<Node2D#1192474183406>])
+CHECK PASS  H8-174 the lift hides it
+CHECK PASS  H8-175 the cast goes exactly the way the indicator pointed (cast [(0.984808, 0.173648)], shown (0.984808, 0.173648))
+CHECK PASS  H8-176 a dragged skill shows its shape toward the finger
+CHECK PASS  H8-177 and it turns as the finger turns
+CHECK PASS  H8-178 hiding the overlay mid-drag cancels the preview
+CHECK PASS  H8-179 a self skill shows no indicator
+CHECK PASS  H8-180 a buff shows no indicator
+CHECK PASS  H8-181 setup: a preview on a live player is drawn
+CHECK PASS  H8-182 a dead player's indicator is hidden (alive false, showing false, slot -1)
+PART h8_indicator passes=71 failures=1
+CHECK PASS  H9-62 area effect hides effect_animation in the Inspector while retaining legacy data and its warning
+CHECK PASS  H9-63 projectile effect hides effect_animation in the Inspector
+CHECK PASS  H9-64 animated slash keeps effect_animation visible in the Inspector
+CHECK PASS  H9-65 shipped mobile scene authors a TouchSkillFace under each skill button
+PART h9_visuals passes=4 failures=0
+CHECK PASS  H9-110 setup: the goblin is in view and beyond the heavy attack's reach (reach 60.0)
+CHECK PASS  H9-111 holding attack_light with the target out of reach walks toward it and does not charge yet
+CHECK PASS  H9-112 letting go on the way keeps the walk and is not a light tap ([])
+CHECK PASS  H9-113 on arrival the heavy attack fires once, in reach ([&"sword_heavy_slash"] after 76 frames)
+CHECK FAIL  H9-114 holding all the way: the charge starts at arrival with the held walking time (charge 0.01666666666667, walk 1.55)
+CHECK PASS  H9-115 releasing in reach fires the heavy attack once ([&"sword_heavy_slash"])
+CHECK PASS  H9-116 manual movement cancels a heavy approach at once
+CHECK PASS  H9-117 with the input still down the approach does not resume and the hold charges in place
+CHECK PASS  H9-118 letting go after a cancel leaves no pending heavy
+CHECK PASS  H9-119 a released heavy approach cancelled by movement never fires ([])
+CHECK PASS  H9-120 a target that dies during the walk ends it without a swing ([])
+CHECK PASS  H9-121 attack_heavy out of reach walks, and letting go keeps the walk
+CHECK PASS  H9-122 attack_heavy fires on arrival ([&"sword_heavy_slash"])
+CHECK PASS  H9-123 begin_charge with an initial charge starts at that time
+CHECK PASS  H9-124 an ordinary begin_charge starts at zero
+PART h9_heavy passes=14 failures=1
+CHECK PASS  SA1 a new enemy profile winds up for 0.35 s and adds no pacing interval
+CHECK PASS  SA2 the archer profile paces the shared bow at 1.2 s between shots
+CHECK PASS  SA3 an enemy in range with an attack ready starts a wind-up and shows the red lane
+CHECK PASS  SA4 the lane is the chosen attack's range long and its hitbox_size.y wide
+CHECK PASS  SA5 the lane points at the target
+CHECK PASS  SA6 the swing has not started during the wind-up
+CHECK PASS  SA7 after the wind-up the swing starts
+CHECK PASS  SA8 the lane is hidden once the attack has started
+CHECK PASS  SA9pre a long wind-up is running
+CHECK PASS  SA9 the target leaving range cancels the wind-up and hides the lane
+CHECK PASS  SA10pre the wind-up starts again once the target is back in range
+CHECK PASS  SA10 a stunned enemy cancels the wind-up
+CHECK PASS  SA11 a cancelled wind-up restarts from zero
+CHECK PASS  SA12 a dead or lost target cancels the wind-up
+CHECK PASS  SA13 attack_windup_duration 0 attacks at once and never shows a lane
+CHECK PASS  SA14 attack_interval holds back the next swing after one has been requested
+CHECK PASS  SA15 the nearest eligible target wins, even behind the player and beside a farther one in front
+CHECK PASS  SA16 the scored pick (used elsewhere) is unchanged: the front cone still outranks
+CHECK PASS  SA17 the target marker follows the nearest target
+CHECK PASS  SA18 a PC attack with an aim shape aims at the nearest target (got (-1.0, 0.0))
+CHECK PASS  SA19 the marker and the aim move at once when another target becomes nearer (no sticking)
+CHECK PASS  SA20 a target outside the shape is not chosen
+CHECK PASS  SA21 a dead target is not eligible
+CHECK PASS  SA22 with no valid target the aim falls back to the mouse direction
+CHECK PASS  SA23 the equipped weapon has an aimed skill (slot 0) and a skill with no aim shape (slot 2)
+CHECK PASS  SA24 an aimed skill key enters preview and does not cast
+CHECK PASS  SA25 previewing spends no mana and starts no cooldown
+CHECK PASS  SA26 the aim indicator shows the skill's shape during the preview
+CHECK PASS  SA27 Escape cancels: nothing cast, no mana spent, no cooldown
+CHECK PASS  SA28 the dash input cancels the preview and does not also dash
+CHECK PASS  SA29 a skill with no aim shape (a buff or self skill) still casts immediately
+CHECK PASS  SA30pre the aimed skill is previewing with an enemy on the other side
+CHECK FAIL  SA30 a click confirms: the skill casts, mana is spent, the cooldown starts
+CHECK PASS  SA31 the confirmed cast follows the mouse, not the enemy behind (aim (-0.707107, -0.707107), got (-0.704059, -0.710141))
+CHECK PASS  SA32 the confirming click does not also start a light attack (0 started)
+CHECK FAIL  SA33 clicking an aimed skill on the hotbar enters preview as well
+CHECK FAIL  SA34 clicking a skill with no aim shape on the hotbar casts at once
+CHECK FAIL  SA35 with skill_aim_preview off an aimed skill casts at once
+PART smart_aim passes=34 failures=4
+CHECK PASS  S-1 attacks have no stages by default, the shipped bow heavy included, and then no stage is ever reached
+CHECK PASS  S-2 below the first stage no stage is reached
+CHECK PASS  S-3 the stage is the highest at_ratio reached, whatever the order of the list
+CHECK PASS  S-4 stages with a charge_threshold raise no warning
+CHECK PASS  S-5 stages with no charge_threshold warn: the ratio never rises
+CHECK PASS  S-6 nothing is charging: no stage
+CHECK FAIL  S-7 early in the charge no stage is reached and no signal came
+CHECK FAIL  S-8 past half a charge the mid stage is live and was announced once (0, [1, 0])
+CHECK PASS  S-9pre the charge is released in the mid stage
+CHECK PASS  S-10 once released there is no live stage
+CHECK FAIL  S-11 an arrow released in the mid stage deals x2 damage and gets the crit bonus (27)
+CHECK PASS  S-12 a full charge is in the top stage
+CHECK PASS  S-13 a full charge deals x3 and keeps the full reach: the stage and the reach come from the same frozen release
+CHECK PASS  S-14 a charge released before the first stage deals the plain damage
+PART r7_stages passes=11 failures=3
+CHECK PASS  T-1 attacks have no release window by default, the shipped bow heavy included
+CHECK PASS  T-2 early, perfect (both ends included) and late follow the window
+CHECK PASS  T-3 each outcome has its own damage multiplier, one by default
+CHECK PASS  T-4 a valid window with a charge_threshold raises no warning
+CHECK PASS  T-5 a window with no charge_threshold warns
+CHECK PASS  T-6 an end at or below the start turns the window off and warns
+CHECK PASS  T-7 nothing is charging: timing NONE
+CHECK FAIL  T-8 a release inside the window deals x2 with the crit bonus, and the live timing and the release agree ({ "damage": 9, "crit": 0.0, "live": 3, "released": [3] })
+CHECK PASS  T-9 a charge starts EARLY without a signal, and the move into the window is announced ([2, 3])
+CHECK PASS  T-10 an early release deals x0.5 and no crit bonus ({ "damage": 5, "crit": 0.0, "live": 1, "released": [1] })
+CHECK PASS  T-11 a late release deals the plain damage ({ "damage": 9, "crit": 0.0, "live": 3, "released": [3] })
+CHECK PASS  T-12 with the window off a release is NONE and deals the plain damage ({ "damage": 9, "crit": 0.0, "live": 0, "released": [0] })
+CHECK PASS  T-13 cancel() clears the timing
+CHECK FAIL  T-14 the timing leaves the reach as the charge set it (200.0)
+PART r7_timed passes=12 failures=2
+CHECK PASS  B-1 the HUD has a charge bar
+CHECK PASS  B-2 nothing is charging: the bar is hidden and empty
+CHECK PASS  B-3 while charging the bar is shown at the component's charge ratio (1.0)
+CHECK PASS  B-4 an attack with no stages and no window shows a plain fill with no ticks or window
+CHECK PASS  B-5 cancelling the charge hides the bar
+CHECK PASS  B-6 the bar shows a tick for each stage and the perfect window ([0.5, 1.0], (0.6, 0.8))
+CHECK PASS  B-7 before the window the fill takes the early color
+CHECK FAIL  B-8 inside the window the fill takes the perfect color
+CHECK PASS  B-9 after the window the fill takes the late color
+CHECK PASS  B-10 after the release the bar flashes the released outcome
+CHECK PASS  B-11 the flash ends and the bar hides
+CHECK FAIL  B-12 a charge with no charge_threshold shows no bar: its ratio never rises
+PART r7_bar passes=10 failures=2
+CHECK PASS  D-1 with the option off the ratio stays 0 while the draw plays (0.0)
+CHECK FAIL  D-2 with the option on the ratio rises while the draw plays (0.33333333333333)
+CHECK PASS  D-3 the charge bar fills during the draw too
+CHECK PASS  D-4 the ratio keeps rising across the hand-off from bow_draw to bow_charge (1.0)
+CHECK PASS  D-5 the charge is full about one draw length earlier than before (1.0)
+CHECK PASS  D-6 after a release during the draw the ratio stops rising (0.26666666666667 -> 0.26666666666667)
+CHECK PASS  D-7 the pending release fires once the draw has ended
+PART r7_draw passes=6 failures=1
+CHECK PASS  H4-26 every part in the registry names a method that exists (missing: )
+CHECK PASS  H4-27 every run_*_checks group is a registered part, so a full run cannot skip one (unregistered: )
+CHECK PASS  H4-20 a declared error and a baseline error are both accepted, and the declaration was met
+CHECK PASS  H4-21 an error that is neither declared nor in the baseline is recorded as unexpected, with long numbers normalized
+CHECK PASS  H4-22 a declared error that never happens, or happens the wrong number of times, is reported
+CHECK PASS  H4-23 a recorded baseline loads back, and the same error with different ids counts as one message
+ERROR: H4.4 hookup probe
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] run_error_gate_checks (res://tests/smoke_checks.gd:702)
+       [1] _initialize (res://tests/smoke_checks.gd:631)
+       [2] _run (res://tests/smoke_checks.gd:646)
+       [3] run_r7_draw_checks (res://tests/smoke_checks.gd:8996)
+       [4] phys (res://tests/smoke_checks.gd:25)
+WARNING: H4.4 warning probe
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+   GDScript backtrace (most recent call first):
+       [0] run_error_gate_checks (res://tests/smoke_checks.gd:703)
+       [1] _initialize (res://tests/smoke_checks.gd:631)
+       [2] _run (res://tests/smoke_checks.gd:646)
+       [3] run_r7_draw_checks (res://tests/smoke_checks.gd:8996)
+       [4] phys (res://tests/smoke_checks.gd:25)
+CHECK PASS  H4-24 the engine really delivers push_error to a Logger, and warnings are counted apart from errors
+CHECK PASS  H4-25 every error logged this run is in the baseline or declared by its test (0 distinct unexpected)
+PARTIAL RUN: only smart_aim, r7_stages, r7_timed, r7_bar, r7_draw, bow_cycle, core_phase14_p, h8_touch, h8_indicator, h9_heavy, h9_visuals, enemy_ai_heavy. Not comparable to the full total in docs/STATUS.md.
+SUMMARY passes=289 failures=20
+WARNING: 19 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 5 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:822)

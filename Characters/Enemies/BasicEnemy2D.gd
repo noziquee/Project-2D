@@ -29,6 +29,12 @@ func _get_aim_direction() -> Vector2:
 func _get_attack_requested() -> StringName:
 	return _ai_controller.consume_attack_request()
 
+func _get_charge_begin_requested() -> StringName:
+	return _ai_controller.consume_charge_request()
+
+func _get_charge_release_requested() -> bool:
+	return _ai_controller.consume_release_request()
+
 func _get_attack_direction() -> Vector2:
 	return _ai_controller.get_attack_direction()
 

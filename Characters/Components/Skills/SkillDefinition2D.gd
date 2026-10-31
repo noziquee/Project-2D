@@ -159,8 +159,10 @@ func _strike_radius() -> float:
 		return area_radius
 	return attack.hitbox_size.x * 0.5 if attack != null else 0.0
 
-## How far a shape's reach may differ from the skill's own reach before validation warns (a fraction of the skill's).
-const SHAPE_RANGE_TOLERANCE := 0.25
+## How far, in pixels, a shape's own `max_range` may differ from the skill's reach before validation warns (R2). Strict on
+## purpose: the game ignores the shape's value (R1 draws and tests the shape at the real reach), so any visible difference
+## is stale data that would mislead whoever edits the shape. This replaces the old 25% tolerance.
+const SHAPE_REACH_TOLERANCE_PX := 1.0
 
 ## True for a skill that deals damage in a direction or area (PROJECTILE, AREA, DASH with an attack): the ones that
 ## should have an aim_shape. BUFF and NONE skills, and a plain dash with no strike, are not.
@@ -181,21 +183,18 @@ func _aim_shape_problems(label: String) -> Array[String]:
 		found.append("%s: aim_shape: targeting SELF needs a shape that ignores direction (a circle around the caster); this one is aimed." % label)
 	return found
 
-## A shape whose reach differs a lot from the skill's own reach would show the player the wrong area. Warning only.
+## R2: a shape that follows the action's reach (a fan, a line, a self circle) whose own `max_range` is not the skill's
+## `get_reach()` to within SHAPE_REACH_TOLERANCE_PX. Warning only: the game already draws and aims at the real reach, so the
+## shape's own number is dead data. A placed circle and the camera view keep their own values and are never compared.
 func _aim_shape_warnings(label: String) -> Array[String]:
 	var found: Array[String] = []
-	if aim_shape == null:
+	if aim_shape == null or not aim_shape.follows_action_reach():
 		return found
-	var reach := 0.0
-	var field := ""
-	if (behavior == Behavior.PROJECTILE or behavior == Behavior.DASH) and max_range > 0.0:
-		reach = max_range
-		field = "max_range"
-	elif behavior == Behavior.AREA and area_radius > 0.0 and aim_shape.get_kind() == AimShape2D.Kind.CIRCLE_SELF:
-		reach = area_radius
-		field = "area_radius"
-	if reach > 0.0 and absf(aim_shape.max_range - reach) > reach * SHAPE_RANGE_TOLERANCE:
-		found.append("%s: aim_shape reaches %s px but %s is %s px; the shape should show the skill's real reach." % [label, aim_shape.max_range, field, reach])
+	var reach := get_reach()
+	if reach <= 0.0:
+		return found
+	if absf(aim_shape.max_range - reach) > SHAPE_REACH_TOLERANCE_PX:
+		found.append("%s: aim_shape max_range is %s px but the skill's reach is %s px; the shape's own value is ignored in game (it is drawn and aimed at %s px). Set the shape's max_range to %s." % [label, aim_shape.max_range, reach, reach, reach])
 	return found
 
 ## Fields that are set but this skill's behavior never reads (H3.3), as readable messages naming the skill. A warning,

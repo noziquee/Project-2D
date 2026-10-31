@@ -1,17 +1,27 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://d2gdvbc433hnu"]
 
-[ext_resource type="PackedScene" path="res://Characters/Enemies/BasicEnemy2D.tscn" id="1_base"]
-[ext_resource type="Resource" path="res://Characters/Controllers/GoblinArcherBehaviorProfile.tres" id="2_profile"]
-[ext_resource type="Resource" path="res://Weapons/Bow/Bow_EnemyWeaponDefinition.tres" id="3_bow_enemy"]
+[ext_resource type="PackedScene" uid="uid://dla0du8tgdel1" path="res://Characters/Enemies/BasicEnemy2D.tscn" id="1_base"]
+[ext_resource type="Resource" uid="uid://tp5333ax211i" path="res://Characters/Controllers/GoblinArcherBehaviorProfile.tres" id="2_profile"]
+[ext_resource type="Resource" uid="uid://cgumw8d30ka8x" path="res://Weapons/Bow/Bow_WeaponDefinition.tres" id="3_bow"]
+[ext_resource type="PackedScene" path="res://Weapons/GoblinSword/GoblinSword.tscn" id="4_start_weapon_scene"]
 
-[node name="GoblinArcher" instance=ExtResource("1_base")]
+[node name="GoblinArcher" unique_id=1707019890 instance=ExtResource("1_base")]
+weapon_facing_root_path = NodePath("WeaponFacingPivot")
+weapon_pivot_path = NodePath("WeaponFacingPivot/MainHand")
 
-[node name="EnemyAIController2D" parent="." index="3"]
+[node name="Weapon" parent="AnimatedSprite2D" parent_id_path=PackedInt32Array(457849524) index="1" unique_id=1562687683]
+visible = false
+
+[node name="EnemyAIController2D" parent="." index="2" unique_id=908506117]
 profile = ExtResource("2_profile")
 
-[node name="HealthComponent2D" parent="." index="7"]
+[node name="HealthComponent2D" parent="." index="5" unique_id=1781921424]
 max_health = 12
 
-[node name="WeaponController2D" parent="." index="11"]
-starting_weapon = ExtResource("3_bow_enemy")
-weapon_mount = NodePath("../AnimatedSprite2D")
+[node name="WeaponController2D" parent="." index="9" unique_id=1966788199]
+starting_weapon = ExtResource("3_bow")
+weapon_mount = NodePath("../WeaponFacingPivot")
+
+[node name="WeaponFacingPivot" type="Node2D" parent="." index="14" unique_id=831532020]
+
+[node name="MainHand" parent="WeaponFacingPivot" index="0" unique_id=257429466 instance=ExtResource("4_start_weapon_scene")]

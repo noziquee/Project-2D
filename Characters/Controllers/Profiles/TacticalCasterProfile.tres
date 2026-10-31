@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="EnemyBehaviorProfile" format=3]
+
+[ext_resource type="Script" uid="uid://bysdgsi3ih8o" path="res://Characters/Controllers/EnemyBehaviorProfile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+detection_radius = 260.0
+disengage_radius = 320.0
+attack_windup_duration = 0.5
+attack_interval = 1.5
+minimum_combat_range = 80.0
+skill_usage_priority = 0.9
+preferred_combat_range = 90.0

@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="AttackDefinition2D" format=3 uid="uid://bkiyeokjeextg"]
 
+[ext_resource type="Script" uid="uid://ctinphlu7bj7s" path="res://Characters/Components/Combat/ChargeStage2D.gd" id="1_6p621"]
 [ext_resource type="Script" uid="uid://b3ovfkh16tg1h" path="res://Characters/Components/Combat/AttackDefinition2D.gd" id="1_definition"]
 [ext_resource type="PackedScene" uid="uid://cn4kci1dwd8gx" path="res://Weapons/Bow/Projectile/Bow_Arrow.tscn" id="2_effect"]
 [ext_resource type="PackedScene" uid="uid://buuimquyuurcf" path="res://Characters/Effects/HitEffect.tscn" id="3_hit"]
@@ -8,7 +9,6 @@
 [resource]
 script = ExtResource("1_definition")
 id = &"bow_arrow_shot"
-attack_range = 240.0
 damage = 4
 weapon_animation = &"bow_shoot"
 draw_animation = &"bow_draw"
@@ -22,5 +22,8 @@ effect_scene = ExtResource("2_effect")
 hit_effect_scene = ExtResource("3_hit")
 hitbox_size = Vector2(16, 8)
 hitbox_offset = Vector2(8, 0)
-projectile_speed = 420.0
+projectile_speed = 600.0
+attack_range = 100.0
 input_queue_time = 0.45
+aim_follow = true
+aim_turn_speed = 600.0

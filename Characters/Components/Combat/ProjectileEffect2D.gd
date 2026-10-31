@@ -25,6 +25,9 @@ signal world_hit(point: Vector2)
 ## Value of physics layer 3 ("world"). It is always part of the hit area's mask.
 const WORLD_LAYER := 4
 
+## The shortest flight the reach cap can ask for (the same minimum `lifetime` exports).
+const MIN_LIFETIME := 0.05
+
 @export_group("Flight")
 ## Speed along the attack direction, in px/s.
 @export_range(0.0, 3000.0, 1.0) var speed: float = 300.0
@@ -52,6 +55,7 @@ func _ready() -> void:
 	# The attack's projectile_speed (11.2) wins over the scene's own default; 0 keeps the default.
 	if projectile_speed > 0.0:
 		speed = projectile_speed
+	_apply_reach_cap()
 	_hitbox.position = hitbox_offset
 	# The attack's hit_layers choose the targets; the world bit is always added so a wall stops the projectile.
 	var mask := hit_layers if hit_layers >= 0 else _hitbox.collision_mask
@@ -63,6 +67,18 @@ func _ready() -> void:
 		rectangle.size = hitbox_size
 		_collision_shape.shape = rectangle
 	_hitbox.body_entered.connect(_on_body_entered)
+
+## R3 (RD2): an ordinary attack projectile may not fly further than its attack's reach. AttackComponent2D hands the
+## reach over through configure(); the flight time becomes reach / speed and the scene's own `lifetime` stays as a second
+## cap, so the shorter one wins. Reach 0 (not given) or speed 0 leaves the scene's lifetime alone. A skill's projectile is
+## configured without a reach (SkillComponent2D sets its own lifetime from max_range), so it is never capped here.
+func _apply_reach_cap() -> void:
+	if attack_range > 0.0 and speed > 0.0:
+		lifetime = minf(lifetime, maxf(attack_range / speed, MIN_LIFETIME))
+
+## How far this projectile can fly, in pixels, with the lifetime it has now.
+func get_travel_distance() -> float:
+	return speed * lifetime
 
 ## Looks up the two nodes through the exported paths. A path that leads to nothing (or to the wrong kind of
 ## node) is reported by property name and the projectile removes itself.

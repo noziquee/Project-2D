@@ -547,11 +547,10 @@ position_smoothing_speed = 8.0
 [node name="HealthComponent2D" type="Node" parent="." unique_id=336417400]
 script = ExtResource("9_health")
 max_health = 100
-defense = 20
 
 [node name="MovementComponent2D" type="Node" parent="." unique_id=603665676]
 script = ExtResource("10_move")
-move_speed = 100.0
+move_speed = 50.0
 
 [node name="DashComponent2D" type="Node" parent="." unique_id=1132537196]
 script = ExtResource("11_dash")

@@ -1,0 +1,32 @@
+DIAG EVT9: before the swing: slash1 attack_range=30.0 hitbox_size=(16.0, 16.0) hitbox_offset=(0.0, 0.0) player=(0.0, 0.0) goblin=(28.0, 0.0)
+DIAG EVT9: after the swing: started=true player=(-11.07288, 0.0) goblin=(28.0, 0.0) goblin_hp=400
+CHECK FAIL  EVT9 a real swing that lands heals the player by the passive's amount (player 20, goblin 400, started true, equipped true)
+CHECK FAIL  EVT10 a real swing puts the passive's status on the goblin it hits (and the replaced heal passive no longer heals)
+DIAG BC34: frame 0: attacking=true queued= cooldown=0.0 anim=bow_draw
+DIAG BC34: click at frame 6: accepted=false queued=bow_arrow_shot heavy_queue_time=0.45 attacking=true
+DIAG BC34: frame 8: attacking=true queued=bow_arrow_shot cooldown=0.0 anim=bow_heavy_shoot
+DIAG BC34: frame 16: attacking=true queued=bow_arrow_shot cooldown=0.0 anim=bow_heavy_shoot
+DIAG BC34: frame 24: attacking=true queued=bow_arrow_shot cooldown=0.0 anim=bow_heavy_shoot
+DIAG BC34: frame 32: attacking=true queued=bow_arrow_shot cooldown=0.0 anim=bow_heavy_shoot
+DIAG BC34: frame 40: attacking=true queued= cooldown=0.0 anim=
+DIAG BC34: frame 48: attacking=true queued= cooldown=0.0 anim=
+DIAG BC34: frame 56: attacking=true queued= cooldown=0.0 anim=
+DIAG BC34: frame 64: attacking=true queued= cooldown=0.0 anim=
+DIAG BC34: frame 72: attacking=false queued= cooldown=0.0 anim=
+DIAG BC34: frame 80: attacking=false queued= cooldown=0.0 anim=
+DIAG BC34: frame 88: attacking=false queued= cooldown=0.0 anim=
+DIAG BC34: frame 96: attacking=false queued= cooldown=0.0 anim=
+CHECK FAIL  BC34 after bow_heavy_shoot finishes with a click waiting, bow_draw plays again ([&"bow_draw", &"bow_heavy_shoot"])
+CHECK FAIL  BC35 the click became a light attack chained after the heavy one ([])
+DIAG C1-3: at charge start: enemy (25.0, 0.0) player (0.0, 0.0) enemy aim (0.0, 0.0) heavy aim_follow false
+DIAG C1-3: swing direction (1.0, 0.0), enemy (25.0, 0.0), player (25.0, 40.0)
+CHECK FAIL  C1-3 the swing goes where the charge was aimed, not where the player moved to ((1.0, 0.0))
+DIAG H8-130: swings=[] aim_seen=false player=(1.666667, 0.0)
+CHECK FAIL  H8-130 a tap starts one light attack and presses no aim (swings 0)
+DIAG H8-165: charging=true indicator=true showing=true same_shape=false charge_time=0.21666666666667
+CHECK FAIL  H8-165 while the heavy attack charges its own aim shape is drawn
+DIAG H9-114: charging=true charge_time=0.01666666666667 charge_ratio=0.03333333333333 walked=1.55
+CHECK FAIL  H9-114 holding all the way: the charge starts at arrival with the held walking time (charge 0.01666666666667, walk 1.55)
+CHECK FAIL  SA30 a click confirms: the skill casts, mana is spent, the cooldown starts
+DIAG B-12: charging=true drawing=false bar_visible=false
+SUMMARY passes=1917 failures=9

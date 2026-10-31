@@ -88,11 +88,17 @@ func set_click_to_cast(enabled: bool) -> void:
 		slot.set_clickable(enabled)
 	click_to_cast_changed.emit(enabled)
 
-## A click on slot `index`: the same request the key makes. No direction is given, so SkillComponent2D uses the aim
+## A click on slot `index`: the same request the key makes (a PC aimed skill opens its aim preview). No direction is given, so SkillComponent2D uses the aim
 ## the character already has (the pointer is over the hotbar, so the player keeps its last aim, see player.gd).
 ## The component stays the authority for cost, cooldown and refusal.
 func _on_slot_clicked(index: int) -> void:
 	if not click_to_cast or not is_instance_valid(_skill_component):
+		return
+	# On PC the player turns an aimed skill into an aim preview (click in the world to cast, Escape or dash to cancel);
+	# anything else casts at once, as before.
+	var owner_character := _skill_component.get_parent()
+	if owner_character != null and owner_character.has_method("request_skill_cast"):
+		owner_character.request_skill_cast(index)
 		return
 	_skill_component.try_use_slot(index)
 

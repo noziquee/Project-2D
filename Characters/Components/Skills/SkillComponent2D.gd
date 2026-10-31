@@ -363,6 +363,23 @@ func _execute(skill: SkillDefinition2D, direction: Vector2) -> void:
 			pass # NONE does nothing by design.
 	skill_executed.emit(skill, direction)
 
+## R5: how long a skill's projectile flies, in seconds: max_range / speed, where the speed is the attack's, or `scene_speed`
+## (the projectile scene's own) when the attack sets none, never below MIN_PROJECTILE_LIFETIME. 0 = no limit asked (no
+## max_range, or no speed), so the scene's lifetime stays. The attack's own attack_range is never read: a skill's max_range
+## is its only travel distance, so a linked attack cannot make it fly further or shorter.
+static func projectile_flight_time(skill: SkillDefinition2D, scene_speed: float) -> float:
+	if skill == null or skill.attack == null or skill.max_range <= 0.0:
+		return 0.0
+	var flight_speed := skill.attack.projectile_speed if skill.attack.projectile_speed > 0.0 else scene_speed
+	if flight_speed <= 0.0:
+		return 0.0
+	return maxf(skill.max_range / flight_speed, MIN_PROJECTILE_LIFETIME)
+
+## R5: how long a DASH skill's dash lasts: max_range / dash_speed, never below MIN_DASH_TIME. The caster travels max_range
+## px (the strike radius after it is part of the skill's reach, not of the travel).
+static func dash_duration(skill: SkillDefinition2D) -> float:
+	return maxf(skill.max_range / maxf(skill.dash_speed, 1.0), MIN_DASH_TIME)
+
 ## Spawns the skill's projectile (13.3.1) the way AttackComponent2D spawns an attack effect: the same configure() call from
 ## the skill's AttackDefinition2D, the same host node, the same impact effect at each hit. Returns the projectile, or null
 ## (with an error) when the attack or its scene is unusable; validate() already refuses such a skill, so this only guards
@@ -387,10 +404,9 @@ func _execute_projectile(skill: SkillDefinition2D, direction: Vector2) -> Array[
 			continue
 		projectile.configure(context.character, attack.damage, shot_direction, attack.hitbox_size, attack.hitbox_offset, attack.hit_layers, attack.knockback, attack.hit_stun, attack.effect_animation, attack.max_targets, attack.pierce, attack.projectile_speed, attack.crit_chance, attack.crit_multiplier, attack.status_effects)
 		# max_range becomes a flight time. The speed is the attack's, or the scene's own when the attack sets none.
-		if skill.max_range > 0.0:
-			var flight_speed := attack.projectile_speed if attack.projectile_speed > 0.0 else projectile.speed
-			if flight_speed > 0.0:
-				projectile.lifetime = maxf(skill.max_range / flight_speed, MIN_PROJECTILE_LIFETIME)
+		var flight_time := projectile_flight_time(skill, projectile.speed)
+		if flight_time > 0.0:
+			projectile.lifetime = flight_time
 		_place_effect(projectile, skill)
 		spawned.append(projectile)
 	return spawned
@@ -448,7 +464,7 @@ func _execute_dash(skill: SkillDefinition2D, direction: Vector2) -> Vector2:
 	if not is_instance_valid(dash):
 		push_error("SkillComponent2D: dash skill '%s' needs a DashComponent2D on the caster." % skill.id)
 		return Vector2.ZERO
-	var duration := maxf(skill.max_range / maxf(skill.dash_speed, 1.0), MIN_DASH_TIME)
+	var duration := dash_duration(skill)
 	var dash_direction := dash.start_skill_dash(direction, skill.dash_speed, duration)
 	if dash_direction == Vector2.ZERO:
 		push_warning("SkillComponent2D: dash skill '%s' could not start a dash." % skill.id)

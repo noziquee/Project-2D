@@ -1,7 +1,32 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://sbgw2ctvq4ob"]
 
 [ext_resource type="Script" uid="uid://4ckccf11jtdb" path="res://Characters/Components/Aim/AimIndicator2D.gd" id="1_aim"]
 
-[node name="AimIndicator2D" type="Node2D"]
+[node name="AimIndicator2D" type="Node2D" unique_id=1330152577]
 z_index = 50
 script = ExtResource("1_aim")
+preview_shape = 5
+preview_show_targets = false
+range_color = Color(0.3256, 0.72292, 0.88, 0.11764706)
+range_gradient = true
+range_gradient_edge_color = Color(0.3256, 0.72292, 0.88, 0.039215688)
+fan_fill_color = Color(1, 1, 1, 0)
+fan_gradient = true
+fan_edge_gradient = true
+fan_edge_gradient_start_color = Color(1, 1, 1, 0)
+fan_edge_gradient_end_color = Color(1, 1, 1, 1)
+fan_edge_gradient_steps = 2
+arrow_gradient = true
+arrow_edge_gradient = true
+arrow_edge_gradient_start_color = Color(1, 1, 1, 0)
+arrow_edge_gradient_steps = 2
+arrow_width_scale = 0.5
+rectangle_gradient = true
+rectangle_edge_gradient = true
+rectangle_edge_gradient_start_color = Color(1, 1, 1, 0)
+rectangle_edge_gradient_steps = 2
+rectangle_width_scale = 0.5
+circle_gradient = true
+outline_width = 1.0
+linear_gradient_reach = 1.0
+pixel_size = 2

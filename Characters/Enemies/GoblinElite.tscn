@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://dla0du8tgdel1" path="res://Characters/Enemies/BasicEnemy2D.tscn" id="1_base"]
+[ext_resource type="Resource" path="res://Characters/Controllers/Profiles/GoblinEliteProfile.tres" id="2_profile"]
+[ext_resource type="Script" uid="uid://bnkr4gbd54uen" path="res://Characters/Components/Skills/SkillComponent2D.gd" id="3_skills"]
+
+[node name="GoblinElite" instance=ExtResource("1_base")]
+
+[node name="EnemyAIController2D" parent="." index="2"]
+profile = ExtResource("2_profile")
+
+[node name="SkillComponent2D" type="Node" parent="."]
+script = ExtResource("3_skills")
