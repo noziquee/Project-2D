@@ -4,12 +4,13 @@
 
 | Item | Value |
 |---|---|
-| Last updated | October 29, 2026 |
+| Last updated | November 1, 2026 |
 | Godot | 4.7.2 (headless) |
 | Import | Clean |
-| Smoke suite | `SUMMARY passes=1648 failures=0` (October 29, 2026, headless Godot 4.7.2 on Linux, 50 parts, includes H2.1 to H9.6, H9.4.4 and the aim indicator style options: 16 new checks, H9-125 to H9-140, part `h8_indicator`; the run before them gave 1632 / 0 with H9-110 to H9-124 in part `h9_heavy`). The archive this run started from gave `1614 / 3` (H7-64, H7-75 and H9-27) because it lacked the H7-64/H7-75 test fixes and the heavy fan's `max_range = 100` (H9.2 decision); all three are now in. Before that: `1617 / 0`, same machine type, 49 parts. Your Windows run on October 29 before those fixes: `1615 / 2` (H7-64 and H7-75). Rerun on your machine and replace this line with your result. Earlier green: 1198 / 0 on October 27 (your machine); 1109 / 0 on October 26 (`docs/trackW/W9-notes.md`) |
+| Latest run (November 1, 2026, **your Windows machine**, Godot 4.7.2 console build) | `SUMMARY passes=1926 failures=0`. Import clean (only the usual shutdown leak lines), no `CHECK FAIL`, no `UNEXPECTED ERROR`. This is the current baseline; it covers every part of the suite, including Track A, Track R, R7, Track E and H10. Same number as the October 31 Linux fix run. |
+| Smoke suite (older line, October 29, history) | `SUMMARY passes=1648 failures=0` (October 29, 2026, headless Godot 4.7.2 on Linux, 50 parts, includes H2.1 to H9.6, H9.4.4 and the aim indicator style options: 16 new checks, H9-125 to H9-140, part `h8_indicator`; the run before them gave 1632 / 0 with H9-110 to H9-124 in part `h9_heavy`). The archive this run started from gave `1614 / 3` (H7-64, H7-75 and H9-27) because it lacked the H7-64/H7-75 test fixes and the heavy fan's `max_range = 100` (H9.2 decision); all three are now in. Before that: `1617 / 0`, same machine type, 49 parts. Your Windows run on October 29 before those fixes: `1615 / 2` (H7-64 and H7-75). Rerun on your machine and replace this line with your result. Earlier green: 1198 / 0 on October 27 (your machine); 1109 / 0 on October 26 (`docs/trackW/W9-notes.md`) |
 | Track R run (October 29, 2026, headless Godot 4.7.2 on Linux, full suite) | R1 alone: `1658 / 7`. R1 + R2: `1676 / 2`. The two left are `UUU7` (arrow hit-once) and `H4-25` (one unexpected logged error: `Invalid polygon data, triangulation failed`, x185), both failing before Track R. The earlier `1648 / 0` line above does not match the current archive; rerun on your machine and replace it. Details: `docs/trackR/R1-notes.md`, `docs/trackR/R2-notes.md` |
-| Fix run (October 31, 2026, headless Godot 4.7.2 on Linux, full suite) | `SUMMARY passes=1926 failures=0`. Your Windows run before it gave `1917 / 9` (EVT9, EVT10, BC34, BC35, C1-3, H8-130, H8-165, H9-114, SA30). Two were game bugs: C1-3 (an enemy's heavy charge always aimed right: `_begin_heavy_charge` read `get_aim_direction()` after setting `_heavy_charging`) and H9-114 (on arrival of a heavy approach the carried charge was lost: the reach at charge 0 is shorter, so the same frame's begin started a new walk; `_begin_approach_if_needed` now returns false while `_arrival_pending`). The other seven were tests that had not caught up: the sword's light reach is 30 now (EVT9, EVT10 use a 20 px gap), the bow heavy fixture's queue time is 0.6 s (BC34, BC35), a tap walks first when the goblin is out of reach (H8-130 moves the goblin away), the drawn aim shape is a copy at the charge's reach (H8-165), and Lunge costs no mana (SA30). Rerun on your machine and replace this line with your result. |
+| Fix run (October 31, 2026, headless Godot 4.7.2 on Linux, full suite) | `SUMMARY passes=1926 failures=0`. Your Windows run before it gave `1917 / 9` (EVT9, EVT10, BC34, BC35, C1-3, H8-130, H8-165, H9-114, SA30). Two were game bugs: C1-3 (an enemy's heavy charge always aimed right: `_begin_heavy_charge` read `get_aim_direction()` after setting `_heavy_charging`) and H9-114 (on arrival of a heavy approach the carried charge was lost: the reach at charge 0 is shorter, so the same frame's begin started a new walk; `_begin_approach_if_needed` now returns false while `_arrival_pending`). The other seven were tests that had not caught up: the sword's light reach is 30 now (EVT9, EVT10 use a 20 px gap), the bow heavy fixture's queue time is 0.6 s (BC34, BC35), a tap walks first when the goblin is out of reach (H8-130 moves the goblin away), the drawn aim shape is a copy at the charge's reach (H8-165), and Lunge costs no mana (SA30). Your Windows rerun on November 1 confirmed `1926 / 0` (see the first row). |
 | First run of the H-track (October 27, 2026) | `1185 / 13`, then fixed: the player's `defense = 20` in `player.tscn` (kept as your balance value; `load_main()` pins it to 0 for tests) and the H3-22 weapon finder. Rerun: 1198 / 0. Then, with the error gate armed (October 27): `1198 / 0`, no `UNEXPECTED ERROR`; two full runs gave identical CHECK lines (H4.6 done). Still to do: commit `tests/expected_errors.txt` and push so CI runs (H4.7), then H4.5b (each part alone). |
 | H9 first run (October 29, 2026) | `1615 / 2`. Cause: since H9.4 a key press with an enemy in view but out of reach walks to it first. H7-64 waited 60 frames after a light tap, which now starts its swing late (the walk comes first), so the skill was refused during the swing: the wait is now 120. H7-75 pressed skill 2 (`sword_spin`, reach 52) with the goblin 134 px away, so it started an approach instead of casting: `matrix_run` now frees the goblin before the skill loop. No game code changed. Result: `1617 / 0`. |
 | `ERROR` lines in that green log | 66, almost all deliberate negative tests (see roadmap N1) |
@@ -18,7 +19,7 @@
 
 ## Error gate (H4.4)
 
-The suite listens to every error it logs (`tests/error_gate.gd`). An error passes when the running test declared it (`expect_error(...)` before, `check_expected_errors(...)` after) or when it is in `tests/expected_errors.txt`. Anything else fails the run as `UNEXPECTED ERROR`. **The gate is not armed until you record that file:** run `tools/run_checks.sh --record-errors` once, review `tests/expected_errors.txt` (these should be the deliberate negative tests) and commit it. Shutdown leaks (`ObjectDB instances leaked`) come after the script ends, so `run_checks.sh` counts them separately and does not gate them.
+The suite listens to every error it logs (`tests/error_gate.gd`). An error passes when the running test declared it (`expect_error(...)` before, `check_expected_errors(...)` after) or when it is in `tests/expected_errors.txt`. Anything else fails the run as `UNEXPECTED ERROR`. **The gate is armed:** `tests/expected_errors.txt` is recorded (27 entries, the deliberate negative tests), and the November 1 run printed no `UNEXPECTED ERROR`. After a change that adds a deliberate negative test, run `tools/run_checks.sh --record-errors`, review the diff of that file and commit it. Shutdown leaks (`ObjectDB instances leaked`) come after the script ends, so `run_checks.sh` counts them separately and does not gate them.
 
 ## Commands
 
@@ -86,7 +87,7 @@ D26 weapon data belongs to the weapon: the goblin archer equips `Bow_WeaponDefin
 
 - Channel skills (`channel_time` is hidden from the Inspector and must be 0, H2.3).
 - Game over / respawn flow (not found in `player.gd` or `Main.tscn`; scope to be confirmed, N4).
-- Gamepad bindings, touch controls, aim from a stick or finger, and responsive display settings: **in scope as of October 28, 2026**, planned as Phase H7 (source: `docs/Godot_Responsive_Display_and_Multi_Device_Input_Guide.pdf`). Today the display uses `viewport` stretch, the input map has keyboard and mouse only, and aiming reads the mouse. D9 to D12 were decided on October 28 as recommended (see below).
+- (Moved: gamepad bindings, touch controls, stick or finger aim and responsive display settings were built in H7 and H8 and are green in the suite; see the H7 sections below. What is left of them is your device matrix and play-test.)
 - Ground Slam is an example resource, not in any loadout.
 - Dash-slash variant, fire staff and further weapons (Phase 15, after H0 to H4).
 
@@ -133,6 +134,31 @@ Part `h7_matrix` (checks H7-72 to H7-77) runs dash, a light tap, a heavy hold an
 - R7 (RD6 charge variety steps 1 and 2, October 29, 2026; `docs/trackR/R7-notes.md`): written, NOT RUN. The bow's heavy now sets `charge_reach_min = 0.5` and `charge_threshold = 1.0` (it set neither), plus an optional `charge_reach_ease` curve (default linear). Checks R4-10 to R4-14; R4-9, XX9 and A-26 updated. Step 3 (charge stages: `ChargeStage2D`, `charge_stages`, signal `charge_stage_changed`; checks S-1 to S-14, part `r7_stages`) is written, NOT RUN. Step 4 (timed release: `perfect_window_*`, release multipliers, signals `release_timing_changed` / `charge_released`; checks T-1 to T-14, part `r7_timed`) is written, NOT RUN. Step 5 (`charge_damage_curve`, `charge_area_curve`; checks C-1 to C-12, part `r7_scaling`) is written, NOT RUN. Step 6 (charge bar) not started.
 
 - Track E (enemy AI combat behavior, first versions written October 29, 2026, audit October 30; `docs/trackE/E0-audit-and-status.md`): combo length and recovery pause (B2, B3), heavy-attack opening wait (C1, C2), skill use (D1), self buffs (DE1, D2-1 to D2-4, `docs/trackE/DE1-notes.md`), four profiles and minimum-range retreat (E1); parts `enemy_ai_combo`, `enemy_ai_heavy`, `enemy_ai_heavy_wait`, `enemy_ai_skill`, `enemy_ai_profiles`. **NOT RUN, uncommitted.** Phases F (telegraphs for all actions, group coordination) and G not started. Next: run the suite and record the result here, group attack slots (DE2, `max_simultaneous_attackers`, checks DE2-1 to DE2-10, part `enemy_ai_slots`, with `circle_while_waiting`, `docs/trackE/DE2-notes.md`) are also written, NOT RUN. DE3 (warning shape before an enemy skill, `skill_windup_duration`, checks D3-1 to D3-5, `docs/trackE/DE3-notes.md`) is written, NOT RUN. C3 (heavy attack judged by where the target will be at the end of the charge, checks C3-1 and C3-2, `docs/trackE/C3-notes.md`) is written, NOT RUN. E2 (repositioning to `preferred_combat_range`, checks E2-1 to E2-5, `docs/trackE/E2-notes.md`) is written, NOT RUN. E3 (simple common profile, target switching, attack pick report `last_attack_candidates`, checks E3-1 to E3-8, `docs/trackE/E3-notes.md`) is written, NOT RUN; it also fixes E2-5 in `tests/smoke_checks.gd`, which used two variables before their declaration. Support / commander profile still needs an ally skill behavior. E4 (`GoblinElite.tscn` with `GoblinEliteProfile.tres`: heavy choice, `SkillComponent2D`, skill warning, target switching; checks E4-1 to E4-4; `docs/trackE/E4-notes.md`) is written, NOT RUN; the normal goblin and `Main.tscn` are unchanged. E5 (`TrackEArena.tscn`, six enemies with one profile each, checks E5-1 and E5-2) is written, NOT RUN.
+
+## Run status note (November 1, 2026)
+
+Many sections below say "written, NOT RUN" (Track A, Track R R3 to R5, R7, Track E, H9.4.0 to H9.6, H10). That wording is history from the days no Godot was at hand. The November 1 full run (`1926 / 0`) executes all of those checks, so they are now **automated pass only**. What none of them has had is a play-test or an editor look. Do not treat the old "NOT RUN" tags as current.
+
+## Remaining gaps (audit of November 1, 2026)
+
+Not built:
+- Channel skills (13.3.5): `channel_time` stays hidden and must be 0.
+- Game over / respawn (N4): `player.gd` `_on_death()` only stops input. Scope still to be confirmed.
+- Phase 15 content: fire staff, hammer, daggers, spear, VFX and sound pass, dash-slash variant, balancing pass.
+- Track E: ally-support skill behavior and the support / commander profile; warning shapes other than the forward lane (including the DE4 ground-circle warning); Phase G encounter play-test. Group attack slots (DE2) live inside `EnemyAIController2D` (node meta), not in a separate coordinator class.
+- R7: projectile-count and accuracy stages, audio cues, scaled-area preview while charging.
+- Ground Slam is an example resource only, in no loadout.
+
+Open Track H items:
+- H2.5 (goblin interruptibility), H2.6 (rename `max_range` per behavior, D8, migrates the `.tres` files), H4.5b (run each suite part alone).
+- H5 (D6, weapon owns attacks): `AttackComponent2D` still exports both `attack_definition` and `attacks`. H5.2 and H5.3 are optional.
+- H8.10 / H7.8: the device matrix in `docs/trackH/H7.8-notes.md` is blank.
+- H9.7 leftovers: the code fallback layout in `MobileControls` (`_build_layout_in_code`, D21) is still there; no test loads every effect scene; no shipped skill names a `weapon_animation` clip, so that path has never run in the game; no `AttackSpawnPoint` markers are set in any scene.
+- H9.8: regression pass by hand.
+
+Never done by anyone: the play-test (`Improvement-Roadmap-2026-10-27.md`, section 5), an editor run of `Main.tscn`, and the first GitHub Actions run (`.github/workflows/checks.yml`, needs a commit and push).
+
+Packaging: the archive carried `run*.log`, `import_verbose.log` and a 6.5 MB `.godot/`. Leave them out of zips (README packaging note).
 
 ## Roadmap pointer
 

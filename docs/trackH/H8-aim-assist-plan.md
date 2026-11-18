@@ -1,6 +1,6 @@
 # H8: Assisted aiming and touch combat controls (plan, October 28, 2026)
 
-Status: **plan only, nothing implemented. Awaiting your review.**
+Status (updated Nov 1, 2026): H8.1 to H8.9 are implemented and green in the suite (1926 / 0); H8.10 (docs, device matrix, D11 marked superseded) is still open. The original plan text below is kept as written.
 Source: `Godot_Mobile_Controls_and_Aim_Assist_Design.pdf`, plus your decisions of October 28.
 This supersedes D11 (touch aim is a right virtual stick) and the aim stick built in H7.6.
 
